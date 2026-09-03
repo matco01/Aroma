@@ -1,0 +1,47 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+
+solc_version = "0.8.28"
+# Not pinning evm_version yet — Arc documents its EVM target as "Osaka
+# baseline" but that isn't yet a recognized --evm-version value in current
+# solc/forge tooling. Leaving this on the toolchain default (a recent,
+# widely-supported fork) until Arc's exact opcode support is confirmed
+# against a real testnet deploy, rather than guessing a string that might
+# silently fall back or fail. Revisit before the first testnet deploy.
+
+# High optimizer runs: this contract is called on every single buy/sell
+# (high call frequency) more than it's deployed (once). Optimizing for
+# cheap repeated calls over cheap one-time deployment is the right tradeoff
+# here, same reasoning most production AMMs use.
+optimizer = true
+optimizer_runs = 1_000_000
+
+# Deploy-cost-sensitive: the factory deploys a fresh ERC20 on every single
+# token launch, so *that* contract's bytecode size/deploy gas matters a lot
+# more than a normal one-off deploy. Keep the launched-token contract
+# minimal — this is a design constraint on AramToken.sol, not a toml
+# setting, noted here so it isn't lost.
+
+fs_permissions = [{ access = "read", path = "./" }]
+
+remappings = [
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "forge-std/=lib/forge-std/src/",
+]
+
+[rpc_endpoints]
+arc_testnet = "${ARC_TESTNET_RPC_URL}"
+# arc_mainnet intentionally not added yet — mainnet doesn't exist until
+# 2026-09-16. Add once a mainnet RPC endpoint is chosen (plan §1: two
+# independent managed providers, not the bare public endpoint).
+
+[etherscan]
+# Arc's block explorer (Arcscan) verification support — endpoint/API key
+# unconfirmed as of writing. Fill in once verified; until then `forge
+# verify-contract` for Arc will need to be checked against Arcscan's actual
+# docs rather than assumed to be Etherscan-compatible.
+arc_testnet = { key = "${ARCSCAN_API_KEY}", url = "https://testnet.arcscan.app/api" }

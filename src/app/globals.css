@@ -1,26 +1,160 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* =========================================================================
+   ARAM design tokens — Arc-native launchpad
+   Rules of the system:
+     1. Elevation comes from background + hairline. Never from shadow.
+        (Shadows + blur are the #1 tell of a generated marketing page.)
+     2. Radius maxes out at 12px. Nothing is a pill except status chips.
+     3. Every number is mono + tabular. Money is money, it should not reflow.
+     4. One accent. Green/red are reserved *exclusively* for price direction,
+        never for buttons, never for decoration.
+   Tuned softer than a raw trading terminal on purpose: surfaces sit a touch
+   higher off black, hairlines carry less contrast, corners are roomier.
+   Pons over pump.fun — calm and dense, not stark and cramped.
+   ========================================================================= */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: #0b0c0f;
+  --color-surface: #131519;
+  --color-surface-2: #181b21;
+  --color-surface-3: #1e222a;
+
+  --color-line: #1c1f26;
+  --color-line-strong: #2a2f38;
+
+  --color-ink: #e3e5e9;
+  --color-ink-2: #8f96a1;
+  --color-ink-3: #61686f;
+
+  /* Arc blue. The only accent in the system. */
+  --color-accent: #3d7dff;
+  --color-accent-hi: #5a91ff;
+  --color-accent-ink: #ffffff;
+  --color-accent-dim: #16264a;
+
+  /* Direction only. */
+  --color-up: #34c77b;
+  --color-down: #f0616d;
+  --color-warn: #e0a83c;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-xs: 5px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: var(--color-bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Numbers never reflow as they tick. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Small caps label used above every data group. */
+.label {
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+  font-weight: 500;
+}
+
+/* Hairline that reads at 1 device pixel on retina. */
+.hair {
+  border-color: var(--color-line);
+}
+
+::selection {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* Scrollbars: present, quiet, not hidden. Hiding them is a vibecode tell. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 99px;
+  border: 3px solid var(--color-bg);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Focus is visible and square-ish. No glow. */
+:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+@keyframes aram-flash-up {
+  from {
+    background-color: color-mix(in srgb, var(--color-up) 22%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+@keyframes aram-flash-down {
+  from {
+    background-color: color-mix(in srgb, var(--color-down) 22%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.flash-up {
+  animation: aram-flash-up 620ms ease-out;
+}
+.flash-down {
+  animation: aram-flash-down 620ms ease-out;
+}
+
+@keyframes aram-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.slide-in {
+  animation: aram-slide-in 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-up,
+  .flash-down,
+  .slide-in {
+    animation: none;
+  }
 }

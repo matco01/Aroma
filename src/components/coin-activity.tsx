@@ -1,0 +1,197 @@
+"use client";
+
+import { useState } from "react";
+import type { Holder, Reply, Trade } from "@/lib/mock";
+import { ago, compact, shortAddr, usd } from "@/lib/format";
+import { Chip } from "./primitives";
+
+type Tab = "trades" | "holders" | "replies";
+
+export function CoinActivity({
+  trades,
+  holders,
+  replies,
+  ticker,
+}: {
+  trades: Trade[];
+  holders: Holder[];
+  replies: Reply[];
+  ticker: string;
+}) {
+  const [tab, setTab] = useState<Tab>("trades");
+
+  const TABS: { id: Tab; label: string; count: number }[] = [
+    { id: "trades", label: "Trades", count: trades.length },
+    { id: "holders", label: "Holders", count: holders.length },
+    { id: "replies", label: "Replies", count: replies.length },
+  ];
+
+  return (
+    <div className="rounded-md border border-line bg-surface">
+      <div className="flex items-center gap-1 border-b border-line p-1.5">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`rounded-sm px-2.5 py-1.5 text-[12.5px] transition-colors ${
+              tab === t.id
+                ? "bg-surface-3 text-ink"
+                : "text-ink-2 hover:bg-surface-2 hover:text-ink"
+            }`}
+          >
+            {t.label}
+            <span className="num ml-1.5 text-[11px] text-ink-3">{t.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {tab === "trades" && <TradesTable trades={trades} ticker={ticker} />}
+      {tab === "holders" && <HoldersTable holders={holders} />}
+      {tab === "replies" && <RepliesList replies={replies} />}
+    </div>
+  );
+}
+
+function TradesTable({ trades, ticker }: { trades: Trade[]; ticker: string }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[520px]">
+        <thead>
+          <tr className="border-b border-line bg-surface-2">
+            <Th>Account</Th>
+            <Th>Side</Th>
+            <Th align="right">USDC</Th>
+            <Th align="right">{ticker}</Th>
+            <Th align="right">Age</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {trades.map((t) => (
+            <tr key={t.id} className="border-b border-line last:border-0">
+              <Td>
+                <span className="num text-ink-2">{shortAddr(t.account)}</span>
+              </Td>
+              <Td>
+                <span
+                  className={`num text-[11.5px] ${
+                    t.side === "buy" ? "text-up" : "text-down"
+                  }`}
+                >
+                  {t.side}
+                </span>
+              </Td>
+              <Td align="right">
+                <span className="num text-ink">{usd(t.usd)}</span>
+              </Td>
+              <Td align="right">
+                <span className="num text-ink-2">
+                  {compact(Math.round(t.tokens))}
+                </span>
+              </Td>
+              <Td align="right">
+                <span className="num text-ink-3">{ago(t.agoSeconds)}</span>
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function HoldersTable({ holders }: { holders: Holder[] }) {
+  return (
+    <div>
+      {holders.map((h, i) => (
+        <div
+          key={h.account + i}
+          className="flex items-center gap-3 border-b border-line px-3.5 py-2.5 last:border-0"
+        >
+          <span className="num w-5 shrink-0 text-[11px] text-ink-3">
+            {i + 1}
+          </span>
+          <span className="num min-w-0 flex-1 truncate text-[12px] text-ink-2">
+            {h.isCurve ? h.account : shortAddr(h.account)}
+          </span>
+          {h.isCurve && <Chip tone="accent">curve</Chip>}
+          {h.isDev && <Chip tone="warn">dev</Chip>}
+          <div className="hidden h-[3px] w-24 overflow-hidden rounded-full bg-surface-3 sm:block">
+            <div
+              className="h-full bg-ink-3"
+              style={{ width: `${Math.min(100, h.pctOwned)}%` }}
+            />
+          </div>
+          <span className="num w-12 shrink-0 text-right text-[12px] text-ink">
+            {h.pctOwned.toFixed(2)}%
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RepliesList({ replies }: { replies: Reply[] }) {
+  return (
+    <div>
+      <div className="border-b border-line p-3.5">
+        <textarea
+          rows={2}
+          placeholder="Post a reply"
+          className="w-full resize-none rounded-sm border border-line bg-bg px-2.5 py-2 text-[12.5px] text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-line-strong"
+        />
+        <div className="mt-2 flex justify-end">
+          <button className="h-8 rounded-sm border border-line-strong px-3 text-[12px] text-ink transition-colors hover:bg-surface-2">
+            Post
+          </button>
+        </div>
+      </div>
+      {replies.map((r) => (
+        <div key={r.id} className="border-b border-line px-3.5 py-3 last:border-0">
+          <div className="flex items-center gap-2">
+            <span className="num text-[11.5px] text-ink-2">
+              {shortAddr(r.account)}
+            </span>
+            <span className="num text-[11px] text-ink-3">
+              {ago(r.agoSeconds)}
+            </span>
+            <div className="flex-1" />
+            <span className="num text-[11px] text-ink-3">♥ {r.likes}</span>
+          </div>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-ink">{r.body}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Th({
+  children,
+  align = "left",
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right";
+}) {
+  return (
+    <th
+      className={`label px-3.5 py-2 ${align === "right" ? "text-right" : "text-left"}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({
+  children,
+  align = "left",
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right";
+}) {
+  return (
+    <td
+      className={`px-3.5 py-2 text-[12px] ${align === "right" ? "text-right" : "text-left"}`}
+    >
+      {children}
+    </td>
+  );
+}

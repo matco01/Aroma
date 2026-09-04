@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { imageSize } from "image-size";
 import { pinImage, pinMetadata, hasPinata, gatewayUrl, IpfsError } from "@/lib/server/ipfs";
+import { checkImageFile, checkImageDimensions } from "@/lib/image-rules";
 
 /**
  * Takes a creator's image, pins it and its metadata to IPFS, and returns
@@ -9,9 +11,6 @@ import { pinImage, pinMetadata, hasPinata, gatewayUrl, IpfsError } from "@/lib/s
  * URI ready to pass to createToken. Doing it server-side keeps the Pinata
  * JWT out of the browser — otherwise anyone could pin to this account.
  */
-
-const MAX_BYTES = 5 * 1024 * 1024;
-const ALLOWED = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 
 export async function POST(request: Request) {
   if (!hasPinata) {
@@ -36,20 +35,31 @@ export async function POST(request: Request) {
   // Validate before spending an upload. Type is checked against an
   // allowlist rather than a denylist — an SVG, for instance, is an image
   // that can carry script, and is deliberately absent.
-  if (!ALLOWED.has(file.type)) {
+  const fileProblem = checkImageFile(file.type, file.size);
+  if (fileProblem) {
+    return NextResponse.json({ error: fileProblem }, { status: 400 });
+  }
+
+  // Dimensions come from the header only — imageSize parses metadata and
+  // never decodes pixels, which is the whole point. Decoding first to find
+  // out an image is too big is exactly the bomb we are guarding against.
+  const bytes = Buffer.from(await file.arrayBuffer());
+  let width = 0;
+  let height = 0;
+  try {
+    const size = imageSize(bytes);
+    width = size.width ?? 0;
+    height = size.height ?? 0;
+  } catch {
     return NextResponse.json(
-      { error: "Use a PNG, JPEG, GIF or WebP image" },
+      { error: "That file isn't a readable image" },
       { status: 400 },
     );
   }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json(
-      { error: `Image must be under ${MAX_BYTES / 1024 / 1024}MB` },
-      { status: 400 },
-    );
-  }
-  if (file.size === 0) {
-    return NextResponse.json({ error: "That image is empty" }, { status: 400 });
+
+  const dimensionProblem = checkImageDimensions(width, height);
+  if (dimensionProblem) {
+    return NextResponse.json({ error: dimensionProblem }, { status: 400 });
   }
 
   const name = String(form.get("name") ?? "").slice(0, 64);
@@ -57,7 +67,7 @@ export async function POST(request: Request) {
   const description = String(form.get("description") ?? "").slice(0, 500);
 
   try {
-    const image = await pinImage(file);
+    const image = await pinImage(new File([bytes], file.name || "image", { type: file.type }));
     const metadataUri = await pinMetadata({ name, symbol, description, image });
 
     return NextResponse.json({

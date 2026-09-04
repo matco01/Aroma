@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useCreateToken } from "@/lib/use-trade";
+import { IMAGE_RULES, checkImageFile, checkImageDimensions } from "@/lib/image-rules";
 import { CURVE, marketCapAfterRaise } from "@/lib/arc";
 import { compact, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
@@ -70,11 +71,44 @@ export function CreateForm() {
 
   const busy = phase === "signing" || phase === "pending" || uploading;
 
+  /**
+   * Reads dimensions in the browser without decoding the whole image, so a
+   * file that is never going to be accepted is rejected instantly instead
+   * of after uploading megabytes. The server checks again regardless —
+   * this is a courtesy, not the gate.
+   */
+  function measure(objectUrl: string): Promise<{ width: number; height: number }> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve({ width: 0, height: 0 });
+      img.src = objectUrl;
+    });
+  }
+
   async function onPickImage(file: File | undefined) {
     if (!file) return;
     setUploadError(null);
     setMetadataUri("");
-    setImagePreview(URL.createObjectURL(file));
+
+    const fileProblem = checkImageFile(file.type, file.size);
+    if (fileProblem) {
+      setUploadError(fileProblem);
+      setImagePreview("");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    const { width, height } = await measure(objectUrl);
+    const dimensionProblem = checkImageDimensions(width, height);
+    if (dimensionProblem) {
+      setUploadError(dimensionProblem);
+      setImagePreview("");
+      URL.revokeObjectURL(objectUrl);
+      return;
+    }
+
+    setImagePreview(objectUrl);
     setUploading(true);
     try {
       const body = new FormData();
@@ -196,7 +230,7 @@ export function CreateForm() {
                 <span className="block text-[11px] text-ink-3">
                   {uploadError
                     ? uploadError
-                    : "PNG, JPG, GIF or WebP · square · up to 5 MB"}
+                    : `PNG, JPG, GIF or WebP · square · ${IMAGE_RULES.minDimension}–${IMAGE_RULES.maxDimension}px · up to ${IMAGE_RULES.maxBytes / 1024 / 1024} MB`}
                 </span>
               </span>
               <input

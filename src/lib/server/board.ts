@@ -59,14 +59,48 @@ const TRADES_QUERY = `
 `;
 
 const TOKEN_QUERY = `
-  query TokenDetail($id: ID!, $tradeLimit: Int!) {
+  query TokenDetail($id: ID!, $tradeLimit: Int!, $interval: Int!, $candleLimit: Int!) {
     token(id: $id) { ${TOKEN_FIELDS} }
-    trades(first: $tradeLimit, orderBy: timestamp, orderDirection: asc, where: { token: $id }) {
+    trades(first: $tradeLimit, orderBy: timestamp, orderDirection: desc, where: { token: $id }) {
       ${TRADE_FIELDS}
+    }
+    candles(
+      first: $candleLimit
+      orderBy: bucketStart
+      orderDirection: desc
+      where: { token: $id, interval: $interval }
+    ) {
+      bucketStart open high low close volume
     }
     _meta { block { number } hasIndexingErrors }
   }
 `;
+
+type RawCandle = {
+  bucketStart: string;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+  volume: string;
+};
+
+/**
+ * Candle interval matched to how much history there is.
+ *
+ * A token minutes old has nothing to show on daily candles; one a year old
+ * has 100,000 five-minute buckets. Picking from age keeps the chart at a
+ * roughly constant number of points whatever the token's age, which is
+ * what makes this bounded rather than growing forever.
+ */
+function candleInterval(ageSeconds: number): number {
+  if (ageSeconds < 6 * 3600) return 300; // 5m
+  if (ageSeconds < 14 * 86400) return 3600; // 1h
+  return 86400; // 1d
+}
+
+/** Enough points to draw a readable line, few enough to stay cheap. */
+const CANDLE_POINTS = 120;
 
 type RawToken = {
   id: string;
@@ -299,26 +333,54 @@ export async function fetchTokenDetail(address: string): Promise<{
   meta: SubgraphMeta;
 }> {
   const id = address.toLowerCase();
+  const now = Math.floor(Date.now() / 1000);
+
+  // The interval depends on the token's age, which needs one cheap read
+  // before the main query. Cached like everything else, so a hot token
+  // pays for it once per TTL.
+  const ageProbe = await query<{ token: { createdAt: string } | null }>(
+    `age:${id}`,
+    `query Age($id: ID!) { token(id: $id) { createdAt } }`,
+    { id },
+  );
+  const age = ageProbe.token ? now - Number(ageProbe.token.createdAt) : 0;
+  const interval = candleInterval(age);
+
   const data = await query<{
     token: RawToken | null;
     trades: RawTrade[];
+    candles: RawCandle[];
     _meta: { block: { number: number }; hasIndexingErrors: boolean };
-  }>(`token:${id}`, TOKEN_QUERY, { id, tradeLimit: 500 });
+  }>(`token:${id}:${interval}`, TOKEN_QUERY, {
+    id,
+    // Most RECENT trades, not the oldest. Ascending here meant a token
+    // with more than this many trades showed its ancient history and
+    // nothing since — invisible at three trades, badly wrong at fifty
+    // thousand.
+    tradeLimit: 50,
+    interval,
+    candleLimit: CANDLE_POINTS,
+  });
 
-  const now = Math.floor(Date.now() / 1000);
   const meta = {
     indexedBlock: data._meta.block.number,
     hasIndexingErrors: data._meta.hasIndexingErrors,
   };
   if (!data.token) return { coin: null, trades: [], meta };
 
-  // priceAfter is the spot price the index recorded at each trade, so the
-  // chart is read rather than reconstructed from raw amounts.
-  const history = data.trades.map((t) => toNum(t.priceAfter));
+  // Chart from candles, not from individual trades. This is the whole
+  // reason candles are indexed: the series stays ~120 points whether the
+  // token has ten trades or a million, instead of growing without bound.
+  const candles = [...data.candles].reverse(); // oldest first, for plotting
+  const history =
+    candles.length > 0
+      ? [toNum(candles[0].open), ...candles.map((c) => toNum(c.close))]
+      : [toNum(data.token.price)];
+  // Always end on the live price so the chart's last point matches the
+  // number displayed beside it.
   history.push(toNum(data.token.price));
 
-  // Ascending for the chart, descending for the trades table.
-  const trades = data.trades.map((t) => toTrade(t, now)).reverse();
+  const trades = data.trades.map((t) => toTrade(t, now));
 
   return { coin: toCoin(data.token, now, history), trades, meta };
 }

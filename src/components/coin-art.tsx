@@ -34,9 +34,9 @@ export function CoinArt({
 
   if (imageUrl && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- the source is
-      // an arbitrary IPFS gateway, which next/image cannot optimise without
-      // allowlisting every gateway a creator might use.
+      /* The source is an arbitrary IPFS gateway, which next/image cannot
+         optimise without allowlisting every gateway a creator might use. */
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={imageUrl}
         alt={alt}

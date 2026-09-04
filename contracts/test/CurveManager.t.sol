@@ -66,7 +66,7 @@ contract CurveManagerTest is Test {
     /// The curve's graduation trigger reads the *net* reserve, but callers
     /// send gross, and a 1% fee is integer division — so hitting the
     /// graduation boundary exactly takes solving for it rather than
-    /// guessing. For the $24,000 target this lands exactly, no overshoot,
+    /// guessing. For the $13,800 target this lands exactly, no overshoot,
     /// which matters: buy() hard-reverts if a trade would push tokensSold
     /// even one wei past CURVE_SUPPLY.
     function _grossForNet(uint256 net) internal view returns (uint256 gross) {
@@ -103,7 +103,7 @@ contract CurveManagerTest is Test {
 
         (uint256 raised, uint256 tokensSold,,) = curve.tokenState(token);
 
-        assertEq(raised, curve.GRADUATION_RAISE_USDC(), "net raised must land exactly on the $24,000 target");
+        assertEq(raised, curve.GRADUATION_RAISE_USDC(), "net raised must land exactly on the $13,800 target");
 
         // Not bit-exact against the 800M target, and shouldn't be: the
         // Python derivation uses exact rationals, integer Solidity rounds.
@@ -132,6 +132,48 @@ contract CurveManagerTest is Test {
         vm.prank(buyer);
         vm.expectRevert(bytes("exceeds curve supply"));
         curve.buy{value: 1e18}(token, buyer, 0);
+    }
+
+    /// @notice The graduation pool must open at the price the curve closed
+    /// at. This is the test that did not exist when the curve was first
+    /// derived, and its absence shipped a 73.8% price gap: with a $24,000
+    /// raise and a 200M LP reserve the pool opened at a $119,950 market cap
+    /// while the curve closed at $69,000 — a windfall for anyone holding
+    /// through migration, paid for by whoever bought into the fresh pool.
+    ///
+    /// The reserve and the raise are one decision, not two:
+    ///     LP_RESERVE / TOTAL_SUPPLY == GRADUATION_RAISE / GRADUATION_MCAP
+    /// so this fails the moment either is edited without the other.
+    function test_graduationPoolOpensAtTheCurvesClosingPrice() public {
+        address token = _launch();
+        _buyToGraduation(token);
+
+        (uint256 raised, uint256 tokensSold,,) = curve.tokenState(token);
+        uint256 closingPrice =
+            (curve.VIRTUAL_USDC_RESERVE() + raised) * 1e18 / (curve.VIRTUAL_TOKEN_RESERVE() - tokensSold);
+
+        curve.graduate(token);
+
+        // What the vault actually received is what a pool would be seeded
+        // with — read it back rather than recomputing the intent.
+        uint256 usdcSeed = vault.balance;
+        uint256 tokenSeed = IERC20(token).balanceOf(vault);
+        uint256 openingPrice = usdcSeed * 1e18 / tokenSeed;
+
+        // The only permitted gap is the flat graduation fee leaving the
+        // raise: $10 of $13,800 is 0.072%. Allow 0.5% and no more.
+        uint256 tolerance = closingPrice * 50 / 10_000;
+        assertApproxEqAbs(
+            openingPrice,
+            closingPrice,
+            tolerance,
+            "graduation pool must open where the curve closed"
+        );
+
+        // And the gap must be *downward* — the fee leaves, so the pool can
+        // only open marginally cheaper. Opening dearer would mean handing
+        // holders free upside at the new buyer's expense.
+        assertLe(openingPrice, closingPrice, "pool must never open above the curve's closing price");
     }
 
     function test_graduate_seedsVaultAndSkimsFlatFee() public {

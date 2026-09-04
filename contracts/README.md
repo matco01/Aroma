@@ -32,7 +32,9 @@ fairness pitch, so none of these are per-token configurable.
 | Total supply | 1,000,000,000 (fixed) |
 | Sold via curve | 800,000,000 |
 | Held for graduation LP | 200,000,000 |
-| Graduates at | $24,000 raised / $69,000 market cap |
+| Starts at | ~$4,312.50 market cap (price x full supply, before any buy) |
+| Graduates at | $13,800 raised / $69,000 market cap |
+| Launch -> graduation | 16.0x |
 | Creation fee | **Free** — pump.fun charges $0 to create, and taxing creation works against the volume that actually earns |
 | Trade fee | 1% on buys and sells (matches Pons) |
 | Fee split | 70% to the token's creator, 30% protocol (matches Pons) |
@@ -59,15 +61,40 @@ invariant-preserving leg), so integer dust always stays with the protocol
 rather than being extractable by a trader repeating a trade.
 `testFuzz_buyThenSellIsNeverProfitable` is the guard on that.
 
+### The raise target is not a free parameter
+
+At graduation the pool is seeded with the raise and the unsold tokens, so it
+opens at `raise / lpReserve`. Matching the price the curve just closed at
+forces:
+
+```
+lpReserve / totalSupply  ==  graduationRaise / graduationMarketCap
+```
+
+A 20% LP reserve against a $69,000 graduation therefore *requires* a
+$13,800 raise. The two constants are one decision.
+
+The original $24,000 got this wrong: the pool would have opened at a
+$119,950 market cap against a curve closing at $69,000, a **73.8% jump**
+handed to whoever held through migration and paid for by whoever bought into
+the new pool. It also flattened the curve badly — launch to graduation was
+only 5.3x, against pump.fun's ~15x.
+
+Fixed by moving the raise to $13,800, which leaves the 80/20 split untouched
+and lands the start at $4,312.50 for 16.0x. `derive_curve.py` now asserts
+continuity, and `test_graduationPoolOpensAtTheCurvesClosingPrice` fails on
+the old constants — verified by putting them back.
+
 ## Deployed — Arc testnet (chain 5042002)
 
 | Contract | Address |
 |---|---|
-| CurveManager | `0x4697289C9F954BFf3FD44BC2B27801045Ccc1a5D` |
-| AramFactory | `0x371F53a3047e9081b136CfCe29c97689cf531b44` |
+| CurveManager | `0x1a5ae846E6d9944d9190553bb8085bE3C0251285` |
+| AramFactory | `0xedc289C837b01F6B893275E22CbcfF56040cDf51` |
 
-(Redeployed 2026-09-03 to add `description` to `TokenCreated`; the earlier
-pair at `0xfc63…5540` / `0xaBa7…589B` predates that field.)
+Redeployed 2026-09-04 with the retuned curve (see below). Earlier pairs at
+`0x4697…1a5D`/`0x371F…1b44` and `0xfc63…5540`/`0xaBa7…589B` are superseded
+and carry the old $24,000 raise.
 
 Full lifecycle exercised on-chain on 2026-09-03 — launch, dev-buy, public
 buy, permit sell, creator-fee claim. Measured costs at ~24 gwei effective:

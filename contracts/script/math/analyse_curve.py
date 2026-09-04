@@ -5,14 +5,19 @@ starting market cap, upside to graduation, and — the one that matters most —
 whether the graduation pool gets seeded at the same price the curve ended at.
 
 A launchpad curve has three numbers people feel: where a coin starts, where
-it graduates, and whether the jump into the DEX pool is smooth. Two of those
-were never checked when the reserves were derived.
+it graduates, and whether the handover into the DEX pool is smooth. The
+original derivation checked only the middle one, which is how a 73.8% price
+jump at graduation survived to a deployed contract.
+
+Run this after touching any curve constant. derive_curve.py asserts
+continuity and will fail outright; this prints the trader-facing numbers so
+a change that is merely *bad* rather than *broken* is still visible.
 """
 
 from fractions import Fraction as F
 
 TOTAL_SUPPLY = F(1_000_000_000)
-GRAD_RAISE = F(24_000)
+GRAD_RAISE = F(13_800)
 GRAD_MCAP = F(69_000)
 CURVE_SUPPLY = F(800_000_000)
 LP_RESERVE = TOTAL_SUPPLY - CURVE_SUPPLY
@@ -67,34 +72,19 @@ def lp_fraction_for_continuity(raise_target, grad_mcap):
 print("=" * 64)
 print("CURRENT PARAMETERS")
 print("=" * 64)
-report(CURVE_SUPPLY, GRAD_RAISE, GRAD_MCAP, label="as deployed (800M / 200M)")
+report(CURVE_SUPPLY, GRAD_RAISE, GRAD_MCAP, label="as deployed (800M / 200M, $13,800 raise)")
+report(CURVE_SUPPLY, F(24_000), GRAD_MCAP, label="the original $24,000 raise, for contrast")
 
-f = lp_fraction_for_continuity(GRAD_RAISE, GRAD_MCAP)
-print(f"For a smooth handover the LP reserve must be {float(f)*100:.1f}% of supply,")
-print(f"i.e. {float(f*TOTAL_SUPPLY):,.0f} tokens — not {float(LP_RESERVE):,.0f}.")
+required_lp = TOTAL_SUPPLY * GRAD_RAISE / GRAD_MCAP
+print(f"Continuity requires an LP reserve of {float(required_lp):,.0f} tokens "
+      f"({float(required_lp/TOTAL_SUPPLY)*100:.1f}% of supply);")
+print(f"the deployed reserve is {float(LP_RESERVE):,.0f}. These agree, which is")
+print("why the $13,800 raise is not a number anyone picked - it is forced by")
+print("the 20% reserve and the $69,000 graduation.")
 print()
 
 print("=" * 64)
-print("OPTION A — fix continuity, keep $24k raise and $69k graduation")
-print("=" * 64)
-report(TOTAL_SUPPLY * (1 - f), GRAD_RAISE, GRAD_MCAP, label="continuous split")
-
-print("=" * 64)
-print("OPTION B — pump.fun-like shape (lower raise => steeper curve)")
-print("=" * 64)
-# pump.fun reserves ~20.7% for the pool, which by the identity above means
-# raise/mcap ~= 0.207.
-for raise_target in [F(8_000), F(12_000), F(14_000)]:
-    frac = lp_fraction_for_continuity(raise_target, GRAD_MCAP)
-    report(
-        TOTAL_SUPPLY * (1 - frac),
-        raise_target,
-        GRAD_MCAP,
-        label=f"${float(raise_target):,.0f} raise -> $69k graduation",
-    )
-
-print("=" * 64)
-print("REFERENCE — pump.fun's real curve, for comparison")
+print("REFERENCE - pump.fun's real curve, for comparison")
 print("=" * 64)
 # 30 virtual SOL, 1.073B virtual tokens, ~85 SOL to graduate, 793.1M sold.
 sol = F(150)  # rough USD; only the ratios matter
@@ -105,3 +95,6 @@ print(f"  starting market cap       : ${float(start):,.0f}")
 print(f"  graduation market cap     : ${float(grad):,.0f}")
 print(f"  upside, launch->graduation: {float(grad/start):.2f}x")
 print(f"  LP reserve                : {float((TOTAL_SUPPLY-793_100_000)/TOTAL_SUPPLY)*100:.1f}% of supply")
+print()
+print("aram now sits close to that shape: $4,313 -> $69,000 is 16.0x, and the")
+print("LP reserve is 20% against pump.fun's 20.7%.")

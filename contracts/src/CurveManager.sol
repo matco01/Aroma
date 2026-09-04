@@ -23,7 +23,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 /// display-layer concern for the frontend/indexer, never curve math. See
 /// the project's derive_curve.py for how VIRTUAL_USDC_RESERVE and
 /// VIRTUAL_TOKEN_RESERVE below were derived and verified against the
-/// product's target constants (24,000 raised / 800M sold / $69,000 mcap).
+/// product's target constants (13,800 raised / 800M sold / $69,000 mcap).
 ///
 /// @dev Rounding direction is protocol-favoring on every trade: buy and
 /// sell both round the *invariant-preserving* leg up (via Math.ceilDiv),
@@ -36,10 +36,10 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
     // edit the reserve constants without re-deriving them.
     // ---------------------------------------------------------------
 
-    /// @dev Virtual USDC reserve, 18-decimal. ~18,461.538462 USDC.
-    uint256 public constant VIRTUAL_USDC_RESERVE = 18_461_538_461_538_461_538_462;
-    /// @dev Virtual token reserve, 18-decimal. ~1,415,384,615.384615 tokens.
-    uint256 public constant VIRTUAL_TOKEN_RESERVE = 1_415_384_615_384_615_384_615_384_615;
+    /// @dev Virtual USDC reserve, 18-decimal. Exactly 4,600 USDC.
+    uint256 public constant VIRTUAL_USDC_RESERVE = 4_600_000_000_000_000_000_000;
+    /// @dev Virtual token reserve, 18-decimal. ~1,066,666,666.666667 tokens.
+    uint256 public constant VIRTUAL_TOKEN_RESERVE = 1_066_666_666_666_666_666_666_666_667;
     /// @dev Product invariant of the two virtual reserves above, held
     /// constant for every token's curve. Solidity constant-folds this at
     /// compile time — no runtime multiplication cost.
@@ -48,7 +48,16 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000e18;
     uint256 public constant CURVE_SUPPLY = 800_000_000e18;
     uint256 public constant LP_RESERVE_SUPPLY = TOTAL_SUPPLY - CURVE_SUPPLY;
-    uint256 public constant GRADUATION_RAISE_USDC = 24_000e18;
+    /// @dev The raise is *not* a free parameter. Seeding the graduation pool
+    /// with the raise and the unsold tokens opens it at raise/LP_RESERVE, so
+    /// matching the price the curve closed at forces
+    /// LP_RESERVE/TOTAL_SUPPLY == GRADUATION_RAISE/GRADUATION_MARKET_CAP.
+    /// With a 20% reserve and a $69,000 graduation, that is $13,800 — not a
+    /// number anyone picked. An earlier $24,000 opened the pool at a
+    /// $119,950 market cap against a curve closing at $69,000, a 73.8% jump
+    /// paid by whoever bought into the new pool. derive_curve.py now asserts
+    /// this rather than trusting it.
+    uint256 public constant GRADUATION_RAISE_USDC = 13_800e18;
 
     uint256 public constant TRADE_FEE_BPS = 100; // 1%, matches Pons' own rate
     uint256 public constant FEE_DENOMINATOR = 10_000;
@@ -66,7 +75,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
     /// (zero) creation fee — this is the same idea, not the same number:
     /// theirs is SOL-denominated and covers *their* real migration gas;
     /// ours is a placeholder in the same modest spirit ($10, well under
-    /// 0.1% of the $24,000 raise) until real Uniswap v4 seeding costs on
+    /// 0.07% of the $13,800 raise) until real Uniswap v4 seeding costs on
     /// Arc are known. Revisit once graduate() actually seeds a pool.
     uint256 public constant GRADUATION_FEE_USDC = 10e18;
 

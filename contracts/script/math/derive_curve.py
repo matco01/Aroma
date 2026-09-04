@@ -28,15 +28,34 @@ from fractions import Fraction as F
 
 # ---- Inputs: must match src/lib/arc.ts's CURVE object exactly -------------
 TOTAL_SUPPLY = F(1_000_000_000)          # CURVE.totalSupply
-GRAD_RAISE_USD = F(24_000)               # CURVE.graduationTargetUsd
+GRAD_RAISE_USD = F(13_800)               # CURVE.graduationTargetUsd
 GRAD_MARKET_CAP_USD = F(69_000)          # CURVE.graduationMarketCapUsd
 
-# New constant this script introduces (not yet in arc.ts) — the curve/LP
-# split. 80/20 chosen as a clean round number in the same spirit as
-# pump.fun's real (non-round) ~79/21 split. Flag for confirmation before
-# treating as final; trivially changeable pre-deployment.
+# The curve/LP split. 80/20 looks like a round number picked for taste, but
+# it is not free: see PRICE CONTINUITY below. Given a $69,000 graduation, an
+# 80/20 split *forces* the raise to be $13,800, and vice versa. The two
+# constants are one decision, not two.
 CURVE_SUPPLY = F(800_000_000)            # tokens sellable via the curve
 LP_RESERVE_SUPPLY = TOTAL_SUPPLY - CURVE_SUPPLY   # reserved for graduation LP
+
+GRADUATION_FEE_USD = F(10)               # flat fee skimmed from the raise
+
+# ---- PRICE CONTINUITY ----------------------------------------------------
+#
+# The constraint this file originally missed, and the reason the raise moved
+# from $24,000 to $13,800.
+#
+# At graduation the pool is seeded with the raise and the unsold tokens, so
+# the price it opens at is  raise / lpReserve.  For that to equal the price
+# the curve just closed at (mcap / totalSupply), the reserve must satisfy:
+#
+#     lpReserve / totalSupply == raise / gradMcap
+#
+# Nothing else is adjustable. With $24,000 and a 20% reserve the pool opened
+# at a $119,950 market cap against a curve that closed at $69,000 — a 73.8%
+# gap handed to whoever held through migration, paid for by whoever bought
+# into the fresh pool. `assert_price_continuity` below now fails loudly
+# rather than letting that ship again.
 
 WEI = F(10) ** 18   # internal accounting precision (plan §3: 18-decimal, matches Arc's native USDC decimals)
 
@@ -70,6 +89,37 @@ def derive_virtual_reserves():
     return v_usdc, v_token, P
 
 
+def assert_price_continuity():
+    """
+    The graduation pool must open at the price the curve closed at.
+
+    Tolerance is 0.5%: the only permitted gap is the flat graduation fee
+    leaving the raise ($10 of $13,800 = 0.07%). Anything larger means the
+    supply split and the raise target have drifted apart.
+    """
+    grad_price = GRAD_MARKET_CAP_USD / TOTAL_SUPPLY
+    pool_price = (GRAD_RAISE_USD - GRADUATION_FEE_USD) / LP_RESERVE_SUPPLY
+    gap_pct = (pool_price / grad_price - 1) * 100
+
+    required_lp = TOTAL_SUPPLY * GRAD_RAISE_USD / GRAD_MARKET_CAP_USD
+    print("=== Price continuity at graduation ===")
+    print(f"  curve closes at  : ${float(grad_price * TOTAL_SUPPLY):,.2f} market cap")
+    print(f"  pool opens at    : ${float(pool_price * TOTAL_SUPPLY):,.2f} market cap")
+    print(f"  gap              : {float(gap_pct):+.3f}%  "
+          f"(the ${float(GRADUATION_FEE_USD):,.0f} graduation fee)")
+    print(f"  LP reserve       : {float(LP_RESERVE_SUPPLY):,.0f} "
+          f"(continuity requires {float(required_lp):,.0f})")
+
+    assert abs(gap_pct) < F(1, 2), (
+        f"graduation price gap {float(gap_pct):+.2f}% exceeds 0.5%. "
+        f"With a ${float(GRAD_RAISE_USD):,.0f} raise and a "
+        f"${float(GRAD_MARKET_CAP_USD):,.0f} graduation, the LP reserve must be "
+        f"{float(required_lp):,.0f} tokens, not {float(LP_RESERVE_SUPPLY):,.0f}."
+    )
+    print("  OK - the handover is smooth.")
+    print()
+
+
 def simulate_buy(v_usdc, v_token, real_usdc, tokens_sold, usdc_in):
     """One constant-product buy: usdc in, tokens out. Exact fractions."""
     eff_usdc = v_usdc + real_usdc
@@ -82,7 +132,17 @@ def simulate_buy(v_usdc, v_token, real_usdc, tokens_sold, usdc_in):
 
 
 def main():
+    assert_price_continuity()
+
     v_usdc, v_token, target_price = derive_virtual_reserves()
+
+    start_price = v_usdc / v_token
+    start_mcap = start_price * TOTAL_SUPPLY
+    print("=== What a trader actually sees ===")
+    print(f"  starting market cap : ${float(start_mcap):,.2f}")
+    print(f"  graduation          : ${float(GRAD_MARKET_CAP_USD):,.2f}")
+    print(f"  upside              : {float(GRAD_MARKET_CAP_USD / start_mcap):.2f}x")
+    print()
 
     print("=== Derived virtual reserves (exact) ===")
     print(f"v_usdc  = {v_usdc}  ~= {float(v_usdc):,.6f} USDC")
@@ -90,7 +150,7 @@ def main():
     print()
 
     # ---- Verify: simulate the curve from zero to graduation, in steps ----
-    print("=== Simulation: buying in $500 increments to graduation ===")
+    print("=== Simulation: buying in $500 increments to graduation ===")  # noqa
     real_usdc = F(0)
     tokens_sold = F(0)
     step = F(500)
@@ -146,7 +206,8 @@ def main():
     print(f"uint256 constant TOTAL_SUPPLY          = {total_supply_wei};")
     print(f"uint256 constant CURVE_SUPPLY          = {curve_supply_wei};")
     print(f"uint256 constant LP_RESERVE_SUPPLY     = {lp_reserve_wei};")
-    print(f"uint256 constant GRADUATION_RAISE_USDC = {grad_raise_wei};  // 24,000 USDC")
+    print(f"uint256 constant GRADUATION_RAISE_USDC = {grad_raise_wei};  // "
+          f"{float(GRAD_RAISE_USD):,.0f} USDC")
 
     # Precision check: how far off is the rounded-to-wei version from exact?
     rounding_error_usd = abs(F(v_usdc_wei) / WEI - v_usdc)

@@ -10,7 +10,7 @@ import {AramToken} from "../src/AramToken.sol";
 /// @notice Exercises the full user journey against a real network:
 /// launch -> dev-buy -> public buy -> permit sell -> claim creator fees.
 ///
-/// Graduation is deliberately absent: it needs $24,000 into the curve and
+/// Graduation is deliberately absent: it needs $13,800 into the curve and
 /// the faucet gives 20 USDC every two hours, so it isn't reachable here.
 /// That path stays covered by the local suite.
 contract Lifecycle is Script {

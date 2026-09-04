@@ -29,8 +29,8 @@ export const ARC_TESTNET = {
  * wired up — see contracts/README.md.
  */
 export const ARC_TESTNET_CONTRACTS = {
-  curveManager: "0x4697289C9F954BFf3FD44BC2B27801045Ccc1a5D",
-  aramFactory: "0x371F53a3047e9081b136CfCe29c97689cf531b44",
+  curveManager: "0x1a5ae846E6d9944d9190553bb8085bE3C0251285",
+  aramFactory: "0xedc289C837b01F6B893275E22CbcfF56040cDf51",
   /** Native USDC's ERC-20 interface. 6 decimals; the native view is 18. */
   usdc: "0x3600000000000000000000000000000000000000",
   /**
@@ -38,7 +38,7 @@ export const ARC_TESTNET_CONTRACTS = {
    * genesis — Arc is already past block 60,000,000 and the public RPC
    * rejects a range that wide outright. Update on any redeploy.
    */
-  deployBlock: 60_305_400n,
+  deployBlock: 60_404_940n,
 } as const;
 
 /** ERC-20 view of native USDC. Use for anything a user types or reads. */
@@ -64,10 +64,26 @@ export const MIN_MAX_FEE_PER_GAS_GWEI = 20;
  * A creator pays Arc network gas and nothing else.
  */
 export const CURVE = {
-  /** USDC that must flow into the curve before a token graduates. */
-  graduationTargetUsd: 24_000,
+  /**
+   * USDC that must flow into the curve before a token graduates.
+   *
+   * Not a free choice. The graduation pool is seeded with the raise and the
+   * unsold tokens, so it opens at raise/lpReserveSupply; matching the price
+   * the curve closed at forces
+   *   lpReserveSupply / totalSupply === graduationTargetUsd / graduationMarketCapUsd
+   * A 20% reserve against a $69,000 graduation therefore *is* $13,800.
+   */
+  graduationTargetUsd: 13_800,
   /** Market cap the curve reaches at graduation. */
   graduationMarketCapUsd: 69_000,
+  /**
+   * Market cap a token shows before anyone has bought anything — price is
+   * quoted against the full supply, so a fresh coin is never $0. Derived,
+   * not chosen: virtualUsdcReserve / virtualTokenReserve * totalSupply.
+   * Worth stating plainly because it sets the upside on offer: $4,312.50 to
+   * $69,000 is 16x.
+   */
+  startingMarketCapUsd: 4_312.5,
   /** Fixed supply minted at creation. Nothing is mintable afterwards. */
   totalSupply: 1_000_000_000,
   /** Of the fixed supply, the portion sold through the curve... */
@@ -91,6 +107,6 @@ export const CURVE = {
    * actually execute. Both sides come from
    * contracts/script/math/derive_curve.py; don't hand-edit either.
    */
-  virtualUsdcReserve: "18461538461538461538462",
-  virtualTokenReserve: "1415384615384615384615384615",
+  virtualUsdcReserve: "4600000000000000000000",
+  virtualTokenReserve: "1066666666666666666666666667",
 } as const;

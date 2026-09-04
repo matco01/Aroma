@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useBoard } from "@/lib/use-chain";
-import type { Coin } from "@/lib/mock";
+import { useSearch } from "@/lib/use-chain";
 import { usd, pct } from "@/lib/format";
 import { CoinArt } from "./coin-art";
 
@@ -18,24 +17,11 @@ export function CommandMenu({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Searches the most-traded page rather than every token. Real
-  // full-text search across the whole corpus belongs server-side; this at
-  // least stops the menu depending on the entire list being in memory.
-  const { data } = useBoard({ filter: "all", sort: "volume", limit: 60, skip: 0 });
-  const tokens = data?.tokens;
-
-  const results = useMemo(() => {
-    const all: Coin[] = tokens ?? [];
-    const needle = q.trim().toLowerCase();
-    const pool = needle
-      ? all.filter(
-          (c) =>
-            c.name.toLowerCase().includes(needle) ||
-            c.ticker.toLowerCase().includes(needle),
-        )
-      : [...all].sort((a, b) => b.volume24hUsd - a.volume24hUsd);
-    return pool.slice(0, 8);
-  }, [tokens, q]);
+  // Searches the whole index, not whatever happens to be in memory. An
+  // empty query returns the most-traded tokens, so the menu is useful the
+  // moment it opens.
+  const { data, isFetching } = useSearch(q);
+  const results = data?.tokens ?? [];
 
   // The menu is mounted only while it is open, so "reset on open" is just
   // fresh component state — no effect needed to clear the query or refocus.
@@ -97,7 +83,11 @@ export function CommandMenu({ onClose }: { onClose: () => void }) {
         <div className="max-h-[52vh] overflow-y-auto py-1">
           {results.length === 0 && (
             <div className="px-3 py-6 text-center text-[12px] text-ink-3">
-              No token matches “{q}”.
+              {isFetching
+                ? "Searching…"
+                : q.trim()
+                  ? `No token matches “${q.trim()}”.`
+                  : "No tokens launched yet."}
             </div>
           )}
           {results.map((c, i) => (

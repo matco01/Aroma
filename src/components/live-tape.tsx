@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTape } from "@/lib/use-chain";
+import { useLive } from "@/lib/use-live";
 import { shortAddr, usd } from "@/lib/format";
 
 /**
@@ -13,14 +13,22 @@ import { shortAddr, usd } from "@/lib/format";
  * slide in once and then hold still long enough to actually be read.
  */
 export function LiveTape() {
-  const { data } = useTape();
-  const recent = (data?.trades ?? []).slice(0, 4);
+  // Pushed, not polled: the server holds one subscription to the index
+  // and fans out, so a hundred open tabs cost the same as one.
+  const { trades, connected } = useLive();
+  const recent = trades.slice(0, 4);
 
   return (
     <div className="border-b border-line bg-surface">
       <div className="mx-auto flex h-9 max-w-[1400px] items-center gap-3 overflow-hidden px-4">
         <span className="label flex shrink-0 items-center gap-1.5">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-up" />
+          {/* The dot means what it says — it stops pulsing when the stream
+              actually drops, rather than animating regardless. */}
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              connected ? "animate-pulse bg-up" : "bg-ink-3"
+            }`}
+          />
           Live
         </span>
         <div className="flex min-w-0 flex-1 items-center gap-5">

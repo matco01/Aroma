@@ -238,6 +238,52 @@ export async function fetchBoardPage(opts: {
   };
 }
 
+const SEARCH_QUERY = `
+  query Search($q: String!, $first: Int!) {
+    byName: tokens(where: { name_contains_nocase: $q }, first: $first, orderBy: volume, orderDirection: desc) {
+      ${TOKEN_FIELDS}
+    }
+    bySymbol: tokens(where: { symbol_contains_nocase: $q }, first: $first, orderBy: volume, orderDirection: desc) {
+      ${TOKEN_FIELDS}
+    }
+  }
+`;
+
+/**
+ * Search by name or ticker, in the index.
+ *
+ * Two queries rather than one because The Graph has no OR across fields —
+ * a single `where` ANDs its conditions, so matching "name OR symbol" means
+ * asking twice and merging. Symbol matches rank first: someone typing
+ * "PEG" almost always wants the ticker, not every description mentioning
+ * a peg.
+ *
+ * This is substring matching, not real full-text search. It has no notion
+ * of relevance beyond volume and won't tolerate a typo. Good enough while
+ * the corpus is small; a proper search index is its own piece of work.
+ */
+export async function searchTokens(q: string, limit = 8): Promise<Coin[]> {
+  const term = q.trim();
+  if (term.length === 0) return [];
+
+  const data = await query<{ byName: RawToken[]; bySymbol: RawToken[] }>(
+    `search:${term.toLowerCase()}:${limit}`,
+    SEARCH_QUERY,
+    { q: term, first: limit },
+  );
+
+  const now = Math.floor(Date.now() / 1000);
+  const seen = new Set<string>();
+  const merged: Coin[] = [];
+  for (const t of [...data.bySymbol, ...data.byName]) {
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    merged.push(toCoin(t, now));
+    if (merged.length >= limit) break;
+  }
+  return merged;
+}
+
 export async function fetchTapeTrades(limit: number): Promise<TapeTrade[]> {
   const data = await query<{ trades: RawTrade[] }>(`trades:all:${limit}`, TRADES_QUERY, {
     first: limit,

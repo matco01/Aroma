@@ -9,13 +9,31 @@ import { arcTestnet } from "@reown/appkit/networks";
  * which matches what the live RPC reports.
  *
  * The RPC URL here is what a wallet gets offered when it doesn't already
- * know Arc. It should become a paid, managed endpoint before launch rather
- * than the shared public one — see the infrastructure plan's §1, which
- * calls for two independent providers behind a fallback transport.
+ * know Arc.
  */
 
-export const ARC_RPC_URL =
-  process.env.NEXT_PUBLIC_ARC_RPC_URL ?? "https://rpc.testnet.arc.io";
+const PUBLIC_ARC_RPC = "https://rpc.testnet.arc.io";
+
+/**
+ * Every RPC endpoint we're willing to use, best first.
+ *
+ * Comma-separate NEXT_PUBLIC_ARC_RPC_URL to supply more than one. Reads
+ * are cheap to retry, but the write path is the one that touches money —
+ * a single provider having a bad minute should not mean nobody can sell.
+ * Two independent providers is the point; the public endpoint alone is a
+ * single point of failure that has already rate-limited us in testing.
+ */
+export const ARC_RPC_URLS: string[] = (
+  process.env.NEXT_PUBLIC_ARC_RPC_URL ?? PUBLIC_ARC_RPC
+)
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+/** First endpoint — what a wallet is offered when adding the network. */
+export const ARC_RPC_URL = ARC_RPC_URLS[0] ?? PUBLIC_ARC_RPC;
+
+export const hasRpcFallback = ARC_RPC_URLS.length > 1;
 
 /**
  * Reown Cloud project ID. Free, from cloud.reown.com.

@@ -1,7 +1,7 @@
-import { createPublicClient, http, parseAbiItem, formatUnits, type Address } from "viem";
+import { createPublicClient, parseAbiItem, formatUnits, type Address } from "viem";
 import { arcTestnet } from "@reown/appkit/networks";
 import { curveManagerAbi } from "./abis";
-import { ARC_RPC_URL } from "./wagmi";
+import { arcTransport } from "./transport";
 import { ARC_TESTNET_CONTRACTS, CURVE } from "./arc";
 import type { Coin, Trade } from "./mock";
 
@@ -20,7 +20,7 @@ import type { Coin, Trade } from "./mock";
 
 export const publicClient = createPublicClient({
   chain: arcTestnet,
-  transport: http(ARC_RPC_URL),
+  transport: arcTransport(),
 });
 
 const TOKEN_CREATED = parseAbiItem(

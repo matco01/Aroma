@@ -1,7 +1,7 @@
 import "server-only";
-import { createPublicClient, http } from "viem";
+import { createPublicClient } from "viem";
 import { arcTestnet } from "@reown/appkit/networks";
-import { ARC_RPC_URL } from "../wagmi";
+import { arcTransport } from "../transport";
 import type { SubgraphMeta } from "./subgraph";
 
 /**
@@ -20,7 +20,7 @@ import type { SubgraphMeta } from "./subgraph";
 
 const client = createPublicClient({
   chain: arcTestnet,
-  transport: http(ARC_RPC_URL),
+  transport: arcTransport(),
 });
 
 /** Arc's observed block time. Used to turn a block delta into seconds. */

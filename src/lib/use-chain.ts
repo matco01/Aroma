@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import type { Coin, Trade } from "./mock";
 
@@ -46,7 +47,14 @@ type BoardResponse = {
 export type BoardFilter = "all" | "climbing" | "graduated";
 export type BoardSort = "buys" | "new" | "mcap" | "volume";
 
-const REFETCH_MS = 8_000;
+/**
+ * A slow safety net, not the primary refresh path.
+ *
+ * useLive invalidates these queries the moment a trade lands, so this only
+ * covers the case where the stream is down. Polling fast *as well* would
+ * throw away the point of pushing.
+ */
+const REFETCH_MS = 60_000;
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -107,5 +115,32 @@ export function useTape() {
     queryFn: () => getJson<BoardResponse>("/api/board?filter=all&sort=buys&limit=24&skip=0"),
     refetchInterval: 5_000,
     refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Debounced token search against the index.
+ *
+ * Debounced because a query per keystroke is both wasteful and worse to
+ * use — results that thrash while you finish a word are harder to read
+ * than results that settle. 200ms is below the threshold where typing
+ * feels laggy but above the rate at which people type.
+ */
+export function useSearch(term: string) {
+  const [debounced, setDebounced] = useState(term);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(term), 200);
+    return () => clearTimeout(id);
+  }, [term]);
+
+  return useQuery({
+    queryKey: ["search", debounced.trim().toLowerCase()],
+    queryFn: () =>
+      getJson<{ tokens: Coin[] }>(`/api/search?q=${encodeURIComponent(debounced.trim())}`),
+    // Hold the last results while the next query runs, so the list doesn't
+    // blank between keystrokes.
+    placeholderData: keepPreviousData,
+    staleTime: 10_000,
   });
 }

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { imageSize } from "image-size";
-import { pinImage, pinMetadata, hasPinata, gatewayUrl, IpfsError } from "@/lib/server/ipfs";
+import {
+  pinImage,
+  pinMetadata,
+  normalizeImage,
+  hasPinata,
+  gatewayUrl,
+  IpfsError,
+} from "@/lib/server/ipfs";
 import { checkImageFile, checkImageDimensions } from "@/lib/image-rules";
 
 /**
@@ -67,7 +74,29 @@ export async function POST(request: Request) {
   const description = String(form.get("description") ?? "").slice(0, 500);
 
   try {
-    const image = await pinImage(new File([bytes], file.name || "image", { type: file.type }));
+    // Resize before pinning, never after: IPFS is content-addressed, so a
+    // pinned original would keep its own permanent CID whether or not
+    // anything ever pointed at it again.
+    //
+    // Failures here are the file's fault, not the network's, and are
+    // reported separately below — "try again in a moment" is actively
+    // misleading advice for an image that will never decode.
+    let normalized;
+    try {
+      normalized = await normalizeImage(bytes, file.type === "image/gif");
+    } catch {
+      return NextResponse.json(
+        { error: "That image is corrupt or in a format we can't read" },
+        { status: 400 },
+      );
+    }
+    const image = await pinImage(
+      // Buffer is not a BlobPart; a Uint8Array view over the same
+      // bytes is, and copies nothing.
+      new File([new Uint8Array(normalized.data)], "image.webp", {
+        type: normalized.type,
+      }),
+    );
     const metadataUri = await pinMetadata({ name, symbol, description, image });
 
     return NextResponse.json({

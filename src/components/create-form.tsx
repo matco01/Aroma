@@ -351,6 +351,26 @@ export function CreateForm() {
             </div>
           </dl>
 
+          {/* The panel is called "Cost" and only ever showed money going
+              out. What a creator earns is the more interesting half and was
+              nowhere on this page — you had to already know. */}
+          <div className="mt-3 rounded-sm border border-up/25 bg-up/8 p-2.5">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[12px] font-medium text-up">You earn</span>
+              <span className="num text-[12.5px] text-up">
+                {CURVE.creatorFeeShareBps / 100}% of every trade
+              </span>
+            </div>
+            <p className="mt-1 text-[10.5px] leading-relaxed text-ink-2">
+              Every buy and sell of your coin pays a{" "}
+              {CURVE.tradeFeeBps / 100}% fee, and{" "}
+              {CURVE.creatorFeeShareBps / 100}% of it is yours — for as long
+              as the coin trades, including after it graduates. It accrues in
+              the contract and you claim it whenever you like. Nobody can
+              withhold it.
+            </p>
+          </div>
+
           <button
             onClick={submit}
             disabled={connected && (!valid || insufficient || busy)}

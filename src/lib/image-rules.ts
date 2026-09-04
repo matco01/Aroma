@@ -10,6 +10,20 @@
 export const IMAGE_RULES = {
   maxBytes: 5 * 1024 * 1024,
   /**
+   * Everything is resized to this before pinning, so what a creator
+   * uploads and what the web sees are different files.
+   *
+   * Normalising rather than demanding an exact size is the whole trick:
+   * insisting on 512x512 uploads would mean most people's first attempt is
+   * rejected and they go and find an image editor, which is a terrible
+   * thing to put between someone and launching. Accept what they have,
+   * standardise it here.
+   *
+   * It is also the difference between a board page pulling 120MB of
+   * originals to draw 24 thumbnails and pulling under 1MB.
+   */
+  outputSize: 512,
+  /**
    * Dimension caps matter more than the byte cap, and for a reason the
    * byte cap cannot cover: compressed formats decode far larger than they
    * store. A 5MB PNG of 30,000 x 30,000 pixels is a few megabytes on disk
@@ -17,10 +31,11 @@ export const IMAGE_RULES = {
    * memory on whatever tries to render it. Checking dimensions from the
    * header, before anything decodes the pixels, is the actual defence.
    */
-  maxDimension: 2048,
+  maxDimension: 4096,
+  /** Below this, upscaling to the output size looks obviously soft. */
   minDimension: 128,
-  /** Total pixels, so a 2048 x 2048 limit can't be dodged with 2048 x 20000. */
-  maxPixels: 2048 * 2048,
+  /** Total pixels, so a 4096 x 4096 limit can't be dodged with 4096 x 40000. */
+  maxPixels: 4096 * 4096,
   /**
    * Art renders square with object-cover, so a very long image is mostly
    * cropped away — the creator would be uploading something quite unlike

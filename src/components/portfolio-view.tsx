@@ -5,6 +5,7 @@ import { CURVE } from "@/lib/arc";
 import { compact, pct, price, usd, usdExact } from "@/lib/format";
 import { usePortfolio, type Holding } from "@/lib/use-portfolio";
 import { IndexerStatus } from "./indexer-status";
+import { CreatedCoins } from "./created-coins";
 import { CoinArt } from "./coin-art";
 import { GraduationBar } from "./primitives";
 import { useWallet } from "./wallet";
@@ -41,20 +42,28 @@ export function PortfolioView() {
 
   const rows = holdings ?? [];
 
+  const created = data?.created ?? [];
+
   if (rows.length === 0) {
     return (
-      <EmptyState
-        title="No holdings yet"
-        body="Buy into a token on the curve and it shows up here."
-        action={
-          <Link
-            href="/"
-            className="flex h-8 items-center rounded-sm bg-accent px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-hi"
-          >
-            Browse the board
-          </Link>
-        }
-      />
+      <div>
+        <IndexerStatus health={data?.indexer} />
+        <EmptyState
+          title="No holdings yet"
+          body="Buy into a token on the curve and it shows up here."
+          action={
+            <Link
+              href="/"
+              className="flex h-8 items-center rounded-sm bg-accent px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-hi"
+            >
+              Browse the board
+            </Link>
+          }
+        />
+        {/* Someone who launched coins but holds none still has fees to
+            collect, so this must not sit behind the holdings check. */}
+        <CreatedCoins created={created} />
+      </div>
     );
   }
 
@@ -99,6 +108,8 @@ export function PortfolioView() {
         Balances and cost basis come from your trades on Aroma. Tokens
         received by direct transfer are not tracked here.
       </p>
+
+      <CreatedCoins created={created} />
     </div>
   );
 }

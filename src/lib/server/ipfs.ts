@@ -1,4 +1,5 @@
 import "server-only";
+import { IMAGE_RULES } from "../image-rules";
 
 /**
  * Pins token images and metadata to IPFS.
@@ -137,4 +138,41 @@ export async function resolveImages(uris: string[]): Promise<Map<string, string>
   const unique = [...new Set(uris.filter(Boolean))];
   const resolved = await Promise.all(unique.map((u) => resolveImage(u)));
   return new Map(unique.map((u, i) => [u, resolved[i]]));
+}
+
+/**
+ * Standardises an upload before it is pinned.
+ *
+ * Square, 512px, WebP. Creators upload whatever they have — a screenshot,
+ * a phone photo, a 4000px export — and everyone downloads the same small
+ * file. Without this a board of 24 coins could pull 120MB of originals to
+ * draw 24 forty-pixel thumbnails.
+ *
+ * `fit: "cover"` centre-crops rather than squashing: a face stays a face
+ * instead of being stretched to fit a square. The aspect-ratio rule
+ * upstream exists so nobody is surprised by how much gets cropped.
+ *
+ * Animated GIFs stay animated — converting one to a still image would
+ * silently throw away the thing the creator chose it for.
+ */
+export async function normalizeImage(
+  bytes: Buffer,
+  isAnimated: boolean,
+): Promise<{ data: Buffer; type: string }> {
+  const sharp = (await import("sharp")).default;
+
+  const pipeline = sharp(bytes, {
+    animated: isAnimated,
+    // Defence in depth behind the header check: even if a malformed image
+    // slipped past dimension validation, the decoder itself refuses.
+    limitInputPixels: IMAGE_RULES.maxPixels,
+  })
+    .resize(IMAGE_RULES.outputSize, IMAGE_RULES.outputSize, {
+      fit: "cover",
+      position: "centre",
+      withoutEnlargement: false,
+    })
+    .webp({ quality: 82, effort: 4 });
+
+  return { data: await pipeline.toBuffer(), type: "image/webp" };
 }

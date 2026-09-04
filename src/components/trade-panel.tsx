@@ -57,6 +57,27 @@ export function TradePanel({ coin }: { coin: Coin }) {
   const held = Number(formatUnits(heldRaw, 18));
   const heldValue = held * coin.priceUsd;
 
+  /**
+   * What Max can safely spend.
+   *
+   * Naively `balance - a bit` overshoots every time, because the amount
+   * typed is not the amount that leaves: total = value + value*fee + gas.
+   * Solving it properly:
+   *
+   *     value * (1 + feeRate) + buyGas + sellReserve <= balance
+   *
+   * The sell reserve is the part people get bitten by. Spending to the last
+   * cent leaves a position that cannot be sold, because selling costs gas
+   * too — and on a chain where gas is the same asset you just spent, that
+   * traps the position. Holding back a few cents is the difference between
+   * a balance and a balance you can act on.
+   */
+  const SELL_RESERVE = 0.02;
+  const maxSpendable = Math.max(
+    0,
+    (usdcBalance - 0.0017 - SELL_RESERVE) / (1 + CURVE.tradeFeeBps / 10_000),
+  );
+
   const value = Number(amount) || 0;
   const tradeFee = value * (CURVE.tradeFeeBps / 10_000);
   // Measured on Arc testnet: a buy costs ~70k gas and a sell ~110k (permit
@@ -201,7 +222,11 @@ export function TradePanel({ coin }: { coin: Coin }) {
             <button
               onClick={() =>
                 setAmount(
-                  isBuy ? Math.max(0, usdcBalance - 0.05).toFixed(2) : heldValue.toFixed(4),
+                  isBuy
+                    ? // Floor rather than round, so rounding can never push
+                      // the total back over the balance.
+                      (Math.floor(maxSpendable * 10_000) / 10_000).toFixed(4)
+                    : heldValue.toFixed(4),
                 )
               }
               disabled={busy}

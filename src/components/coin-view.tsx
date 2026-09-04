@@ -7,7 +7,7 @@ import { useToken } from "@/lib/use-chain";
 import { IndexerStatus } from "./indexer-status";
 import { CoinArt } from "./coin-art";
 import { Chip, GraduationBar, Stat } from "./primitives";
-import { PriceChart } from "./price-chart";
+import { CandleChart } from "./candle-chart";
 import { TradePanel } from "./trade-panel";
 import { CreatorFees } from "./creator-fees";
 import { CoinActivity } from "./coin-activity";
@@ -134,7 +134,10 @@ export function CoinView({ address }: { address: string }) {
           </div>
 
           <div className="mt-4.5">
-            <PriceChart data={coin.history} />
+            <CandleChart
+              candles={data?.candles ?? []}
+              interval={data?.interval ?? 300}
+            />
           </div>
 
           <div className="mt-4.5">

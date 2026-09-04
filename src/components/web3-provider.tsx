@@ -12,6 +12,7 @@ import {
   hasReownProject,
 } from "@/lib/wagmi";
 import { registerWalletModalOpener } from "@/lib/appkit-bridge";
+import { LiveProvider } from "./live-provider";
 
 /**
  * AppKit is initialized once at module scope, not inside the component —
@@ -88,7 +89,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         {hasReownProject && <AppKitBridge />}
-        {children}
+        <LiveProvider>{children}</LiveProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

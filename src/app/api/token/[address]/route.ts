@@ -38,7 +38,13 @@ export async function GET(
     const indexer = await indexerLag(detail.meta);
 
     return NextResponse.json(
-      { coin: detail.coin, trades: detail.trades, indexer },
+      {
+        coin: detail.coin,
+        trades: detail.trades,
+        candles: detail.candles,
+        interval: detail.interval,
+        indexer,
+      },
       {
         headers: {
           "cache-control": "public, s-maxage=5, stale-while-revalidate=30",

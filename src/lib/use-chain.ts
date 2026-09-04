@@ -89,9 +89,22 @@ export function useBoard(opts: {
   });
 }
 
+export type Candle = {
+  /** Bucket start, unix seconds. */
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+};
+
 type TokenResponse = {
   coin: Coin;
   trades: TapeTrade[];
+  candles: Candle[];
+  /** Bucket width in seconds — 300, 3600 or 86400. */
+  interval: number;
   indexer: IndexerHealth;
 };
 

@@ -64,10 +64,25 @@ export function useTrade(tokenAddress: string | undefined) {
     setHash(null);
   }, []);
 
+  /**
+   * Refresh everything a trade touches.
+   *
+   * Keys must match the queries that actually exist — these said "tokens"
+   * and "trades" long after the board moved to "board" and "portfolio",
+   * so a trade quietly refreshed nothing but the coin page.
+   *
+   * Fired twice: once immediately, and again after a short delay. The
+   * transaction is mined by the time we get here, but the indexer may be a
+   * second behind it, and the API caches for five. Without the second pass
+   * a trader sees their own trade missing from the list they just moved.
+   */
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["tokens"] });
-    queryClient.invalidateQueries({ queryKey: ["token"] });
-    queryClient.invalidateQueries({ queryKey: ["trades"] });
+    const keys = [["board"], ["token"], ["portfolio"]];
+    const sweep = () => {
+      for (const queryKey of keys) queryClient.invalidateQueries({ queryKey });
+    };
+    sweep();
+    setTimeout(sweep, 3_500);
   }, [queryClient]);
 
   const buy = useCallback(
@@ -258,7 +273,7 @@ export function useCreateToken() {
         }
 
         setPhase("success");
-        queryClient.invalidateQueries({ queryKey: ["tokens"] });
+        queryClient.invalidateQueries({ queryKey: ["board"] });
       } catch (e) {
         setError(readableError(e));
         setPhase("error");

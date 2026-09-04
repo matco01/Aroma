@@ -343,9 +343,20 @@ export async function fetchTapeTrades(limit: number): Promise<TapeTrade[]> {
   return data.trades.map((t) => toTrade(t, now));
 }
 
+export type Candle = {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+};
+
 export async function fetchTokenDetail(address: string): Promise<{
   coin: Coin | null;
   trades: TapeTrade[];
+  candles: Candle[];
+  interval: number;
   meta: SubgraphMeta;
 }> {
   const id = address.toLowerCase();
@@ -382,7 +393,7 @@ export async function fetchTokenDetail(address: string): Promise<{
     indexedBlock: data._meta.block.number,
     hasIndexingErrors: data._meta.hasIndexingErrors,
   };
-  if (!data.token) return { coin: null, trades: [], meta };
+  if (!data.token) return { coin: null, trades: [], candles: [], interval, meta };
 
   // Chart from candles, not from individual trades. This is the whole
   // reason candles are indexed: the series stays ~120 points whether the
@@ -399,9 +410,22 @@ export async function fetchTokenDetail(address: string): Promise<{
   const trades = data.trades.map((t) => toTrade(t, now));
   const images = await resolveImages([data.token.metadataUri]);
 
+  // Oldest first for plotting. Short keys because this is the one payload
+  // that can carry a hundred-plus rows.
+  const candleRows: Candle[] = [...data.candles].reverse().map((c) => ({
+    t: Number(c.bucketStart),
+    o: toNum(c.open),
+    h: toNum(c.high),
+    l: toNum(c.low),
+    c: toNum(c.close),
+    v: toNum(c.volume),
+  }));
+
   return {
     coin: toCoin(data.token, now, history, images.get(data.token.metadataUri) ?? ""),
     trades,
+    candles: candleRows,
+    interval,
     meta,
   };
 }

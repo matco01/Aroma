@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useLive } from "@/lib/use-live";
+import { useLiveFeed } from "./live-provider";
 import { shortAddr, usd } from "@/lib/format";
 
 /**
@@ -15,7 +15,8 @@ import { shortAddr, usd } from "@/lib/format";
 export function LiveTape() {
   // Pushed, not polled: the server holds one subscription to the index
   // and fans out, so a hundred open tabs cost the same as one.
-  const { trades, connected } = useLive();
+  // Reads the app-wide subscription rather than opening another.
+  const { trades, connected } = useLiveFeed();
   const recent = trades.slice(0, 4);
 
   return (

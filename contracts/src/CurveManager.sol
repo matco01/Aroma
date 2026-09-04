@@ -7,7 +7,6 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
 /// @title CurveManager
 /// @notice One shared contract holding every launched token's bonding-curve
@@ -29,7 +28,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 /// sell both round the *invariant-preserving* leg up (via Math.ceilDiv),
 /// which rounds the amount owed to the trader down. This is deliberate,
 /// not incidental — see _buyQuote/_sellQuote.
-contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
+contract CurveManager is ReentrancyGuard, Ownable2Step {
     // ---------------------------------------------------------------
     // Curve constants — derived by contracts/script/math/derive_curve.py.
     // Re-run that script if any of these targets ever change; do not hand-
@@ -193,6 +192,20 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
     /// after that this behaves like an immutable value. Two-step because
     /// AromaFactory's constructor needs this contract's address, so this
     /// contract can't know the factory's address at its own construction.
+    /**
+     * @dev There is deliberately no pause.
+     *
+     * An emergency stop would let the owner halt trading on every token at
+     * once, and a launchpad asking people to trust it with that is asking
+     * for exactly the trust it claims not to need. The cost is real and
+     * accepted: if a bug is found in the curve, there is no way to stop it
+     * mid-exploit — the answer has to be that the code was correct, not
+     * that someone was watching.
+     *
+     * What the owner can still do is deliberately narrow: point the factory
+     * at a new deployment, and withdraw the protocol's own accumulated
+     * fees. Neither can touch a curve reserve or a creator's fees.
+     */
     function setFactory(address factory_) external onlyOwner {
         require(factory == address(0), "factory already set");
         require(factory_ != address(0), "factory=0");
@@ -200,13 +213,6 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
         emit FactorySet(factory_);
     }
 
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    function unpause() external onlyOwner {
-        _unpause();
-    }
 
     /// @notice Withdraws accumulated protocol fees. Can only ever move
     /// `accumulatedFees` — never a token's realUsdcReserve, and never funds
@@ -250,7 +256,6 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
         external
         payable
         nonReentrant
-        whenNotPaused
         returns (uint256 tokensOut)
     {
         require(recipient != address(0) && recipient != address(this), "bad recipient");
@@ -301,7 +306,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external nonReentrant whenNotPaused returns (uint256 usdcOut) {
+    ) external nonReentrant returns (uint256 usdcOut) {
         TokenState storage st = tokenState[token];
         require(st.creator != address(0), "unknown token");
         require(!st.graduated, "graduated");
@@ -347,7 +352,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
     /// safely at a known address than guess at an unverified external
     /// protocol's interface. Replacing this with real pool-seeding is a
     /// named blocker before Phase 7 (mainnet), not a later nice-to-have.
-    function graduate(address token) external nonReentrant whenNotPaused {
+    function graduate(address token) external nonReentrant {
         TokenState storage st = tokenState[token];
         require(st.creator != address(0), "unknown token");
         require(!st.graduated, "already graduated");
@@ -408,7 +413,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
     /// the permissionless pattern here matches graduate() — the product
     /// doesn't depend on the creator remembering to claim, or on Aroma
     /// operating anything, for a payout to happen.
-    function claimCreatorFees(address token) external nonReentrant whenNotPaused {
+    function claimCreatorFees(address token) external nonReentrant {
         TokenState storage st = tokenState[token];
         require(st.creator != address(0), "unknown token");
         uint256 amount = creatorFeesAccrued[token];

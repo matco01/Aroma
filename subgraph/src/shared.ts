@@ -66,6 +66,7 @@ export function getOrCreateToken(
   token.name = "";
   token.symbol = "";
   token.description = "";
+  token.metadataUri = "";
   token.createdAt = timestamp;
   token.createdAtBlock = block;
   token.createdTx = tx;

@@ -47,7 +47,7 @@ contract CurveManagerTest is Test {
 
     function _launch() internal returns (address token) {
         vm.prank(creator);
-        token = factory.createToken("Test Coin", "TEST", "", 0, 0);
+        token = factory.createToken("Test Coin", "TEST", "", "", 0, 0);
     }
 
     function _signPermit(uint256 pk, address signerAddr, address token, uint256 value, uint256 deadline)
@@ -247,18 +247,78 @@ contract CurveManagerTest is Test {
         curve.withdrawFees(address(0), 1);
     }
 
-    function test_claimCreatorFees_haltsWhilePaused() public {
+    /// @notice The owner cannot reach a single wei of user money.
+    ///
+    /// This replaces the old pause test. There is deliberately no emergency
+    /// stop any more — an owner who can halt every token's trading is
+    /// exactly the trust a launchpad claims not to require — so what
+    /// matters now is proving the remaining admin surface is narrow.
+    ///
+    /// `withdrawFees` is capped at the protocol's own accumulated cut.
+    /// Curve reserves and creator fees are not reachable from any
+    /// owner-only path, and this asserts it rather than asserting it in a
+    /// comment.
+    function test_ownerCannotTouchUserFunds() public {
         address token = _launch();
         vm.prank(buyer);
         curve.buy{value: 1_000e18}(token, buyer, 0);
 
-        vm.prank(owner);
-        curve.pause();
+        (uint256 reserveBefore,,,) = curve.tokenState(token);
+        uint256 creatorOwed = curve.creatorFeesAccrued(token);
+        uint256 protocolPot = curve.accumulatedFees();
 
-        // An emergency pause has to stop money leaving, not just stop
-        // trading — otherwise the pause doesn't contain an active drain.
-        vm.expectRevert();
-        curve.claimCreatorFees(token);
+        assertGt(reserveBefore, 0, "precondition: the curve holds a reserve");
+        assertGt(creatorOwed, 0, "precondition: the creator is owed fees");
+
+        // Taking one wei more than the protocol's own pot must revert, even
+        // though the contract's balance is far larger — that surplus is the
+        // curve reserve and the creator's fees, and it is not the owner's.
+        vm.prank(owner);
+        vm.expectRevert(bytes("exceeds fees"));
+        curve.withdrawFees(owner, protocolPot + 1);
+
+        // Draining the entire legitimate pot must leave everything else
+        // exactly where it was.
+        vm.prank(owner);
+        curve.withdrawFees(owner, protocolPot);
+
+        (uint256 reserveAfter,,,) = curve.tokenState(token);
+        assertEq(reserveAfter, reserveBefore, "curve reserve must be untouchable by the owner");
+        assertEq(
+            curve.creatorFeesAccrued(token), creatorOwed, "creator fees must be untouchable by the owner"
+        );
+        assertGe(
+            address(curve).balance,
+            reserveAfter + creatorOwed,
+            "contract must still cover every obligation after the owner withdraws"
+        );
+    }
+
+    /// @notice Trading cannot be halted by anyone, including the owner.
+    ///
+    /// The owner's entire surface is setFactory (one-shot, and already
+    /// spent at deployment) and withdrawFees (capped at the protocol's own
+    /// cut). Neither touches the trading path, so buying and selling stay
+    /// open unconditionally. If a pause is ever reintroduced, this fails.
+    function test_tradingCannotBeHalted() public {
+        address token = _launch();
+
+        // The owner draining the protocol pot must not affect trading.
+        vm.prank(buyer);
+        curve.buy{value: 1_000e18}(token, buyer, 0);
+        // Read the pot BEFORE pranking. A `curve.accumulatedFees()` call
+        // inside the argument list consumes the prank itself, so the
+        // withdrawal would come from this test contract and revert on
+        // access control — the same trap noted in CurveHandler.
+        uint256 pot = curve.accumulatedFees();
+        vm.prank(owner);
+        curve.withdrawFees(owner, pot);
+
+        vm.prank(whale);
+        curve.buy{value: 1e18}(token, whale, 0);
+
+        (, uint256 sold,,) = curve.tokenState(token);
+        assertGt(sold, 0, "trading must remain open regardless of owner actions");
     }
 
     function test_graduationVaultIsImmutable() public view {

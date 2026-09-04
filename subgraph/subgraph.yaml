@@ -13,9 +13,9 @@ dataSources:
     name: AromaFactory
     network: arc-testnet
     source:
-      address: "0x27BbC94E25c67e15bC2789C8C7F8c4cBC1ecf7f2"
+      address: "0xFB27D25cC5ca3F6B2cb078fA5d680F5e23bE70e7"
       abi: AromaFactory
-      startBlock: 60419662
+      startBlock: 60424031
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -26,7 +26,7 @@ dataSources:
         - name: AromaFactory
           file: ./abis/AromaFactory.json
       eventHandlers:
-        - event: TokenCreated(indexed address,indexed address,string,string,string,uint256)
+        - event: TokenCreated(indexed address,indexed address,string,string,string,string,uint256)
           handler: handleTokenCreated
 
   # All trading. One shared contract for every token's curve, so this is the
@@ -35,9 +35,9 @@ dataSources:
     name: CurveManager
     network: arc-testnet
     source:
-      address: "0x7B21A3C9cB63e4Cf0694012CDA8B922fEeFAB828"
+      address: "0xa05De5C74eC4C9c90041B147eB1FADcf906D2Bad"
       abi: CurveManager
-      startBlock: 60419662
+      startBlock: 60424031
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

@@ -38,8 +38,10 @@ contract Seed is Script {
 
         vm.startBroadcast(pk);
         for (uint256 i = 0; i < names.length; i++) {
+            // Empty metadataUri: seeded tokens fall back to art derived
+            // from their address, the same as any launch without an image.
             address token = factory.createToken{value: devBuys[i]}(
-                names[i], symbols[i], descriptions[i], devBuys[i], 0
+                names[i], symbols[i], descriptions[i], "", devBuys[i], 0
             );
             console.log(symbols[i], token);
         }

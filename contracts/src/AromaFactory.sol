@@ -39,6 +39,7 @@ contract AromaFactory is ReentrancyGuard {
         string name,
         string symbol,
         string description,
+        string metadataUri,
         uint256 devBuyUsdc
     );
 
@@ -51,10 +52,18 @@ contract AromaFactory is ReentrancyGuard {
     /// skips it entirely — this is optional.
     /// @param minDevTokensOut Slippage floor for the dev-buy — the
     /// creator's own trade gets no less protection than anyone else's.
+    /// @param metadataUri Pointer to off-chain metadata — an `ipfs://` URI
+    /// whose JSON carries the token's image. The image itself cannot live
+    /// on-chain at any sane cost, but the *pointer* can, and that is what
+    /// makes the token self-describing: it keeps its identity even if the
+    /// launchpad that created it disappears. pump.fun does the same. An
+    /// empty string is allowed, and the UI falls back to art derived from
+    /// the token address.
     function createToken(
         string calldata name,
         string calldata symbol,
         string calldata description,
+        string calldata metadataUri,
         uint256 devBuyUsdc,
         uint256 minDevTokensOut
     ) external payable nonReentrant returns (address token) {
@@ -83,7 +92,7 @@ contract AromaFactory is ReentrancyGuard {
         //
         // Ordering is the whole point of this line's position; test
         // test_devBuy_isAnnouncedAfterTheTokenExists pins it.
-        emit TokenCreated(token, msg.sender, name, symbol, description, devBuyUsdc);
+        emit TokenCreated(token, msg.sender, name, symbol, description, metadataUri, devBuyUsdc);
 
         if (devBuyUsdc > 0) {
             // recipient is msg.sender (the creator), not this factory —

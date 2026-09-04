@@ -223,7 +223,13 @@ export function useCreateToken() {
   }, []);
 
   const create = useCallback(
-    async (name: string, symbol: string, description: string, devBuyUsdc: string) => {
+    async (
+      name: string,
+      symbol: string,
+      description: string,
+      devBuyUsdc: string,
+      metadataUri = "",
+    ) => {
       if (!address || !publicClient) return;
       try {
         setError(null);
@@ -234,7 +240,7 @@ export function useCreateToken() {
           address: FACTORY,
           abi: aromaFactoryAbi,
           functionName: "createToken",
-          args: [name, symbol, description, devBuy, 0n],
+          args: [name, symbol, description, metadataUri, devBuy, 0n],
           value: devBuy,
         });
 

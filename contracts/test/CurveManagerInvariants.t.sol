@@ -49,7 +49,7 @@ contract CurveHandler is Test {
     function _createToken(uint256 seed) internal returns (address token) {
         (address a,) = _actor(seed);
         vm.prank(a);
-        token = factory.createToken("Fuzz", "FUZZ", "", 0, 0);
+        token = factory.createToken("Fuzz", "FUZZ", "", "", 0, 0);
         tokens.push(token);
     }
 

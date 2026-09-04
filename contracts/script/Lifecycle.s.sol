@@ -31,7 +31,7 @@ contract Lifecycle is Script {
 
         // 1. Launch with a small dev-buy in the same transaction.
         uint256 devBuy = 1e18; // 1 USDC
-        address token = factory.createToken{value: devBuy}("Arc Test Coin", "ARCTEST", "", devBuy, 0);
+        address token = factory.createToken{value: devBuy}("Arc Test Coin", "ARCTEST", "", "", devBuy, 0);
         console.log("");
         console.log("=== launched ===");
         console.log("token:                ", token);

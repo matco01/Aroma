@@ -13,6 +13,12 @@ type Token @entity(immutable: false) {
   name: String!
   symbol: String!
   description: String!
+  """
+  Pointer to off-chain metadata, normally an ipfs:// URI whose JSON holds
+  the token's image. Empty when the creator supplied no image, in which
+  case the UI falls back to art derived from the address.
+  """
+  metadataUri: String!
 
   createdAt: BigInt!
   createdAtBlock: BigInt!

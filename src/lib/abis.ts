@@ -478,6 +478,11 @@ export const aromaFactoryAbi = [
         "internalType": "string"
       },
       {
+        "name": "metadataUri",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
         "name": "devBuyUsdc",
         "type": "uint256",
         "internalType": "uint256"
@@ -527,6 +532,12 @@ export const aromaFactoryAbi = [
       },
       {
         "name": "description",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "metadataUri",
         "type": "string",
         "indexed": false,
         "internalType": "string"

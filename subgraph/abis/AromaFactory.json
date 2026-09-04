@@ -43,6 +43,11 @@
         "internalType": "string"
       },
       {
+        "name": "metadataUri",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
         "name": "devBuyUsdc",
         "type": "uint256",
         "internalType": "uint256"
@@ -105,6 +110,12 @@
       },
       {
         "name": "description",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "metadataUri",
         "type": "string",
         "indexed": false,
         "internalType": "string"

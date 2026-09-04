@@ -22,6 +22,7 @@ export function handleTokenCreated(event: TokenCreated): void {
   token.name = event.params.name;
   token.symbol = event.params.symbol;
   token.description = event.params.description;
+  token.metadataUri = event.params.metadataUri;
   token.createdAt = event.block.timestamp;
   token.createdAtBlock = event.block.number;
   token.createdTx = event.transaction.hash;

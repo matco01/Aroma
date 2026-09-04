@@ -1,5 +1,10 @@
 import { BigInt } from "@graphprotocol/graph-ts";
-import { Bought, Sold, Graduated } from "../generated/CurveManager/CurveManager";
+import {
+  Bought,
+  Sold,
+  Graduated,
+  CreatorFeesClaimed,
+} from "../generated/CurveManager/CurveManager";
 import { Trade } from "../generated/schema";
 import {
   spotPrice,
@@ -53,6 +58,7 @@ export function handleBought(event: Bought): void {
   token.volume = token.volume.plus(grossIn);
   token.tradeCount = token.tradeCount + 1;
   token.lastTradeAt = event.block.timestamp;
+  token.creatorFeesEarned = token.creatorFeesEarned.plus(event.params.creatorFee);
 
   const account = getAccount(event.params.recipient, event.block.timestamp);
   const balance = getBalance(token, account);
@@ -115,6 +121,7 @@ export function handleSold(event: Sold): void {
   token.volume = token.volume.plus(netOut);
   token.tradeCount = token.tradeCount + 1;
   token.lastTradeAt = event.block.timestamp;
+  token.creatorFeesEarned = token.creatorFeesEarned.plus(event.params.creatorFee);
 
   const account = getAccount(event.params.seller, event.block.timestamp);
   const balance = getBalance(token, account);
@@ -179,4 +186,22 @@ export function handleGraduated(event: Graduated): void {
   const protocol = getProtocol();
   protocol.graduatedCount = protocol.graduatedCount + 1;
   protocol.save();
+}
+
+/**
+ * A creator withdrawing their fees.
+ *
+ * Tracked separately from what was earned so the two can be shown side by
+ * side: a creator sitting on unclaimed fees and one who has taken every
+ * cent look identical if you only record the total.
+ */
+export function handleCreatorFeesClaimed(event: CreatorFeesClaimed): void {
+  const token = getOrCreateToken(
+    event.params.token,
+    event.block.timestamp,
+    event.block.number,
+    event.transaction.hash,
+  );
+  token.creatorFeesClaimed = token.creatorFeesClaimed.plus(event.params.amount);
+  token.save();
 }

@@ -34,6 +34,10 @@ export type Coin = {
   description: string;
   /** Gateway URL for the creator's image, or "" to fall back to art. */
   imageUrl: string;
+  /** Lifetime creator fees this coin has generated — shown to everyone. */
+  creatorFeesEarnedUsd: number;
+  /** How much of that the creator has actually withdrawn. */
+  creatorFeesClaimedUsd: number;
   creator: string;
   contract: string;
   createdAgoSeconds: number;
@@ -166,6 +170,8 @@ function buildCoin(index: number): Coin {
     ticker,
     description,
     imageUrl: "",
+    creatorFeesEarnedUsd: 0,
+    creatorFeesClaimedUsd: 0,
     creator: addr(rnd),
     contract: addr(rnd),
     createdAgoSeconds,

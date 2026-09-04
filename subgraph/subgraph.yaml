@@ -54,3 +54,5 @@ dataSources:
           handler: handleSold
         - event: Graduated(indexed address,uint256,uint256,uint256)
           handler: handleGraduated
+        - event: CreatorFeesClaimed(indexed address,indexed address,uint256)
+          handler: handleCreatorFeesClaimed

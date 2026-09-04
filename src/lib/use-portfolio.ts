@@ -26,6 +26,8 @@ export type Holding = {
 
 type PortfolioResponse = {
   holdings: Holding[];
+  /** Coins this wallet launched — where creator fees accrue. */
+  created: Coin[];
   indexer: IndexerHealth;
 };
 

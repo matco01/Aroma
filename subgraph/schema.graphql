@@ -52,6 +52,19 @@ type Token @entity(immutable: false) {
   "what is being bought right now". This is that, directly.
   """
   lastTradeAt: BigInt!
+
+  """
+  Lifetime creator fees this token has generated, claimed or not.
+
+  Public on purpose. How much a creator has taken out of their own coin is
+  the kind of thing a buyer should be able to see without asking, the same
+  way they would want to see dev sells. Deriving it needs indexing because
+  the contract only stores the *unclaimed* balance — it zeroes on claim, so
+  the running total exists nowhere on-chain.
+  """
+  creatorFeesEarned: BigInt!
+  """How much of that the creator has actually withdrawn."""
+  creatorFeesClaimed: BigInt!
   "Spot price 24h ago, for change calculations. Zero until one day old."
   price24hAgo: BigInt!
 

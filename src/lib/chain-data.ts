@@ -157,6 +157,8 @@ export async function fetchBoardData(): Promise<BoardData> {
       description: (log.args.description as string) || "",
       // The fallback path does no IPFS resolution; art stands in.
       imageUrl: "",
+      creatorFeesEarnedUsd: 0,
+      creatorFeesClaimedUsd: 0,
       creator: creator,
       contract: address,
       createdAgoSeconds: Math.max(1, now - created_at),

@@ -81,6 +81,8 @@ export function getOrCreateToken(
   token.tradeCount = 0;
   token.buyerCount = 0;
   token.lastTradeAt = timestamp;
+  token.creatorFeesEarned = ZERO;
+  token.creatorFeesClaimed = ZERO;
   token.save();
   return token;
 }

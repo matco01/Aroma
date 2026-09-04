@@ -27,10 +27,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { holdings, meta } = await fetchPortfolio(address);
+    const { holdings, created, meta } = await fetchPortfolio(address);
     const indexer = await indexerLag(meta);
     return NextResponse.json(
-      { holdings, indexer },
+      { holdings, created, indexer },
       { headers: { "cache-control": "private, max-age=5" } },
     );
   } catch (e) {

@@ -44,9 +44,6 @@ export function CoinView({ address }: { address: string }) {
   }
 
   const up = coin.change24hPct >= 0;
-  const progress = coin.graduated
-    ? 100
-    : Math.min(100, ((coin.marketCapUsd - CURVE.startingMarketCapUsd) / (CURVE.graduationMarketCapUsd - CURVE.startingMarketCapUsd)) * 100);
   const remaining = Math.max(0, CURVE.graduationTargetUsd - coin.raisedUsd);
 
   // Holders come from trade history rather than a balance index — good
@@ -87,11 +84,11 @@ export function CoinView({ address }: { address: string }) {
                   {coin.name}
                 </h1>
                 <span className="num text-[13px] text-ink-2">${coin.ticker}</span>
-                {coin.graduated ? (
-                  <Chip tone="up">graduated</Chip>
-                ) : (
-                  <Chip tone="accent">on curve · {progress.toFixed(0)}%</Chip>
-                )}
+                {/* Only "graduated" earns a chip. "on curve · 0%" was noise
+                    beside the name — the state is already obvious from the
+                    curve panel, and a 0% badge on a fresh coin reads as a
+                    failure rather than a starting point. */}
+                {coin.graduated && <Chip tone="up">graduated</Chip>}
               </div>
               <div className="num mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-3">
                 <span>
@@ -153,11 +150,7 @@ export function CoinView({ address }: { address: string }) {
         <aside className="space-y-4.5 lg:sticky lg:top-16 lg:self-start">
           <TradePanel coin={coin} />
 
-          <CreatorFees
-            tokenAddress={coin.contract}
-            creator={coin.creator}
-            ticker={coin.ticker}
-          />
+          <CreatorFees coin={coin} />
 
           <div className="rounded-md border border-line bg-surface p-3.5">
             <GraduationBar

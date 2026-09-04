@@ -33,6 +33,7 @@ const TOKEN_FIELDS = `
   id creator name symbol description createdAt
   reserve price marketCap progressBps graduated
   volume tradeCount buyerCount lastTradeAt metadataUri
+  creatorFeesEarned creatorFeesClaimed
 `;
 
 const TRADE_FIELDS = `
@@ -120,6 +121,8 @@ type RawToken = {
   buyerCount: number;
   lastTradeAt: string;
   metadataUri: string;
+  creatorFeesEarned: string;
+  creatorFeesClaimed: string;
 };
 
 type RawProtocol = {
@@ -197,6 +200,8 @@ export function toCoin(
     ticker: t.symbol || "???",
     description: t.description || "",
     imageUrl,
+    creatorFeesEarnedUsd: toNum(t.creatorFeesEarned),
+    creatorFeesClaimedUsd: toNum(t.creatorFeesClaimed),
     creator: t.creator,
     contract: t.id,
     createdAgoSeconds: Math.max(1, now - Number(t.createdAt)),
@@ -404,6 +409,9 @@ export async function fetchTokenDetail(address: string): Promise<{
 
 const PORTFOLIO_QUERY = `
   query Portfolio($account: String!) {
+    created: tokens(where: { creator: $account }, first: 100, orderBy: createdAt, orderDirection: desc) {
+      ${TOKEN_FIELDS}
+    }
     balances(where: { account: $account, amount_gt: "0" }, first: 200) {
       amount costBasis realisedPnl
       token { ${TOKEN_FIELDS} }
@@ -418,6 +426,9 @@ type RawBalance = {
   realisedPnl: string;
   token: RawToken;
 };
+
+/** A coin this wallet launched. Fee balances are read on-chain, not here. */
+export type CreatedCoin = { coin: Coin };
 
 export type Holding = {
   coin: Coin;
@@ -443,16 +454,21 @@ export type Holding = {
  */
 export async function fetchPortfolio(account: string): Promise<{
   holdings: Holding[];
+  created: Coin[];
   meta: SubgraphMeta;
 }> {
   const id = account.toLowerCase();
   const data = await query<{
     balances: RawBalance[];
+    created: RawToken[];
     _meta: { block: { number: number }; hasIndexingErrors: boolean };
   }>(`portfolio:${id}`, PORTFOLIO_QUERY, { account: id });
 
   const now = Math.floor(Date.now() / 1000);
-  const images = await resolveImages(data.balances.map((b) => b.token.metadataUri));
+  const images = await resolveImages([
+    ...data.balances.map((b) => b.token.metadataUri),
+    ...data.created.map((t) => t.metadataUri),
+  ]);
   const holdings = data.balances.map((b) => {
     const coin = toCoin(b.token, now, [], images.get(b.token.metadataUri) ?? "");
     const tokens = toNum(b.amount);
@@ -472,8 +488,13 @@ export async function fetchPortfolio(account: string): Promise<{
 
   holdings.sort((a, b) => b.valueUsd - a.valueUsd);
 
+  const created = data.created.map((t) =>
+    toCoin(t, now, [], images.get(t.metadataUri) ?? ""),
+  );
+
   return {
     holdings,
+    created,
     meta: {
       indexedBlock: data._meta.block.number,
       hasIndexingErrors: data._meta.hasIndexingErrors,

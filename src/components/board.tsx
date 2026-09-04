@@ -149,7 +149,7 @@ export function Board() {
       {showing &&
         (view === "grid" ? (
           <div
-            className={`mt-4 grid gap-3 transition-opacity sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+            className={`mt-4 grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${
               isFetching ? "opacity-60" : ""
             }`}
           >
@@ -258,16 +258,24 @@ function ViewButton({
   );
 }
 
+/**
+ * Column widths here must mirror CoinRow exactly, including which columns
+ * hide at which breakpoint. They had drifted: the header advertised a
+ * Price column the row never rendered, so every label sat above the wrong
+ * number — market cap under "Price", volume under "Market cap", and so on
+ * down the line.
+ */
 function ListHeader() {
   return (
     <div className="hidden items-center gap-3 border-b border-line bg-surface-2 px-3.5 py-2 sm:flex">
-      <span className="w-[26px] shrink-0" />
+      <span className="w-7 shrink-0" />
       <span className="label flex-[2]">Token</span>
-      <span className="label w-24 shrink-0 text-right">Price</span>
-      <span className="label w-24 shrink-0 text-right">Market cap</span>
-      <span className="label w-24 shrink-0 text-right">Volume</span>
-      <span className="label w-20 shrink-0 text-right">Change</span>
-      <span className="label hidden w-28 shrink-0 md:block">Curve</span>
+      <span className="label hidden flex-[3] lg:block" />
+      <span className="label w-20 shrink-0 text-right">Market cap</span>
+      <span className="label hidden w-20 shrink-0 text-right sm:block">Volume</span>
+      <span className="label hidden w-14 shrink-0 text-right md:block">Holders</span>
+      <span className="label w-16 shrink-0 text-right">Change</span>
+      <span className="label hidden w-24 shrink-0 sm:block">Curve</span>
     </div>
   );
 }

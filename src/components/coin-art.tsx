@@ -22,6 +22,7 @@ export function CoinArt({
   radius = 6,
   imageUrl,
   alt = "",
+  className,
 }: {
   seed: number;
   hue: number;
@@ -29,6 +30,8 @@ export function CoinArt({
   radius?: number;
   imageUrl?: string;
   alt?: string;
+  /** Set to fill a container instead of rendering at `size`. */
+  className?: string;
 }) {
   const [failed, setFailed] = useState(false);
 
@@ -44,8 +47,12 @@ export function CoinArt({
         height={size}
         onError={() => setFailed(true)}
         loading="lazy"
-        className="shrink-0 object-cover"
-        style={{ width: size, height: size, borderRadius: radius }}
+        className={className ?? "shrink-0 object-cover"}
+        style={
+          className
+            ? undefined
+            : { width: size, height: size, borderRadius: radius }
+        }
       />
     );
   }
@@ -67,8 +74,19 @@ export function CoinArt({
     for (let x = 0; x < half; x++) cells[y * half + x] = rnd() > 0.45;
   }
 
-  const bg = `hsl(${hue} 32% 13%)`;
-  const fg = `hsl(${hue} 52% 62%)`;
+  /**
+   * The pattern was drawn for a 40px avatar. Filling a 300px card with it
+   * turns a 5x5 grid into slabs of colour — a board of them reads as a bag
+   * of skittles and drowns out the coins that have real art.
+   *
+   * So at fill size it recedes: a much darker ground, a calmer mark, and
+   * the pattern inset rather than bleeding to the edges. It becomes a
+   * placeholder that looks deliberate, and a coin whose creator uploaded
+   * something actually stands out — which is the right incentive anyway.
+   */
+  const filling = Boolean(className);
+  const bg = filling ? `hsl(${hue} 26% 9%)` : `hsl(${hue} 32% 13%)`;
+  const fg = filling ? `hsl(${hue} 34% 42%)` : `hsl(${hue} 52% 62%)`;
   const unit = 100 / grid;
 
   const rects = [];
@@ -91,13 +109,25 @@ export function CoinArt({
 
   return (
     <svg
-      width={size}
-      height={size}
+      width={className ? undefined : size}
+      height={className ? undefined : size}
       viewBox="0 0 100 100"
+      preserveAspectRatio="xMidYMid slice"
       aria-hidden
-      style={{ borderRadius: radius, background: bg, flex: "0 0 auto" }}
+      className={className}
+      style={
+        className
+          ? { background: bg }
+          : { borderRadius: radius, background: bg, flex: "0 0 auto" }
+      }
     >
-      {rects}
+      {filling ? (
+        /* Inset to the middle so the mark sits in space rather than
+           tiling the whole card. */
+        <g transform="translate(26 26) scale(0.48)">{rects}</g>
+      ) : (
+        rects
+      )}
     </svg>
   );
 }

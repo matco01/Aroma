@@ -1,12 +1,9 @@
 import { Board } from "@/components/board";
 import { BoardStats } from "@/components/board-stats";
-import { LiveTape } from "@/components/live-tape";
 
 export default function BoardPage() {
   return (
     <>
-      <LiveTape />
-
       <div className="mx-auto max-w-[1400px] px-4 py-7">
         {/* No hero. The headline describes what is on the page, the way
             Pons does it — the product is the board underneath. */}

@@ -167,7 +167,6 @@ export async function fetchBoardData(): Promise<BoardData> {
       volume24hUsd: volume,
       change24hPct: change,
       holders,
-      replies: 0, // not on-chain; needs its own store (plan §4)
       raisedUsd: toNum(reserve),
       graduated,
       hue,

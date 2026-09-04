@@ -19,14 +19,6 @@ export type Holder = {
   isDev?: boolean;
 };
 
-export type Reply = {
-  id: string;
-  account: string;
-  agoSeconds: number;
-  body: string;
-  likes: number;
-};
-
 export type Coin = {
   id: string;
   name: string;
@@ -46,7 +38,6 @@ export type Coin = {
   volume24hUsd: number;
   change24hPct: number;
   holders: number;
-  replies: number;
   raisedUsd: number;
   graduated: boolean;
   hue: number;
@@ -180,7 +171,6 @@ function buildCoin(index: number): Coin {
     volume24hUsd,
     change24hPct,
     holders,
-    replies: Math.floor(rnd() * 240),
     raisedUsd,
     graduated,
     hue: Math.floor(rnd() * 360),
@@ -234,28 +224,3 @@ export function holdersFor(coin: Coin): Holder[] {
   return rows.sort((a, b) => b.pctOwned - a.pctOwned);
 }
 
-const REPLY_BODIES = [
-  "chart looks like a staircase to somewhere good",
-  "dev is in the comments which is either very good or very bad",
-  "bought at 4k mcap. not selling until graduation or death",
-  "why is the curve at 61% and the volume at zero. explain",
-  "first token where i did not have to go get gas first. this is nice actually",
-  "locked liquidity or i walk",
-  "someone just took 3k out of this. be careful",
-  "the ticker is genuinely funny. that is worth something",
-  "holders count doubled in an hour",
-  "we are so back",
-  "down 40% and i am still up. that is the arc experience",
-  "reminder that the supply is fixed and the contract is public. read it",
-];
-
-export function repliesFor(coin: Coin): Reply[] {
-  const rnd = mulberry32(coin.seed + 41);
-  return Array.from({ length: 7 }, (_, i) => ({
-    id: coin.id + "-r" + i,
-    account: addr(rnd),
-    agoSeconds: Math.floor(90 + i * (300 + rnd() * 5000)),
-    body: REPLY_BODIES[Math.floor(rnd() * REPLY_BODIES.length)],
-    likes: Math.floor(rnd() * 40),
-  }));
-}

@@ -1,21 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import type { Holder, Reply, Trade } from "@/lib/mock";
+import type { Holder, Trade } from "@/lib/mock";
 import { ago, compact, shortAddr, usd } from "@/lib/format";
 import { Chip } from "./primitives";
 
-type Tab = "trades" | "holders" | "replies";
+type Tab = "trades" | "holders";
 
 export function CoinActivity({
   trades,
   holders,
-  replies,
   ticker,
 }: {
   trades: Trade[];
   holders: Holder[];
-  replies: Reply[];
   ticker: string;
 }) {
   const [tab, setTab] = useState<Tab>("trades");
@@ -23,7 +21,6 @@ export function CoinActivity({
   const TABS: { id: Tab; label: string; count: number }[] = [
     { id: "trades", label: "Trades", count: trades.length },
     { id: "holders", label: "Holders", count: holders.length },
-    { id: "replies", label: "Replies", count: replies.length },
   ];
 
   return (
@@ -47,7 +44,6 @@ export function CoinActivity({
 
       {tab === "trades" && <TradesTable trades={trades} ticker={ticker} />}
       {tab === "holders" && <HoldersTable holders={holders} />}
-      {tab === "replies" && <RepliesList replies={replies} />}
     </div>
   );
 }
@@ -130,39 +126,6 @@ function HoldersTable({ holders }: { holders: Holder[] }) {
   );
 }
 
-function RepliesList({ replies }: { replies: Reply[] }) {
-  return (
-    <div>
-      <div className="border-b border-line p-3.5">
-        <textarea
-          rows={2}
-          placeholder="Post a reply"
-          className="w-full resize-none rounded-sm border border-line bg-bg px-2.5 py-2 text-[12.5px] text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-line-strong"
-        />
-        <div className="mt-2 flex justify-end">
-          <button className="h-8 rounded-sm border border-line-strong px-3 text-[12px] text-ink transition-colors hover:bg-surface-2">
-            Post
-          </button>
-        </div>
-      </div>
-      {replies.map((r) => (
-        <div key={r.id} className="border-b border-line px-3.5 py-3 last:border-0">
-          <div className="flex items-center gap-2">
-            <span className="num text-[11.5px] text-ink-2">
-              {shortAddr(r.account)}
-            </span>
-            <span className="num text-[11px] text-ink-3">
-              {ago(r.agoSeconds)}
-            </span>
-            <div className="flex-1" />
-            <span className="num text-[11px] text-ink-3">♥ {r.likes}</span>
-          </div>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-ink">{r.body}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function Th({
   children,

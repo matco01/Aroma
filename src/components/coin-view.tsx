@@ -141,7 +141,6 @@ export function CoinView({ address }: { address: string }) {
             <CoinActivity
               trades={trades ?? []}
               holders={holders}
-              replies={[]}
               ticker={coin.ticker}
             />
           </div>

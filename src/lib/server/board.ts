@@ -210,7 +210,6 @@ export function toCoin(
     volume24hUsd: toNum(t.volume),
     change24hPct: first > 0 ? ((price - first) / first) * 100 : 0,
     holders: t.buyerCount,
-    replies: 0,
     raisedUsd: toNum(t.reserve),
     graduated: t.graduated,
     hue,

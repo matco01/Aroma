@@ -1,0 +1,15 @@
+{
+  "name": "aram-subgraph",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Indexes aram's launches and curve trading on Arc.",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy": "goldsky subgraph deploy aram/1.0.0 --path ."
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.97.1",
+    "@graphprotocol/graph-ts": "0.38.1"
+  }
+}

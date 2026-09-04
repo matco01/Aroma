@@ -1,0 +1,117 @@
+# aram's indexed view of Arc.
+#
+# The point of this file is that price, market cap and graduation progress
+# are *stored*, not computed on read. The frontend previously replayed every
+# Bought/Sold log on every render to derive them, which is what made the
+# board O(history) per viewer. Here the mappings do that work once, when the
+# event arrives, and a board render becomes a single indexed query.
+
+type Token @entity(immutable: false) {
+  id: ID!                      # token contract address
+  address: Bytes!
+  creator: Bytes!
+  name: String!
+  symbol: String!
+  description: String!
+
+  createdAt: BigInt!
+  createdAtBlock: BigInt!
+  createdTx: Bytes!
+
+  # --- live curve state, updated on every trade ---
+  "Net USDC held by the curve, 18-decimal."
+  reserve: BigInt!
+  "Tokens sold out of CURVE_SUPPLY, 18-decimal."
+  tokensSold: BigInt!
+  "Spot price in USDC per token, 18-decimal fixed point."
+  price: BigInt!
+  "price * TOTAL_SUPPLY, 18-decimal. What the UI shows as market cap."
+  marketCap: BigInt!
+  "0-10000 bps toward the graduation raise. Integer so it sorts cheaply."
+  progressBps: Int!
+
+  graduated: Boolean!
+  graduatedAt: BigInt
+
+  # --- rollups, so the board never aggregates at query time ---
+  volume: BigInt!
+  tradeCount: Int!
+  buyerCount: Int!
+  "Spot price 24h ago, for change calculations. Zero until one day old."
+  price24hAgo: BigInt!
+
+  trades: [Trade!]! @derivedFrom(field: "token")
+  balances: [Balance!]! @derivedFrom(field: "token")
+  candles: [Candle!]! @derivedFrom(field: "token")
+}
+
+type Trade @entity(immutable: true) {
+  id: ID!                      # txHash-logIndex
+  token: Token!
+  account: Bytes!
+  isBuy: Boolean!
+
+  "Gross USDC in for a buy; net USDC out for a sell. 18-decimal."
+  usdc: BigInt!
+  tokens: BigInt!
+  "Protocol + creator fee taken on this trade."
+  fee: BigInt!
+
+  "Spot price immediately after this trade — what the chart plots."
+  priceAfter: BigInt!
+
+  timestamp: BigInt!
+  block: BigInt!
+  tx: Bytes!
+}
+
+"Per-account, per-token position with cost basis carried forward."
+type Balance @entity(immutable: false) {
+  id: ID!                      # token-account
+  token: Token!
+  account: Account!
+  amount: BigInt!
+  "Total USDC spent acquiring the current position, average-cost."
+  costBasis: BigInt!
+  realisedPnl: BigInt!
+}
+
+type Account @entity(immutable: false) {
+  id: ID!                      # address
+  address: Bytes!
+  firstSeen: BigInt!
+  tradeCount: Int!
+  volume: BigInt!
+  balances: [Balance!]! @derivedFrom(field: "account")
+}
+
+"""
+OHLC candles, written as trades arrive.
+
+Without these a price chart means reading every trade a token ever had and
+folding it in the browser. `interval` is in seconds so one entity type
+serves 5m/1h/1d rather than three near-identical ones.
+"""
+type Candle @entity(immutable: false) {
+  id: ID!                      # token-interval-bucketStart
+  token: Token!
+  interval: Int!
+  bucketStart: BigInt!
+
+  open: BigInt!
+  high: BigInt!
+  low: BigInt!
+  close: BigInt!
+  volume: BigInt!
+  tradeCount: Int!
+}
+
+"Singleton holding board-wide totals, so the header needs no aggregation."
+type Protocol @entity(immutable: false) {
+  id: ID!                      # always "aram"
+  tokenCount: Int!
+  tradeCount: Int!
+  graduatedCount: Int!
+  totalVolume: BigInt!
+  totalFees: BigInt!
+}

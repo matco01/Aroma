@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CurveManager} from "../src/CurveManager.sol";
 import {AramFactory} from "../src/AramFactory.sol";
@@ -174,5 +175,50 @@ contract AramFactoryTest is Test {
         (bool ok,) = token.call(abi.encodeWithSignature("mint(address,uint256)", creator, 1e18));
         assertFalse(ok, "no mint function may exist on a launched token");
         assertEq(IERC20(token).totalSupply(), supplyBefore, "supply is immutable after deployment");
+    }
+
+    /// @notice A token must be announced before it is traded.
+    ///
+    /// The dev-buy happens inside createToken and emits Bought from
+    /// CurveManager. Indexers consume logs in index order, so if
+    /// TokenCreated came last, every consumer would see a trade for a token
+    /// it had never heard of — and any indexer keyed by token silently
+    /// drops that trade. aram's own subgraph did exactly that: six seeded
+    /// tokens produced five dev-buys and indexed one trade.
+    ///
+    /// This asserts the emission order directly, because the failure mode
+    /// is invisible on-chain — balances and reserves are all correct, only
+    /// the log ordering is wrong.
+    function test_devBuy_isAnnouncedAfterTheTokenExists() public {
+        vm.recordLogs();
+
+        vm.prank(creator);
+        factory.createToken{value: 100e18}("Ordered", "ORD", "", 100e18, 0);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        bytes32 tokenCreatedSig =
+            keccak256("TokenCreated(address,address,string,string,string,uint256)");
+        bytes32 boughtSig =
+            keccak256("Bought(address,address,address,uint256,uint256,uint256,uint256)");
+
+        int256 tokenCreatedAt = -1;
+        int256 boughtAt = -1;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == tokenCreatedSig && tokenCreatedAt < 0) {
+                tokenCreatedAt = int256(i);
+            }
+            if (logs[i].topics[0] == boughtSig && boughtAt < 0) {
+                boughtAt = int256(i);
+            }
+        }
+
+        assertGe(tokenCreatedAt, 0, "TokenCreated must be emitted");
+        assertGe(boughtAt, 0, "dev-buy must emit Bought");
+        assertLt(
+            tokenCreatedAt,
+            boughtAt,
+            "TokenCreated must precede the dev-buy's Bought, or indexers drop the dev-buy"
+        );
     }
 }

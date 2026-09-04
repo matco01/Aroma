@@ -71,14 +71,26 @@ contract AramFactory is ReentrancyGuard {
         token = address(new AramToken(name, symbol, TOTAL_SUPPLY, address(curveManager)));
         curveManager.registerToken(token, msg.sender);
 
+        // Announce the token *before* the dev-buy, not after.
+        //
+        // The dev-buy emits Bought from CurveManager, and an indexer
+        // processes logs in index order. With TokenCreated emitted last, a
+        // consumer sees the token's first trade before it has ever heard of
+        // the token — and any indexer that keys trades by token (ours does,
+        // and so would a third party's) silently drops that dev-buy. Since
+        // the dev-buy is usually the largest early trade and sets the
+        // opening price, losing it is not cosmetic.
+        //
+        // Ordering is the whole point of this line's position; test
+        // test_devBuy_isAnnouncedAfterTheTokenExists pins it.
+        emit TokenCreated(token, msg.sender, name, symbol, description, devBuyUsdc);
+
         if (devBuyUsdc > 0) {
             // recipient is msg.sender (the creator), not this factory —
             // see CurveManager.buy's NatSpec for exactly why that
             // parameter exists.
             curveManager.buy{value: devBuyUsdc}(token, msg.sender, minDevTokensOut);
         }
-
-        emit TokenCreated(token, msg.sender, name, symbol, description, devBuyUsdc);
 
         uint256 refund = msg.value - devBuyUsdc;
         if (refund > 0) {

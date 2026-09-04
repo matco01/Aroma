@@ -29,8 +29,8 @@ export const ARC_TESTNET = {
  * wired up — see contracts/README.md.
  */
 export const ARC_TESTNET_CONTRACTS = {
-  curveManager: "0x1a5ae846E6d9944d9190553bb8085bE3C0251285",
-  aramFactory: "0xedc289C837b01F6B893275E22CbcfF56040cDf51",
+  curveManager: "0x6A41bCf2Bc65F04F971a1483Ba0ae6786B3Ccbc1",
+  aramFactory: "0x65e641CD3F2a57D16d6E4a244d6481da9F9958D5",
   /** Native USDC's ERC-20 interface. 6 decimals; the native view is 18. */
   usdc: "0x3600000000000000000000000000000000000000",
   /**
@@ -38,7 +38,7 @@ export const ARC_TESTNET_CONTRACTS = {
    * genesis — Arc is already past block 60,000,000 and the public RPC
    * rejects a range that wide outright. Update on any redeploy.
    */
-  deployBlock: 60_404_940n,
+  deployBlock: 60_408_365n,
 } as const;
 
 /** ERC-20 view of native USDC. Use for anything a user types or reads. */

@@ -4,20 +4,23 @@ import { curveManagerAbi } from "./abis";
 import { ARC_RPC_URL } from "./wagmi";
 import { ARC_TESTNET_CONTRACTS, CURVE } from "./arc";
 import type { Coin, Trade } from "./mock";
+import { hasSubgraph, fetchBoardFromSubgraph } from "./subgraph";
 
 /**
- * Reads the board straight from Arc, with no indexer in between.
+ * The board's data source.
  *
- * This is deliberately the cheap version of the infrastructure plan's §4:
- * `getLogs` against our own factory plus a `tokenState` read per token.
- * It works because a young testnet has a handful of tokens and a shallow
- * log history. It will not survive real volume — every board render walks
- * the full log range — which is exactly why Goldsky is the planned
- * replacement. The seam is this file: swap its internals for indexer
- * queries and nothing above it changes.
+ * Primary path is the Goldsky subgraph (see subgraph/), which precomputes
+ * price, market cap and progress at index time — one query per render
+ * instead of replaying every log.
  *
- * Everything returned matches the `Coin`/`Trade` shapes the UI already
- * consumes, so components didn't need rewriting to take real data.
+ * The direct-RPC path below is kept as a fallback for when no subgraph is
+ * configured. It re-scans history on every poll and rate-limits within
+ * minutes of real use, so it is a development convenience, not a second
+ * supported mode. Keeping it means the app still boots against a fresh
+ * deployment before an indexer exists.
+ *
+ * Both paths return identical `Coin`/`Trade` shapes, which is why swapping
+ * in the subgraph touched no component.
  */
 
 export const publicClient = createPublicClient({
@@ -100,6 +103,13 @@ export type BoardData = {
  * Callers share this through one React Query key.
  */
 export async function fetchBoardData(): Promise<BoardData> {
+  if (hasSubgraph) {
+    return fetchBoardFromSubgraph();
+  }
+  return fetchBoardFromRpc();
+}
+
+async function fetchBoardFromRpc(): Promise<BoardData> {
   const factory = ARC_TESTNET_CONTRACTS.aramFactory as Address;
   const curve = ARC_TESTNET_CONTRACTS.curveManager as Address;
 

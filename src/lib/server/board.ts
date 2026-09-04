@@ -1,6 +1,7 @@
 import "server-only";
 import { query, type SubgraphMeta } from "./subgraph";
 import { resolveImages } from "./ipfs";
+import { CURVE } from "../arc";
 import type { Coin } from "../mock";
 import type { Trade } from "../mock";
 
@@ -61,48 +62,19 @@ const TRADES_QUERY = `
 `;
 
 const TOKEN_QUERY = `
-  query TokenDetail($id: ID!, $tradeLimit: Int!, $interval: Int!, $candleLimit: Int!) {
+  query TokenDetail($id: ID!, $tradeLimit: Int!) {
     token(id: $id) { ${TOKEN_FIELDS} }
     trades(first: $tradeLimit, orderBy: timestamp, orderDirection: desc, where: { token: $id }) {
       ${TRADE_FIELDS}
     }
-    candles(
-      first: $candleLimit
-      orderBy: bucketStart
-      orderDirection: desc
-      where: { token: $id, interval: $interval }
-    ) {
-      bucketStart open high low close volume
+    series: trades(first: 600, orderBy: timestamp, orderDirection: desc, where: { token: $id }) {
+      timestamp priceAfter
     }
     _meta { block { number } hasIndexingErrors }
   }
 `;
 
-type RawCandle = {
-  bucketStart: string;
-  open: string;
-  high: string;
-  low: string;
-  close: string;
-  volume: string;
-};
 
-/**
- * Candle interval matched to how much history there is.
- *
- * A token minutes old has nothing to show on daily candles; one a year old
- * has 100,000 five-minute buckets. Picking from age keeps the chart at a
- * roughly constant number of points whatever the token's age, which is
- * what makes this bounded rather than growing forever.
- */
-function candleInterval(ageSeconds: number): number {
-  if (ageSeconds < 6 * 3600) return 300; // 5m
-  if (ageSeconds < 14 * 86400) return 3600; // 1h
-  return 86400; // 1d
-}
-
-/** Enough points to draw a readable line, few enough to stay cheap. */
-const CANDLE_POINTS = 120;
 
 type RawToken = {
   id: string;
@@ -343,89 +315,75 @@ export async function fetchTapeTrades(limit: number): Promise<TapeTrade[]> {
   return data.trades.map((t) => toTrade(t, now));
 }
 
-export type Candle = {
-  t: number;
-  o: number;
-  h: number;
-  l: number;
-  c: number;
-  v: number;
-};
+/**
+ * One point on the price line: a timestamp and the market cap at it.
+ *
+ * Built from trades rather than fixed buckets because price only moves
+ * when someone trades — a bucket is an average of something that was
+ * already a step function, and at low volume it mostly averages a number
+ * with itself. Trade points also let the window selector work at any
+ * scale without needing a bucket size per window.
+ */
+export type SeriesPoint = { t: number; m: number };
 
 export async function fetchTokenDetail(address: string): Promise<{
   coin: Coin | null;
   trades: TapeTrade[];
-  candles: Candle[];
-  interval: number;
+  series: SeriesPoint[];
   meta: SubgraphMeta;
 }> {
   const id = address.toLowerCase();
   const now = Math.floor(Date.now() / 1000);
 
-  // The interval depends on the token's age, which needs one cheap read
-  // before the main query. Cached like everything else, so a hot token
-  // pays for it once per TTL.
-  const ageProbe = await query<{ token: { createdAt: string } | null }>(
-    `age:${id}`,
-    `query Age($id: ID!) { token(id: $id) { createdAt } }`,
-    { id },
-  );
-  const age = ageProbe.token ? now - Number(ageProbe.token.createdAt) : 0;
-  const interval = candleInterval(age);
-
   const data = await query<{
     token: RawToken | null;
     trades: RawTrade[];
-    candles: RawCandle[];
+    series: { timestamp: string; priceAfter: string }[];
     _meta: { block: { number: number }; hasIndexingErrors: boolean };
-  }>(`token:${id}:${interval}`, TOKEN_QUERY, {
-    id,
+  }>(`token:${id}`, TOKEN_QUERY, {
     // Most RECENT trades, not the oldest. Ascending here meant a token
     // with more than this many trades showed its ancient history and
     // nothing since — invisible at three trades, badly wrong at fifty
     // thousand.
+    id,
     tradeLimit: 50,
-    interval,
-    candleLimit: CANDLE_POINTS,
   });
 
   const meta = {
     indexedBlock: data._meta.block.number,
     hasIndexingErrors: data._meta.hasIndexingErrors,
   };
-  if (!data.token) return { coin: null, trades: [], candles: [], interval, meta };
+  if (!data.token) return { coin: null, trades: [], series: [], meta };
 
-  // Chart from candles, not from individual trades. This is the whole
-  // reason candles are indexed: the series stays ~120 points whether the
-  // token has ten trades or a million, instead of growing without bound.
-  const candles = [...data.candles].reverse(); // oldest first, for plotting
-  const history =
-    candles.length > 0
-      ? [toNum(candles[0].open), ...candles.map((c) => toNum(c.close))]
-      : [toNum(data.token.price)];
-  // Always end on the live price so the chart's last point matches the
-  // number displayed beside it.
-  history.push(toNum(data.token.price));
+  const livePrice = toNum(data.token.price);
 
+  // Oldest first for plotting, and capped upstream at 600 so this stays
+  // bounded however much a token trades.
+  const series: SeriesPoint[] = [...data.series]
+    .reverse()
+    .map((p) => ({ t: Number(p.timestamp), m: toNum(p.priceAfter) * CURVE.totalSupply }));
+
+  // Always end on the live price so the line's last point matches the
+  // number printed beside it.
+  series.push({ t: now, m: livePrice * CURVE.totalSupply });
+
+  // A token with no trades still has a price — the curve's opening one —
+  // so give the line something flat to draw rather than nothing.
+  if (series.length < 2) {
+    series.unshift({
+      t: Number(data.token.createdAt),
+      m: livePrice * CURVE.totalSupply,
+    });
+  }
+
+  const history = series.map((p) => p.m / CURVE.totalSupply);
   const trades = data.trades.map((t) => toTrade(t, now));
   const images = await resolveImages([data.token.metadataUri]);
-
-  // Oldest first for plotting. Short keys because this is the one payload
-  // that can carry a hundred-plus rows.
-  const candleRows: Candle[] = [...data.candles].reverse().map((c) => ({
-    t: Number(c.bucketStart),
-    o: toNum(c.open),
-    h: toNum(c.high),
-    l: toNum(c.low),
-    c: toNum(c.close),
-    v: toNum(c.volume),
-  }));
 
   return {
     coin: toCoin(data.token, now, history, images.get(data.token.metadataUri) ?? ""),
     trades,
-    candles: candleRows,
-    interval,
+    series,
     meta,
   };
 }

@@ -89,22 +89,13 @@ export function useBoard(opts: {
   });
 }
 
-export type Candle = {
-  /** Bucket start, unix seconds. */
-  t: number;
-  o: number;
-  h: number;
-  l: number;
-  c: number;
-  v: number;
-};
+/** One point on the market-cap line: unix seconds, and the cap at it. */
+export type SeriesPoint = { t: number; m: number };
 
 type TokenResponse = {
   coin: Coin;
   trades: TapeTrade[];
-  candles: Candle[];
-  /** Bucket width in seconds — 300, 3600 or 86400. */
-  interval: number;
+  series: SeriesPoint[];
   indexer: IndexerHealth;
 };
 

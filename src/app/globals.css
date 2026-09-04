@@ -114,6 +114,23 @@ body {
   outline-offset: 1px;
 }
 
+/* ...but not on text fields.
+   
+   A text input matches :focus-visible even when clicked with a mouse —
+   that is per spec, because it accepts keyboard input — so the accent ring
+   appeared on every click, and on the search modal it was there the moment
+   the dialog opened because that input autofocuses. A blue ring you did
+   not ask for reads as a validation error.
+   
+   Focus is still obvious: the caret is in the field, and every input we
+   have sits in a container that brightens its border on focus-within. The
+   ring stays for buttons and links, where it is the only cue there is. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
 @keyframes aroma-flash-up {
   from {
     background-color: color-mix(in srgb, var(--color-up) 22%, transparent);

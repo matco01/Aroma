@@ -41,8 +41,7 @@ export async function GET(
       {
         coin: detail.coin,
         trades: detail.trades,
-        candles: detail.candles,
-        interval: detail.interval,
+        series: detail.series,
         indexer,
       },
       {

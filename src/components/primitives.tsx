@@ -8,17 +8,34 @@ import { usd } from "@/lib/format";
    so it gets a permanent slot on every card rather than living in a tooltip.
    --------------------------------------------------------------------------- */
 export function GraduationBar({
-  raisedUsd,
+  marketCapUsd,
   graduated,
   showLabel = false,
 }: {
-  raisedUsd: number;
+  marketCapUsd: number;
   graduated: boolean;
   showLabel?: boolean;
 }) {
+  // Progress measured in market cap, not the raise.
+  //
+  // The raise is the curve's internal number and the actual graduation
+  // trigger, but "$0.45 of $13.8K raised" means nothing to someone
+  // deciding whether to buy. Market cap is the number they already hold in
+  // their head, so both the label and the bar use it — a bar measuring one
+  // thing while its label reads another is worse than either alone.
+  //
+  // Consequence worth knowing: this bar is convex. Constant-product means
+  // price accelerates as supply sells, so market cap covers its first half
+  // slowly and its second half fast. Half the money in is about a third of
+  // the way up the bar. That is the real shape of the curve, not a
+  // distortion of it.
+  const span = CURVE.graduationMarketCapUsd - CURVE.startingMarketCapUsd;
   const pctDone = graduated
     ? 100
-    : Math.min(100, (raisedUsd / CURVE.graduationTargetUsd) * 100);
+    : Math.max(
+        0,
+        Math.min(100, ((marketCapUsd - CURVE.startingMarketCapUsd) / span) * 100),
+      );
 
   return (
     <div className="w-full">
@@ -28,10 +45,10 @@ export function GraduationBar({
             {graduated ? "Graduated" : "Bonding curve"}
           </span>
           <span className="num text-[11px] text-ink-2">
-            {usd(raisedUsd)}
+            {usd(marketCapUsd)}
             <span className="text-ink-3">
               {" / "}
-              {usd(CURVE.graduationTargetUsd)}
+              {usd(CURVE.graduationMarketCapUsd)} mcap
             </span>
           </span>
         </div>

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useCreateToken } from "@/lib/use-trade";
-import { CURVE } from "@/lib/arc";
+import { CURVE, marketCapAfterRaise } from "@/lib/arc";
 import { compact, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
 import { GraduationBar } from "./primitives";
@@ -228,7 +228,7 @@ export function CreateForm() {
             {description || "No description yet."}
           </p>
           <div className="mt-3">
-            <GraduationBar raisedUsd={devBuyValue} graduated={false} showLabel />
+            <GraduationBar marketCapUsd={marketCapAfterRaise(devBuyValue)} graduated={false} showLabel />
           </div>
         </div>
 

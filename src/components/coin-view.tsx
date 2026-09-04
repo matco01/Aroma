@@ -9,6 +9,7 @@ import { CoinArt } from "./coin-art";
 import { Chip, GraduationBar, Stat } from "./primitives";
 import { PriceChart } from "./price-chart";
 import { TradePanel } from "./trade-panel";
+import { CreatorFees } from "./creator-fees";
 import { CoinActivity } from "./coin-activity";
 
 export function CoinView({ address }: { address: string }) {
@@ -45,7 +46,7 @@ export function CoinView({ address }: { address: string }) {
   const up = coin.change24hPct >= 0;
   const progress = coin.graduated
     ? 100
-    : Math.min(100, (coin.raisedUsd / CURVE.graduationTargetUsd) * 100);
+    : Math.min(100, ((coin.marketCapUsd - CURVE.startingMarketCapUsd) / (CURVE.graduationMarketCapUsd - CURVE.startingMarketCapUsd)) * 100);
   const remaining = Math.max(0, CURVE.graduationTargetUsd - coin.raisedUsd);
 
   // Holders come from trade history rather than a balance index — good
@@ -152,9 +153,15 @@ export function CoinView({ address }: { address: string }) {
         <aside className="space-y-4.5 lg:sticky lg:top-16 lg:self-start">
           <TradePanel coin={coin} />
 
+          <CreatorFees
+            tokenAddress={coin.contract}
+            creator={coin.creator}
+            ticker={coin.ticker}
+          />
+
           <div className="rounded-md border border-line bg-surface p-3.5">
             <GraduationBar
-              raisedUsd={coin.raisedUsd}
+              marketCapUsd={coin.marketCapUsd}
               graduated={coin.graduated}
               showLabel
             />

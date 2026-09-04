@@ -20,6 +20,25 @@ export function usdExact(n: number): string {
   return `${n < 0 ? "-" : ""}$${grouped}.${cents}`;
 }
 
+/**
+ * A USDC amount that never rounds a real balance to zero, or to more than
+ * it is.
+ *
+ * usdExact fixes two decimals, which is right for a wallet balance and
+ * wrong for anything sub-cent: $0.0063 of accrued fees rendered as "$0.01",
+ * telling a creator they were claiming more than they were. Money owed to
+ * someone should never be rounded up in the direction that flatters us.
+ */
+export function usdPrecise(n: number): string {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs === 0) return "$0.00";
+  // Below a cent, show enough digits for the number to be true.
+  if (abs < 0.01) return `${sign}$${abs.toFixed(6).replace(/0+$/, "").replace(/\.$/, ".0")}`;
+  if (abs < 1) return `${sign}$${abs.toFixed(4)}`;
+  return usdExact(n);
+}
+
 function trim(n: number): string {
   return n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2);
 }

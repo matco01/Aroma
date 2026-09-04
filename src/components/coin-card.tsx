@@ -11,7 +11,7 @@ export function CoinCard({ coin }: { coin: Coin }) {
   const up = coin.change24hPct >= 0;
   const progress = coin.graduated
     ? 100
-    : Math.min(100, (coin.raisedUsd / CURVE.graduationTargetUsd) * 100);
+    : Math.min(100, ((coin.marketCapUsd - CURVE.startingMarketCapUsd) / (CURVE.graduationMarketCapUsd - CURVE.startingMarketCapUsd)) * 100);
 
   return (
     <Link
@@ -55,7 +55,7 @@ export function CoinCard({ coin }: { coin: Coin }) {
       </div>
 
       <div className="mt-3.5 flex items-center gap-2">
-        <GraduationBar raisedUsd={coin.raisedUsd} graduated={coin.graduated} />
+        <GraduationBar marketCapUsd={coin.marketCapUsd} graduated={coin.graduated} />
         <span
           className={`num shrink-0 text-[10.5px] ${
             coin.graduated ? "text-up" : "text-ink-3"
@@ -82,7 +82,7 @@ export function CoinRow({ coin }: { coin: Coin }) {
   const up = coin.change24hPct >= 0;
   const progress = coin.graduated
     ? 100
-    : Math.min(100, (coin.raisedUsd / CURVE.graduationTargetUsd) * 100);
+    : Math.min(100, ((coin.marketCapUsd - CURVE.startingMarketCapUsd) / (CURVE.graduationMarketCapUsd - CURVE.startingMarketCapUsd)) * 100);
 
   return (
     <Link
@@ -120,7 +120,7 @@ export function CoinRow({ coin }: { coin: Coin }) {
       </div>
 
       <div className="hidden w-24 shrink-0 items-center gap-2 sm:flex">
-        <GraduationBar raisedUsd={coin.raisedUsd} graduated={coin.graduated} />
+        <GraduationBar marketCapUsd={coin.marketCapUsd} graduated={coin.graduated} />
         <span
           className={`num shrink-0 text-[10.5px] ${
             coin.graduated ? "text-up" : "text-ink-3"

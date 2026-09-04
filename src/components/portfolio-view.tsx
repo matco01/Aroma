@@ -108,7 +108,7 @@ function PositionRow({ holding }: { holding: Holding }) {
   const up = pnlUsd >= 0;
   const progress = coin.graduated
     ? 100
-    : Math.min(100, (coin.raisedUsd / CURVE.graduationTargetUsd) * 100);
+    : Math.min(100, ((coin.marketCapUsd - CURVE.startingMarketCapUsd) / (CURVE.graduationMarketCapUsd - CURVE.startingMarketCapUsd)) * 100);
 
   return (
     <Link
@@ -149,7 +149,7 @@ function PositionRow({ holding }: { holding: Holding }) {
       </div>
 
       <div className="hidden w-24 shrink-0 items-center gap-2 md:flex">
-        <GraduationBar raisedUsd={coin.raisedUsd} graduated={coin.graduated} />
+        <GraduationBar marketCapUsd={coin.marketCapUsd} graduated={coin.graduated} />
         <span
           className={`num shrink-0 text-[10.5px] ${
             coin.graduated ? "text-up" : "text-ink-3"

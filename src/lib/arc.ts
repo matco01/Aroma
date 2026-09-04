@@ -110,3 +110,29 @@ export const CURVE = {
   virtualUsdcReserve: "4600000000000000000000",
   virtualTokenReserve: "1066666666666666666666666667",
 } as const;
+
+/**
+ * Market cap a token sits at after `raisedUsd` net USDC has entered its
+ * curve. The same constant-product formula CurveManager uses:
+ *
+ *   price = (virtualUsdc + raised) / (virtualToken - sold)
+ *
+ * with `sold` derived from the invariant rather than tracked separately,
+ * so a caller only needs to know how much went in.
+ *
+ * Used to preview what a creator's own dev-buy does to the opening market
+ * cap — which is the number they will be judged on, and worth showing
+ * before they commit rather than after.
+ */
+export function marketCapAfterRaise(raisedUsd: number): number {
+  const vUsdc = Number(CURVE.virtualUsdcReserve) / 1e18;
+  const vToken = Number(CURVE.virtualTokenReserve) / 1e18;
+  const k = vUsdc * vToken;
+
+  const netIn = raisedUsd * (1 - CURVE.tradeFeeBps / 10_000);
+  const effUsdc = vUsdc + netIn;
+  const effToken = k / effUsdc;
+  if (effToken <= 0) return CURVE.graduationMarketCapUsd;
+
+  return (effUsdc / effToken) * CURVE.totalSupply;
+}

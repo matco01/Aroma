@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SeriesPoint } from "@/lib/use-chain";
 import { usd } from "@/lib/format";
 
@@ -33,6 +33,7 @@ const PAD = { top: 16, right: 56, bottom: 26, left: 10 };
 
 export function PriceChart({
   series,
+  /** viewBox height. Sets the aspect ratio, not a pixel size. */
   height = 300,
 }: {
   series: SeriesPoint[];
@@ -43,6 +44,29 @@ export function PriceChart({
   // interesting part gets squeezed into the last few pixels.
   const [windowId, setWindowId] = useState("1h");
   const [hover, setHover] = useState<number | null>(null);
+
+  /**
+   * The viewBox is measured, not fixed.
+   *
+   * A fixed viewBox has to choose between letterboxing (preserving aspect
+   * and leaving dead space at the sides, so axis labels stop short of the
+   * edge) and scaling to fit (which blows up the text and strokes along
+   * with everything else, since they are in viewBox units). Measuring the
+   * container avoids the choice: one viewBox unit is one CSS pixel, so the
+   * chart fills the panel and nothing is distorted.
+   */
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [measured, setMeasured] = useState(760);
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setMeasured(Math.max(320, Math.round(entry.contentRect.width)));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const win = WINDOWS.find((w) => w.id === windowId) ?? WINDOWS[4];
 
@@ -75,7 +99,7 @@ export function PriceChart({
     );
   }
 
-  const width = 760;
+  const width = measured;
   const plotW = width - PAD.left - PAD.right;
   const plotH = height - PAD.top - PAD.bottom;
 
@@ -170,9 +194,10 @@ export function PriceChart({
         </div>
       </div>
 
+      <div ref={boxRef}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full"
+        className="block w-full"
         style={{ height }}
         onMouseMove={onMove}
         onMouseLeave={() => setHover(null)}
@@ -284,6 +309,7 @@ export function PriceChart({
           </text>
         ))}
       </svg>
+      </div>
     </div>
   );
 }

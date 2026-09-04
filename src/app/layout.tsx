@@ -23,6 +23,43 @@ export const metadata: Metadata = {
   },
   description:
     "Launch and trade fixed-supply tokens on Arc, where USDC is the native gas token and every price is already a dollar.",
+
+  icons: {
+    icon: [
+      { url: "/icon.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    // iOS ignores transparency and would put the wisp on white, so this
+    // one is pre-composited on the brand background.
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+
+  /**
+   * Link previews.
+   *
+   * A launchpad gets shared as a link far more often than it gets typed
+   * in, and until now an Aroma URL unfurled as a blank rectangle on X and
+   * Discord — the one place the product is seen by people who have never
+   * been to the site.
+   */
+  openGraph: {
+    type: "website",
+    siteName: "Aroma",
+    title: "Aroma — launch coins on Arc",
+    description:
+      "Fixed-supply tokens on a bonding curve. Gas is USDC, so every price is already a dollar.",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Aroma" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@Aromadotmoney",
+    creator: "@Aromadotmoney",
+    title: "Aroma — launch coins on Arc",
+    description:
+      "Fixed-supply tokens on a bonding curve. Gas is USDC, so every price is already a dollar.",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -107,18 +108,25 @@ export function SiteHeader() {
 }
 
 /**
- * The mark is a bonding curve drawn as three rising bars inside a square —
- * the shape of the thing the product actually does. No gradient, no glow.
+ * The wisp, cut off its original backing so it sits on the header rather
+ * than in a slightly-wrong square on top of it — the source PNG's
+ * background was #030910, close enough to our #0b0c0f to read as a
+ * mistake rather than a choice.
+ *
+ * 22px against 15px text: the wisp is tall and narrow, so matching the cap
+ * height would leave it looking smaller than it is.
  */
 function Wordmark() {
   return (
     <span className="flex items-center gap-2">
-      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
-        <rect width="18" height="18" rx="5" fill="var(--color-accent)" />
-        <rect x="4" y="10" width="2.5" height="4" rx="1" fill="#fff" opacity="0.55" />
-        <rect x="7.75" y="7" width="2.5" height="7" rx="1" fill="#fff" opacity="0.8" />
-        <rect x="11.5" y="4" width="2.5" height="10" rx="1" fill="#fff" />
-      </svg>
+      <Image
+        src="/logo.png"
+        alt=""
+        width={22}
+        height={22}
+        priority
+        className="shrink-0"
+      />
       <span className="text-[15px] font-semibold tracking-[-0.02em] text-ink">
         Aroma
       </span>

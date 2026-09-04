@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Coin } from "@/lib/mock";
 import { CURVE } from "@/lib/arc";
-import { ago, compact, pct, usd } from "@/lib/format";
+import { ago, compact, pct, shortAddr, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
 import { GraduationBar, Sparkline } from "./primitives";
 
@@ -39,9 +39,14 @@ export function CoinCard({ coin }: { coin: Coin }) {
   return (
     <Link
       href={`/coin/${coin.id}`}
-      className="group flex flex-col overflow-hidden rounded-md border border-line bg-surface transition-colors hover:border-line-strong hover:bg-surface-2"
+      className="group flex flex-col rounded-md border border-line bg-surface p-2 transition-colors hover:border-line-strong hover:bg-surface-2"
     >
-      <div className="relative aspect-square w-full overflow-hidden bg-bg">
+      {/* Inset with its own corners rather than bleeding to the card edge.
+          The card then frames the art instead of the art cutting the card
+          in half, and the small margin reads as one layer sitting on
+          another — which is what makes a grid of these feel composed
+          rather than tiled. */}
+      <div className="relative aspect-square w-full overflow-hidden rounded-sm bg-bg">
         <CoinArt
           seed={coin.seed}
           hue={coin.hue}
@@ -52,61 +57,65 @@ export function CoinCard({ coin }: { coin: Coin }) {
           className="h-full w-full object-cover"
         />
 
-        {/* Badge over the art rather than another line of text beneath it —
-            it is the one piece of status worth seeing before you read
-            anything. */}
         {coin.graduated && (
-          <span className="absolute left-2 top-2 rounded-xs bg-bg/85 px-1.5 py-0.5 text-[10px] font-medium text-up backdrop-blur-sm">
+          <span className="absolute left-1.5 top-1.5 rounded-xs bg-bg/85 px-1.5 py-0.5 text-[10px] font-medium text-up backdrop-blur-sm">
             graduated
           </span>
         )}
 
-        <span className="num absolute right-2 top-2 rounded-xs bg-bg/85 px-1.5 py-0.5 text-[10.5px] backdrop-blur-sm">
-          <span className={up ? "text-up" : "text-down"}>
-            {pct(coin.change24hPct)}
-          </span>
+        <span
+          className={`num absolute right-1.5 top-1.5 rounded-xs bg-bg/85 px-1.5 py-0.5 text-[10.5px] backdrop-blur-sm ${
+            up ? "text-up" : "text-down"
+          }`}
+        >
+          {pct(coin.change24hPct)}
         </span>
       </div>
 
-      <div className="flex flex-1 flex-col p-3">
+      <div className="flex flex-1 flex-col px-1.5 pb-0.5 pt-2.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="truncate text-[13.5px] font-medium leading-tight text-ink">
+            <div className="truncate text-[13px] font-medium leading-tight text-ink">
               {coin.name}
             </div>
-            <div className="num mt-1 truncate text-[11px] text-ink-3">
-              <span className="text-ink-2">${coin.ticker}</span> ·{" "}
-              {ago(coin.createdAgoSeconds)}
+            <div className="num mt-0.5 truncate text-[11px] text-ink-2">
+              ${coin.ticker}
             </div>
           </div>
-          <Sparkline data={coin.history} up={up} width={52} height={18} />
+          <Sparkline data={coin.history} up={up} width={48} height={16} />
         </div>
 
-        {/* Market cap gets real size. It is the number people compare coins
-            by, and it was previously the same weight as everything else. */}
-        <div className="mt-2.5 flex items-baseline justify-between gap-2">
+        {/* "MC" earns its place: without it the biggest number on the card
+            is unlabelled, and market cap and volume are easy to confuse. */}
+        <div className="mt-2 flex items-baseline gap-1.5">
           <span className="num text-[16px] leading-none text-ink">
             {usd(coin.marketCapUsd)}
           </span>
-          <span className="num text-[11px] text-ink-3">
-            {compact(coin.holders)} holders
+          <span className="num text-[10px] text-ink-3">MC</span>
+        </div>
+
+        <div className="mt-2.5 flex items-center gap-2">
+          <GraduationBar
+            marketCapUsd={coin.marketCapUsd}
+            graduated={coin.graduated}
+          />
+          <span
+            className={`num shrink-0 text-[10.5px] ${
+              coin.graduated ? "text-up" : "text-ink-3"
+            }`}
+          >
+            {progress.toFixed(0)}%
           </span>
         </div>
 
-        <div className="mt-auto pt-3">
-          <div className="flex items-center gap-2">
-            <GraduationBar
-              marketCapUsd={coin.marketCapUsd}
-              graduated={coin.graduated}
-            />
-            <span
-              className={`num shrink-0 text-[10.5px] ${
-                coin.graduated ? "text-up" : "text-ink-3"
-              }`}
-            >
-              {progress.toFixed(0)}%
-            </span>
-          </div>
+        {/* Contract and age. The address is what someone pastes into a
+            wallet or explorer, and it is the one identifier that cannot be
+            faked by a copycat using the same name and picture. */}
+        <div className="num mt-auto flex items-center justify-between gap-2 pt-2.5 text-[10px]">
+          <span className="truncate text-ink-3">{shortAddr(coin.contract)}</span>
+          <span className="shrink-0 text-ink-2">
+            {ago(coin.createdAgoSeconds)}
+          </span>
         </div>
       </div>
     </Link>

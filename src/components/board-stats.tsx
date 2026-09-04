@@ -32,10 +32,14 @@ export function BoardStats() {
       <HeadStat label="Graduated" value={`${graduated}`} sub={`of ${tokenCount}`} />
       {/* Least load-bearing stat; first to go when space runs out. */}
       <div className="hidden sm:block">
+        {/* Market cap, not the raise. "Graduates at $13.8K raised" answers a
+            question nobody asks — what people want to know is where the
+            token lands. The raise is the curve's internal measure and
+            belongs on the progress bar, not in the headline. */}
         <HeadStat
           label="Graduates at"
-          value={usd(CURVE.graduationTargetUsd)}
-          sub="raised"
+          value={usd(CURVE.graduationMarketCapUsd)}
+          sub="market cap"
         />
       </div>
     </dl>

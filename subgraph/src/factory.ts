@@ -1,4 +1,4 @@
-import { TokenCreated } from "../generated/AramFactory/AramFactory";
+import { TokenCreated } from "../generated/AromaFactory/AromaFactory";
 import { getOrCreateToken, getAccount, getProtocol } from "./shared";
 
 /**

@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 import {Script, console} from "forge-std/Script.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CurveManager} from "../src/CurveManager.sol";
-import {AramFactory} from "../src/AramFactory.sol";
-import {AramToken} from "../src/AramToken.sol";
+import {AromaFactory} from "../src/AromaFactory.sol";
+import {AromaToken} from "../src/AromaToken.sol";
 
 /// @notice Exercises the full user journey against a real network:
 /// launch -> dev-buy -> public buy -> permit sell -> claim creator fees.
@@ -21,7 +21,7 @@ contract Lifecycle is Script {
         uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address me = vm.addr(pk);
         CurveManager curve = CurveManager(vm.envAddress("CURVE_MANAGER"));
-        AramFactory factory = AramFactory(vm.envAddress("ARAM_FACTORY"));
+        AromaFactory factory = AromaFactory(vm.envAddress("AROMA_FACTORY"));
 
         console.log("=== start ===");
         console.log("account:              ", me);
@@ -88,10 +88,10 @@ contract Lifecycle is Script {
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19\x01",
-                AramToken(token).DOMAIN_SEPARATOR(),
+                AromaToken(token).DOMAIN_SEPARATOR(),
                 keccak256(
                     abi.encode(
-                        PERMIT_TYPEHASH, me, address(curve), amount, AramToken(token).nonces(me), deadline
+                        PERMIT_TYPEHASH, me, address(curve), amount, AromaToken(token).nonces(me), deadline
                     )
                 )
             )

@@ -120,7 +120,7 @@ function Wordmark() {
         <rect x="11.5" y="4" width="2.5" height="10" rx="1" fill="#fff" />
       </svg>
       <span className="text-[15px] font-semibold tracking-[-0.02em] text-ink">
-        aram
+        Aroma
       </span>
     </span>
   );

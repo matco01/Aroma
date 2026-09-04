@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CurveManager} from "../src/CurveManager.sol";
-import {AramFactory} from "../src/AramFactory.sol";
-import {AramToken} from "../src/AramToken.sol";
+import {AromaFactory} from "../src/AromaFactory.sol";
+import {AromaToken} from "../src/AromaToken.sol";
 
 /// @notice Covers the highest-stakes paths named in the project plan: the
 /// curve math against derive_curve.py's verified targets, protocol-favoring
@@ -15,7 +15,7 @@ import {AramToken} from "../src/AramToken.sol";
 /// silent-drift bug class hand-written cases alone won't reliably catch.
 contract CurveManagerTest is Test {
     CurveManager curve;
-    AramFactory factory;
+    AromaFactory factory;
 
     address owner = makeAddr("owner");
     address vault = makeAddr("vault");
@@ -35,7 +35,7 @@ contract CurveManagerTest is Test {
 
     function setUp() public {
         curve = new CurveManager(owner, vault);
-        factory = new AramFactory(address(curve));
+        factory = new AromaFactory(address(curve));
         vm.prank(owner);
         curve.setFactory(address(factory));
 
@@ -55,7 +55,7 @@ contract CurveManagerTest is Test {
         view
         returns (uint8 v, bytes32 r, bytes32 s)
     {
-        AramToken t = AramToken(token);
+        AromaToken t = AromaToken(token);
         bytes32 structHash =
             keccak256(abi.encode(PERMIT_TYPEHASH, signerAddr, address(curve), value, t.nonces(signerAddr), deadline));
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", t.DOMAIN_SEPARATOR(), structHash));
@@ -281,7 +281,7 @@ contract CurveManagerTest is Test {
         _buyToGraduation(token);
 
         // Called by an arbitrary address with no special role — the
-        // product must not depend on aram running a keeper for tokens to
+        // product must not depend on Aroma running a keeper for tokens to
         // graduate.
         vm.prank(makeAddr("randomPasserby"));
         curve.graduate(token);

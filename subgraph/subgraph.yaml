@@ -1,6 +1,6 @@
 specVersion: 1.0.0
 description: >
-  aram — bonding-curve launchpad on Arc. Indexes token launches, curve
+  Aroma — bonding-curve launchpad on Arc. Indexes token launches, curve
   trading and graduation, with price, market cap and OHLC candles derived at
   index time so the frontend never replays history to render a board.
 repository: https://github.com/matco01/Aroma
@@ -10,12 +10,12 @@ schema:
 dataSources:
   # Launches. Small and append-only — one event per token, ever.
   - kind: ethereum
-    name: AramFactory
+    name: AromaFactory
     network: arc-testnet
     source:
-      address: "0x65e641CD3F2a57D16d6E4a244d6481da9F9958D5"
-      abi: AramFactory
-      startBlock: 60408365
+      address: "0x27BbC94E25c67e15bC2789C8C7F8c4cBC1ecf7f2"
+      abi: AromaFactory
+      startBlock: 60419662
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -23,8 +23,8 @@ dataSources:
       file: ./src/factory.ts
       entities: [Token, Account, Protocol]
       abis:
-        - name: AramFactory
-          file: ./abis/AramFactory.json
+        - name: AromaFactory
+          file: ./abis/AromaFactory.json
       eventHandlers:
         - event: TokenCreated(indexed address,indexed address,string,string,string,uint256)
           handler: handleTokenCreated
@@ -35,9 +35,9 @@ dataSources:
     name: CurveManager
     network: arc-testnet
     source:
-      address: "0x6A41bCf2Bc65F04F971a1483Ba0ae6786B3Ccbc1"
+      address: "0x7B21A3C9cB63e4Cf0694012CDA8B922fEeFAB828"
       abi: CurveManager
-      startBlock: 60408365
+      startBlock: 60419662
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

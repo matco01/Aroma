@@ -3,12 +3,12 @@ pragma solidity 0.8.28;
 
 import {Script, console} from "forge-std/Script.sol";
 import {CurveManager} from "../src/CurveManager.sol";
-import {AramFactory} from "../src/AramFactory.sol";
+import {AromaFactory} from "../src/AromaFactory.sol";
 
 /// @notice Deploys the three-contract system and completes the one-time
 /// bootstrap wiring.
 ///
-/// Order matters and isn't arbitrary: AramFactory's constructor needs
+/// Order matters and isn't arbitrary: AromaFactory's constructor needs
 /// CurveManager's address, and CurveManager can only learn its factory
 /// afterwards — hence setFactory, which is callable exactly once.
 ///
@@ -34,14 +34,14 @@ contract Deploy is Script {
         vm.startBroadcast(pk);
 
         CurveManager curve = new CurveManager(owner, graduationVault);
-        AramFactory factory = new AramFactory(address(curve));
+        AromaFactory factory = new AromaFactory(address(curve));
         curve.setFactory(address(factory));
 
         vm.stopBroadcast();
 
         console.log("");
         console.log("CurveManager:    ", address(curve));
-        console.log("AramFactory:     ", address(factory));
+        console.log("AromaFactory:     ", address(factory));
         console.log("");
         console.log("Verify wiring:");
         console.log("  factory set:   ", curve.factory() == address(factory));

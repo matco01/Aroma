@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CurveManager} from "../src/CurveManager.sol";
-import {AramFactory} from "../src/AramFactory.sol";
-import {AramToken} from "../src/AramToken.sol";
+import {AromaFactory} from "../src/AromaFactory.sol";
+import {AromaToken} from "../src/AromaToken.sol";
 
 /// @notice Drives CurveManager with random sequences of real user actions.
 /// Foundry calls these functions in arbitrary order with arbitrary inputs;
@@ -14,7 +14,7 @@ import {AramToken} from "../src/AramToken.sol";
 /// thought to write a test for, which is the whole reason it exists.
 contract CurveHandler is Test {
     CurveManager public curve;
-    AramFactory public factory;
+    AromaFactory public factory;
 
     address[] public tokens;
     address[] public actors;
@@ -24,7 +24,7 @@ contract CurveHandler is Test {
     uint256 public ghostCreatorFeesPaidOut;
     uint256 public ghostProtocolFeesPaidOut;
 
-    constructor(CurveManager curve_, AramFactory factory_) {
+    constructor(CurveManager curve_, AromaFactory factory_) {
         curve = curve_;
         factory = factory_;
 
@@ -152,7 +152,7 @@ contract CurveHandler is Test {
         view
         returns (uint8 v, bytes32 r, bytes32 s)
     {
-        AramToken t = AramToken(token);
+        AromaToken t = AromaToken(token);
         bytes32 typehash = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
         bytes32 structHash =
             keccak256(abi.encode(typehash, signerAddr, address(curve), value, t.nonces(signerAddr), deadline));
@@ -165,7 +165,7 @@ contract CurveHandler is Test {
 
 contract CurveManagerInvariants is Test {
     CurveManager curve;
-    AramFactory factory;
+    AromaFactory factory;
     CurveHandler handler;
 
     address owner = makeAddr("owner");
@@ -173,7 +173,7 @@ contract CurveManagerInvariants is Test {
 
     function setUp() public {
         curve = new CurveManager(owner, vault);
-        factory = new AramFactory(address(curve));
+        factory = new AromaFactory(address(curve));
         vm.prank(owner);
         curve.setFactory(address(factory));
 

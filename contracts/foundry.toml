@@ -23,7 +23,7 @@ optimizer_runs = 1_000_000
 # Deploy-cost-sensitive: the factory deploys a fresh ERC20 on every single
 # token launch, so *that* contract's bytecode size/deploy gas matters a lot
 # more than a normal one-off deploy. Keep the launched-token contract
-# minimal — this is a design constraint on AramToken.sol, not a toml
+# minimal — this is a design constraint on AromaToken.sol, not a toml
 # setting, noted here so it isn't lost.
 
 fs_permissions = [{ access = "read", path = "./" }]

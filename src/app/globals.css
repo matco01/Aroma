@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* =========================================================================
-   ARAM design tokens — Arc-native launchpad
+   AROMA design tokens — Arc-native launchpad
    Rules of the system:
      1. Elevation comes from background + hairline. Never from shadow.
         (Shadows + blur are the #1 tell of a generated marketing page.)
@@ -114,7 +114,7 @@ body {
   outline-offset: 1px;
 }
 
-@keyframes aram-flash-up {
+@keyframes aroma-flash-up {
   from {
     background-color: color-mix(in srgb, var(--color-up) 22%, transparent);
   }
@@ -122,7 +122,7 @@ body {
     background-color: transparent;
   }
 }
-@keyframes aram-flash-down {
+@keyframes aroma-flash-down {
   from {
     background-color: color-mix(in srgb, var(--color-down) 22%, transparent);
   }
@@ -131,13 +131,13 @@ body {
   }
 }
 .flash-up {
-  animation: aram-flash-up 620ms ease-out;
+  animation: aroma-flash-up 620ms ease-out;
 }
 .flash-down {
-  animation: aram-flash-down 620ms ease-out;
+  animation: aroma-flash-down 620ms ease-out;
 }
 
-@keyframes aram-slide-in {
+@keyframes aroma-slide-in {
   from {
     opacity: 0;
     transform: translateY(-6px);
@@ -148,7 +148,7 @@ body {
   }
 }
 .slide-in {
-  animation: aram-slide-in 220ms ease-out;
+  animation: aroma-slide-in 220ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

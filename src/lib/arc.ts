@@ -21,7 +21,7 @@ export const ARC_TESTNET = {
 } as const;
 
 /**
- * aram's own deployed contracts, live on Arc testnet.
+ * Aroma's own deployed contracts, live on Arc testnet.
  *
  * Deployed and exercised end to end on 2026-09-03: launch, dev-buy, public
  * buy, permit sell, and creator-fee claim all confirmed on-chain. Mainnet
@@ -29,8 +29,8 @@ export const ARC_TESTNET = {
  * wired up — see contracts/README.md.
  */
 export const ARC_TESTNET_CONTRACTS = {
-  curveManager: "0x6A41bCf2Bc65F04F971a1483Ba0ae6786B3Ccbc1",
-  aramFactory: "0x65e641CD3F2a57D16d6E4a244d6481da9F9958D5",
+  curveManager: "0x7B21A3C9cB63e4Cf0694012CDA8B922fEeFAB828",
+  aromaFactory: "0x27BbC94E25c67e15bC2789C8C7F8c4cBC1ecf7f2",
   /** Native USDC's ERC-20 interface. 6 decimals; the native view is 18. */
   usdc: "0x3600000000000000000000000000000000000000",
   /**
@@ -38,7 +38,7 @@ export const ARC_TESTNET_CONTRACTS = {
    * genesis — Arc is already past block 60,000,000 and the public RPC
    * rejects a range that wide outright. Update on any redeploy.
    */
-  deployBlock: 60_408_365n,
+  deployBlock: 60_419_662n,
 } as const;
 
 /** ERC-20 view of native USDC. Use for anything a user types or reads. */

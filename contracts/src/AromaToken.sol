@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
-/// @title AramToken
-/// @notice The token every launch on aram deploys. Fixed supply, no owner,
+/// @title AromaToken
+/// @notice The token every launch on Aroma deploys. Fixed supply, no owner,
 /// no admin function of any kind — the entire trust model rests on this
 /// contract being unable to do anything after construction except move
 /// balances around. Permit (EIP-2612) support exists specifically so a
@@ -14,7 +14,7 @@ import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20P
 /// @dev Deliberately minimal. This deploys once per token launch, so its
 /// bytecode size is a real, recurring gas cost across every launch on the
 /// platform — every byte here is a byte every creator pays for.
-contract AramToken is ERC20, ERC20Permit {
+contract AromaToken is ERC20, ERC20Permit {
     /// @param name_ Display name, chosen by the creator.
     /// @param symbol_ Ticker, chosen by the creator.
     /// @param totalSupply_ Minted in full to `curveManager` at construction.

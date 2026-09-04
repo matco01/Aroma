@@ -22,8 +22,8 @@ WANT = {
         "TOTAL_SUPPLY", "TRADE_FEE_BPS", "CREATOR_FEE_SHARE_BPS", "MAX_DEV_BUY_USDC",
         "Bought", "Sold", "Graduated", "TokenRegistered",
     },
-    "AramFactory": {"createToken", "TokenCreated", "TOTAL_SUPPLY"},
-    "AramToken": {
+    "AromaFactory": {"createToken", "TokenCreated", "TOTAL_SUPPLY"},
+    "AromaToken": {
         "name", "symbol", "balanceOf", "totalSupply", "nonces",
         "DOMAIN_SEPARATOR", "permit",
     },
@@ -40,7 +40,7 @@ def load_abi(name: str):
 def main() -> None:
     lines = [
         "/**",
-        " * ABIs for aram's deployed contracts, generated from the Foundry build.",
+        " * ABIs for Aroma's deployed contracts, generated from the Foundry build.",
         " *",
         " * Regenerate with `npm run abis` after any contract change — these are",
         " * trimmed to what the frontend actually calls, so a new function used in",

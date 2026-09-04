@@ -28,9 +28,9 @@ if (hasReownProject) {
     defaultNetwork: arcTestnet,
     projectId: REOWN_PROJECT_ID,
     metadata: {
-      name: "aram",
+      name: "Aroma",
       description: "Launch and trade fixed-supply tokens on Arc.",
-      url: "https://aram.fun",
+      url: "https://Aroma.fun",
       icons: [],
     },
     features: {

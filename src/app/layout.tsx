@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "aram — launch coins on Arc",
-    template: "%s · aram",
+    default: "Aroma — launch coins on Arc",
+    template: "%s · Aroma",
   },
   description:
     "Launch and trade fixed-supply tokens on Arc, where USDC is the native gas token and every price is already a dollar.",

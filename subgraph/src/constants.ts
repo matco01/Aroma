@@ -24,7 +24,7 @@ export const TRADE_FEE_BPS = BigInt.fromI32(100);
 export const BPS_DENOMINATOR = BigInt.fromI32(10000);
 
 export const ZERO = BigInt.zero();
-export const PROTOCOL_ID = "aram";
+export const PROTOCOL_ID = "Aroma";
 
 /** Candle intervals in seconds: 5m, 1h, 1d. */
 export const CANDLE_INTERVALS: i32[] = [300, 3600, 86400];

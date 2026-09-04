@@ -98,7 +98,7 @@ export type BoardData = {
  * Callers share this through one React Query key.
  */
 export async function fetchBoardData(): Promise<BoardData> {
-  const factory = ARC_TESTNET_CONTRACTS.aramFactory as Address;
+  const factory = ARC_TESTNET_CONTRACTS.aromaFactory as Address;
   const curve = ARC_TESTNET_CONTRACTS.curveManager as Address;
 
   const created = await scanLogs((fromBlock, toBlock) =>

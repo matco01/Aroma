@@ -99,7 +99,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
     mapping(address token => TokenState) public tokenState;
 
     /// @notice Set once, by the owner, immediately after both this contract
-    /// and AramFactory are deployed — see their shared NatSpec note on the
+    /// and AromaFactory are deployed — see their shared NatSpec note on the
     /// bootstrap ordering. Immutable in practice (guarded to set-once) even
     /// though it isn't declared `immutable`, because it can't be known at
     /// this contract's own construction time (Factory needs this contract's
@@ -140,7 +140,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
 
     event TokenRegistered(address indexed token, address indexed creator);
     /// @dev `payer` and `recipient` differ exactly once per token: the
-    /// factory-mediated dev-buy, where payer is the AramFactory contract
+    /// factory-mediated dev-buy, where payer is the AromaFactory contract
     /// and recipient is the actual creator. Indexers should key holder
     /// balances off `recipient`, not `payer`. `fee` is split creator/
     /// protocol per CREATOR_FEE_SHARE_BPS — `creatorFee` names this token's
@@ -191,7 +191,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
 
     /// @notice Wires this contract to its factory. Callable exactly once —
     /// after that this behaves like an immutable value. Two-step because
-    /// AramFactory's constructor needs this contract's address, so this
+    /// AromaFactory's constructor needs this contract's address, so this
     /// contract can't know the factory's address at its own construction.
     function setFactory(address factory_) external onlyOwner {
         require(factory == address(0), "factory already set");
@@ -224,7 +224,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
 
     // ---------------------------------------------------------------
     // Registration — called once per token, by the factory, right after it
-    // deploys a fresh AramToken (which mints the full supply here).
+    // deploys a fresh AromaToken (which mints the full supply here).
     // ---------------------------------------------------------------
 
     function registerToken(address token, address creator) external onlyFactory {
@@ -240,7 +240,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
 
     /// @notice Buys `token` with native USDC (msg.value), delivered to
     /// `recipient`. Recipient is a separate parameter from msg.sender —
-    /// not for msg.sender's own convenience, but because AramFactory pays
+    /// not for msg.sender's own convenience, but because AromaFactory pays
     /// for a creator's same-transaction dev-buy *as the calling contract*,
     /// so msg.sender inside this function would otherwise resolve to the
     /// factory, not the creator. Everyone else just passes their own
@@ -336,7 +336,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
 
     /// @notice Moves a fully-raised token off the curve. Permissionless —
     /// anyone can call this once the threshold is hit, not just an
-    /// aram-run keeper, so the product doesn't depend on aram operating a
+    /// Aroma-run keeper, so the product doesn't depend on Aroma operating a
     /// bot for graduation to actually happen.
     /// @dev What "graduating" means today is intentionally incomplete: it
     /// sends the seed USDC + reserved tokens to `graduationVault` rather
@@ -406,7 +406,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step, Pausable {
     /// distinction on this side. Anyone can call this (not just the
     /// creator), but funds only ever go to the recorded creator address;
     /// the permissionless pattern here matches graduate() — the product
-    /// doesn't depend on the creator remembering to claim, or on aram
+    /// doesn't depend on the creator remembering to claim, or on Aroma
     /// operating anything, for a payout to happen.
     function claimCreatorFees(address token) external nonReentrant whenNotPaused {
         TokenState storage st = tokenState[token];

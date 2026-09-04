@@ -39,7 +39,7 @@ export default function CreatePage() {
         <Step
           n={3}
           title="Graduate"
-          body={`At ${usd(CURVE.graduationTargetUsd)} raised, liquidity moves to a permanently locked pool.`}
+          body={`At a ${usd(CURVE.graduationMarketCapUsd)} market cap, liquidity moves to a permanently locked pool.`}
         />
       </ol>
 

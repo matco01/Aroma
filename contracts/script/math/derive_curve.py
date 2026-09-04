@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Derives the constant-product bonding curve's virtual reserves from aram's
+Derives the constant-product bonding curve's virtual reserves from Aroma's
 existing product constants (src/lib/arc.ts's CURVE object), and verifies the
 result by simulating the full curve before any Solidity gets written.
 

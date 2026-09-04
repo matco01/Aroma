@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import {Script, console} from "forge-std/Script.sol";
 import {CurveManager} from "../src/CurveManager.sol";
-import {AramFactory} from "../src/AramFactory.sol";
+import {AromaFactory} from "../src/AromaFactory.sol";
 
 /// @notice Launches a handful of tokens with varied dev-buys so the board
 /// has something real to render at different points on the curve, rather
@@ -12,7 +12,7 @@ import {AramFactory} from "../src/AramFactory.sol";
 contract Seed is Script {
     function run() external {
         uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        AramFactory factory = AramFactory(vm.envAddress("ARAM_FACTORY"));
+        AromaFactory factory = AromaFactory(vm.envAddress("AROMA_FACTORY"));
         CurveManager curve = CurveManager(vm.envAddress("CURVE_MANAGER"));
 
         string[6] memory names = [

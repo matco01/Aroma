@@ -5,12 +5,12 @@ import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CurveManager} from "../src/CurveManager.sol";
-import {AramFactory} from "../src/AramFactory.sol";
-import {AramToken} from "../src/AramToken.sol";
+import {AromaFactory} from "../src/AromaFactory.sol";
+import {AromaToken} from "../src/AromaToken.sol";
 
 contract AramFactoryTest is Test {
     CurveManager curve;
-    AramFactory factory;
+    AromaFactory factory;
 
     address owner = makeAddr("owner");
     address vault = makeAddr("vault");
@@ -19,7 +19,7 @@ contract AramFactoryTest is Test {
 
     function setUp() public {
         curve = new CurveManager(owner, vault);
-        factory = new AramFactory(address(curve));
+        factory = new AromaFactory(address(curve));
         vm.prank(owner);
         curve.setFactory(address(factory));
 
@@ -57,8 +57,8 @@ contract AramFactoryTest is Test {
         (,, address recordedCreator, bool graduated) = curve.tokenState(token);
         assertEq(recordedCreator, creator, "creator recorded for fee routing");
         assertFalse(graduated);
-        assertEq(AramToken(token).name(), "Named Coin");
-        assertEq(AramToken(token).symbol(), "NAME");
+        assertEq(AromaToken(token).name(), "Named Coin");
+        assertEq(AromaToken(token).symbol(), "NAME");
     }
 
     /// @dev Regression test for a real bug caught during development: the
@@ -183,7 +183,7 @@ contract AramFactoryTest is Test {
     /// CurveManager. Indexers consume logs in index order, so if
     /// TokenCreated came last, every consumer would see a trade for a token
     /// it had never heard of — and any indexer keyed by token silently
-    /// drops that trade. aram's own subgraph did exactly that: six seeded
+    /// drops that trade. Aroma's own subgraph did exactly that: six seeded
     /// tokens produced five dev-buys and indexed one trade.
     ///
     /// This asserts the emission order directly, because the failure mode

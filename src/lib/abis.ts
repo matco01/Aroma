@@ -1,5 +1,5 @@
 /**
- * ABIs for aram's deployed contracts, generated from the Foundry build.
+ * ABIs for Aroma's deployed contracts, generated from the Foundry build.
  *
  * Regenerate with `npm run abis` after any contract change — these are
  * trimmed to what the frontend actually calls, so a new function used in
@@ -444,7 +444,7 @@ export const curveManagerAbi = [
   }
 ] as const;
 
-export const aramFactoryAbi = [
+export const aromaFactoryAbi = [
   {
     "type": "function",
     "name": "TOTAL_SUPPLY",
@@ -542,7 +542,7 @@ export const aramFactoryAbi = [
   }
 ] as const;
 
-export const aramTokenAbi = [
+export const aromaTokenAbi = [
   {
     "type": "function",
     "name": "DOMAIN_SEPARATOR",

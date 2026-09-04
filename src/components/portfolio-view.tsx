@@ -18,7 +18,7 @@ export function PortfolioView() {
     return (
       <EmptyState
         title="Connect your wallet"
-        body="Your holdings live in your wallet, not on aram's servers. Connect to see what you hold."
+        body="Your holdings live in your wallet, not on Aroma's servers. Connect to see what you hold."
         action={
           <button
             onClick={connect}
@@ -96,7 +96,7 @@ export function PortfolioView() {
       </div>
 
       <p className="mt-2.5 text-[10.5px] leading-relaxed text-ink-3">
-        Balances and cost basis come from your trades on aram. Tokens
+        Balances and cost basis come from your trades on Aroma. Tokens
         received by direct transfer are not tracked here.
       </p>
     </div>

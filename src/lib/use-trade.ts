@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { useAccount, useSignTypedData, useWriteContract, usePublicClient } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { parseUnits, type Address } from "viem";
-import { curveManagerAbi, aramTokenAbi, aramFactoryAbi } from "./abis";
+import { curveManagerAbi, aromaTokenAbi, aromaFactoryAbi } from "./abis";
 import { ARC_TESTNET_CONTRACTS } from "./arc";
 
 /**
@@ -29,7 +29,7 @@ export type TradeResult = {
 };
 
 const CURVE = ARC_TESTNET_CONTRACTS.curveManager as Address;
-const FACTORY = ARC_TESTNET_CONTRACTS.aramFactory as Address;
+const FACTORY = ARC_TESTNET_CONTRACTS.aromaFactory as Address;
 
 /** Human error out of a wallet/RPC rejection, rather than a wall of hex. */
 function readableError(e: unknown): string {
@@ -133,12 +133,12 @@ export function useTrade(tokenAddress: string | undefined) {
         const [name, nonce] = await Promise.all([
           publicClient.readContract({
             address: tokenAddress as Address,
-            abi: aramTokenAbi,
+            abi: aromaTokenAbi,
             functionName: "name",
           }) as Promise<string>,
           publicClient.readContract({
             address: tokenAddress as Address,
-            abi: aramTokenAbi,
+            abi: aromaTokenAbi,
             functionName: "nonces",
             args: [address],
           }) as Promise<bigint>,
@@ -232,7 +232,7 @@ export function useCreateToken() {
 
         const txHash = await writeContractAsync({
           address: FACTORY,
-          abi: aramFactoryAbi,
+          abi: aromaFactoryAbi,
           functionName: "createToken",
           args: [name, symbol, description, devBuy, 0n],
           value: devBuy,

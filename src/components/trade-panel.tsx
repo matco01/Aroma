@@ -6,7 +6,7 @@ import { formatUnits, type Address } from "viem";
 import type { Coin } from "@/lib/mock";
 import { CURVE, MIN_MAX_FEE_PER_GAS_GWEI } from "@/lib/arc";
 import { compact, usd, usdExact } from "@/lib/format";
-import { aramTokenAbi } from "@/lib/abis";
+import { aromaTokenAbi } from "@/lib/abis";
 import { useTrade } from "@/lib/use-trade";
 import { useWallet } from "./wallet";
 import { TradeToast, type TradeToastData } from "./trade-toast";
@@ -47,7 +47,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
   // Real token balance for this coin, straight from its own contract.
   const { data: rawBalance, refetch: refetchBalance } = useReadContract({
     address: coin.contract as Address,
-    abi: aramTokenAbi,
+    abi: aromaTokenAbi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
     query: { enabled: Boolean(address) },
@@ -314,7 +314,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
           )}
 
           <p className="mt-3 text-[10.5px] leading-relaxed text-ink-3">
-            Your wallet signs and submits this trade. aram never holds your funds.
+            Your wallet signs and submits this trade. Aroma never holds your funds.
           </p>
         </div>
       </div>

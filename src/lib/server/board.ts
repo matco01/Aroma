@@ -420,7 +420,7 @@ export type Holding = {
  * called balanceOf on *every token that exists* to find the few a wallet
  * held — fine at six tokens, absurd at ten thousand.
  *
- * The tradeoff is that transfers outside aram aren't seen, since only the
+ * The tradeoff is that transfers outside Aroma aren't seen, since only the
  * curve's own events are indexed. Someone who received tokens by direct
  * transfer will not see them here.
  */

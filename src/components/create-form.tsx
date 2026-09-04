@@ -34,12 +34,12 @@ export function CreateForm() {
   // Hue is derived from the ticker so the preview art is stable as you type.
   const hue = useMemo(() => {
     let h = 0;
-    for (const ch of ticker || "aram") h = (h * 31 + ch.charCodeAt(0)) % 360;
+    for (const ch of ticker || "Aroma") h = (h * 31 + ch.charCodeAt(0)) % 360;
     return h;
   }, [ticker]);
   const seed = useMemo(() => {
     let s = 7;
-    for (const ch of (name + ticker) || "aram") s = (s * 33 + ch.charCodeAt(0)) >>> 0;
+    for (const ch of (name + ticker) || "Aroma") s = (s * 33 + ch.charCodeAt(0)) >>> 0;
     return s;
   }, [name, ticker]);
 
@@ -75,7 +75,7 @@ export function CreateForm() {
           <Summary label="Supply" value={`${compact(CURVE.totalSupply)} fixed`} />
           <Summary label="Paid" value={usd(total)} />
           <Summary label="Your allocation" value={devBuyValue > 0 ? usd(devBuyValue) : "None"} />
-          <Summary label="Graduates at" value={usd(CURVE.graduationTargetUsd)} />
+          <Summary label="Graduates at" value={`${usd(CURVE.graduationMarketCapUsd)} mcap`} />
         </dl>
         <p className="mt-4 text-[11.5px] leading-relaxed text-ink-3">
           The curve is open and anyone can buy.

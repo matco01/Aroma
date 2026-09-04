@@ -12,10 +12,10 @@ export function SiteFooter() {
       <div className="mx-auto max-w-[1400px] px-4 py-8">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="max-w-xs">
-            <div className="mb-2 text-[13px] font-semibold text-ink">aram</div>
+            <div className="mb-2 text-[13px] font-semibold text-ink">Aroma</div>
             <p className="text-[12px] leading-relaxed text-ink-2">
               Launch and trade fixed-supply tokens on Arc. Your wallet signs and
-              submits every transaction. aram never takes custody of your funds.
+              submits every transaction. Aroma never takes custody of your funds.
             </p>
           </div>
 

@@ -1,4 +1,4 @@
-# aram's indexed view of Arc.
+# Aroma's indexed view of Arc.
 #
 # The point of this file is that price, market cap and graduation progress
 # are *stored*, not computed on read. The frontend previously replayed every
@@ -117,7 +117,7 @@ type Candle @entity(immutable: false) {
 
 "Singleton holding board-wide totals, so the header needs no aggregation."
 type Protocol @entity(immutable: false) {
-  id: ID!                      # always "aram"
+  id: ID!                      # always "Aroma"
   tokenCount: Int!
   tradeCount: Int!
   graduatedCount: Int!

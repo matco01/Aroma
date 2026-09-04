@@ -52,7 +52,7 @@ await ctx.addInitScript(({ address, chainIdHex }) => {
   const info = {
     uuid: "22222222-3333-4444-5555-666666666666",
     name: "Test Wallet",
-    rdns: "dev.aram.testwallet",
+    rdns: "dev.aroma.testwallet",
     icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=",
   };
   const announce = () =>

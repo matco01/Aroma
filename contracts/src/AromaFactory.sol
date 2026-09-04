@@ -2,15 +2,15 @@
 pragma solidity 0.8.28;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {AramToken} from "./AramToken.sol";
+import {AromaToken} from "./AromaToken.sol";
 import {CurveManager} from "./CurveManager.sol";
 
-/// @title AramFactory
+/// @title AromaFactory
 /// @notice One transaction: deploy a fixed-supply token (mints straight to
 /// CurveManager), register it, and optionally run the creator's own
 /// dev-buy through the exact same `buy()` path everyone else uses — this
 /// is a real, named Pons v2 mechanic ("developer buy"), not invented for
-/// aram. No admin surface at all: this contract holds no funds of its own
+/// Aroma. No admin surface at all: this contract holds no funds of its own
 /// beyond the instant it takes to forward them, and has no owner.
 /// @dev Deployed *after* CurveManager, then CurveManager.setFactory(this)
 /// is called once to complete the bootstrap — see CurveManager's NatSpec
@@ -22,7 +22,7 @@ import {CurveManager} from "./CurveManager.sol";
 /// creation fee taxes exactly the behavior (many tokens launched) that
 /// drives the trading volume this product actually monetizes from. A
 /// creator pays only Arc's network gas, same as every other action here.
-contract AramFactory is ReentrancyGuard {
+contract AromaFactory is ReentrancyGuard {
     CurveManager public immutable curveManager;
 
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000e18;
@@ -68,7 +68,7 @@ contract AramFactory is ReentrancyGuard {
         require(devBuyUsdc <= curveManager.MAX_DEV_BUY_USDC(), "dev buy exceeds cap");
         require(msg.value >= devBuyUsdc, "insufficient payment");
 
-        token = address(new AramToken(name, symbol, TOTAL_SUPPLY, address(curveManager)));
+        token = address(new AromaToken(name, symbol, TOTAL_SUPPLY, address(curveManager)));
         curveManager.registerToken(token, msg.sender);
 
         // Announce the token *before* the dev-buy, not after.

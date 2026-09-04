@@ -1,4 +1,4 @@
-# aram contracts
+# Aroma contracts
 
 Bonding-curve launchpad contracts for [Arc](https://arc.io), Circle's L1
 where USDC is the native gas token.
@@ -18,9 +18,9 @@ forge test
 
 | Contract | Role |
 |---|---|
-| `AramToken.sol` | The ERC-20 each launch deploys. Fixed 1B supply, no mint function, no owner. ERC20Permit so a sell is one signed transaction. |
+| `AromaToken.sol` | The ERC-20 each launch deploys. Fixed 1B supply, no mint function, no owner. ERC20Permit so a sell is one signed transaction. |
 | `CurveManager.sol` | One shared contract holding every token's curve state, trading, fees, and graduation. Not one curve per token — cheaper at volume, one audit surface. |
-| `AramFactory.sol` | Deploys a token, registers it, and optionally runs the creator's dev-buy, in a single transaction. |
+| `AromaFactory.sol` | Deploys a token, registers it, and optionally runs the creator's dev-buy, in a single transaction. |
 
 ## Economics
 
@@ -90,7 +90,7 @@ the old constants — verified by putting them back.
 | Contract | Address |
 |---|---|
 | CurveManager | `0x1a5ae846E6d9944d9190553bb8085bE3C0251285` |
-| AramFactory | `0xedc289C837b01F6B893275E22CbcfF56040cDf51` |
+| AromaFactory | `0xedc289C837b01F6B893275E22CbcfF56040cDf51` |
 
 Redeployed 2026-09-04 with the retuned curve (see below). Earlier pairs at
 `0x4697…1a5D`/`0x371F…1b44` and `0xfc63…5540`/`0xaBa7…589B` are superseded
@@ -102,7 +102,7 @@ buy, permit sell, creator-fee claim. Measured costs at ~24 gwei effective:
 | Action | Gas | Cost |
 |---|---|---|
 | Deploy CurveManager | 2,581,360 | 0.0663 USDC |
-| Deploy AramFactory | 1,829,601 | 0.0470 USDC |
+| Deploy AromaFactory | 1,829,601 | 0.0470 USDC |
 | `createToken` (with dev-buy) | 1,222,414 | 0.0296 USDC |
 | `buy` | 70,096 | 0.0017 USDC |
 | `sell` (incl. permit) | 110,423 | 0.0027 USDC |
@@ -146,7 +146,7 @@ Findings that were **found and fixed**:
 - **`MAX_DEV_BUY_USDC` was never enforced.** Declared as a constant and
   documented as enforced; nothing checked it. A creator could have taken
   most of the curve at its cheapest prices before anyone else knew the
-  token existed. Now enforced in `AramFactory.createToken`, with a
+  token existed. Now enforced in `AromaFactory.createToken`, with a
   regression test.
 - **`graduate()` left `realUsdcReserve` populated** after the USDC had
   physically left the contract, claiming backing that wasn't there. Now
@@ -173,7 +173,7 @@ Accepted, by design:
   reserve to `graduationVault`. Uniswap v4 is confirmed for Arc *mainnet*
   but is **not deployed on Arc testnet** — the official contract-address
   list has no Uniswap entry — so this genuinely cannot be built and tested
-  yet. It can be written against mainnet v4 before aram's own launch.
+  yet. It can be written against mainnet v4 before Aroma's own launch.
   Because the vault is now immutable, wiring it up means deploying a new
   CurveManager, which is free to do pre-launch.
 - **`depositGraduatedFees()` is open to any caller.** Safe (it can only

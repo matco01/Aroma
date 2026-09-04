@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useAllTrades } from "@/lib/use-chain";
+import { useTape } from "@/lib/use-chain";
 import { shortAddr, usd } from "@/lib/format";
 
 /**
@@ -13,8 +13,8 @@ import { shortAddr, usd } from "@/lib/format";
  * slide in once and then hold still long enough to actually be read.
  */
 export function LiveTape() {
-  const { data: trades } = useAllTrades();
-  const recent = (trades ?? []).slice(0, 4);
+  const { data } = useTape();
+  const recent = (data?.trades ?? []).slice(0, 4);
 
   return (
     <div className="border-b border-line bg-surface">

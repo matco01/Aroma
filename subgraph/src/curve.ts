@@ -52,6 +52,7 @@ export function handleBought(event: Bought): void {
   token.progressBps = progressBpsOf(token.reserve);
   token.volume = token.volume.plus(grossIn);
   token.tradeCount = token.tradeCount + 1;
+  token.lastTradeAt = event.block.timestamp;
 
   const account = getAccount(event.params.recipient, event.block.timestamp);
   const balance = getBalance(token, account);
@@ -113,6 +114,7 @@ export function handleSold(event: Sold): void {
   token.progressBps = progressBpsOf(token.reserve);
   token.volume = token.volume.plus(netOut);
   token.tradeCount = token.tradeCount + 1;
+  token.lastTradeAt = event.block.timestamp;
 
   const account = getAccount(event.params.seller, event.block.timestamp);
   const balance = getBalance(token, account);

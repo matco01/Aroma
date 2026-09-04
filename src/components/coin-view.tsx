@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ARC_TESTNET, CURVE } from "@/lib/arc";
 import { ago, compact, pct, price, shortAddr, usd } from "@/lib/format";
-import { useToken, useTrades } from "@/lib/use-chain";
+import { useToken } from "@/lib/use-chain";
+import { IndexerStatus } from "./indexer-status";
 import { CoinArt } from "./coin-art";
 import { Chip, GraduationBar, Stat } from "./primitives";
 import { PriceChart } from "./price-chart";
@@ -11,8 +12,9 @@ import { TradePanel } from "./trade-panel";
 import { CoinActivity } from "./coin-activity";
 
 export function CoinView({ address }: { address: string }) {
-  const { data: coin, isLoading, error } = useToken(address);
-  const { data: trades } = useTrades(address);
+  const { data, isLoading, error } = useToken(address);
+  const coin = data?.coin;
+  const trades = data?.trades;
 
   if (isLoading) {
     return (
@@ -53,13 +55,13 @@ export function CoinView({ address }: { address: string }) {
   const holders: HolderRow[] = (trades ?? [])
     .filter((t) => t.side === "buy")
     .reduce<HolderRow[]>((acc, t) => {
-      const existing = acc.find((h: HolderRow) => h.account === t.account);
-      const share = coin.priceUsd > 0 ? (t.tokens / CURVE.totalSupply) * 100 : 0;
+      const existing = acc.find((h) => h.account === t.account);
+      const share = (t.tokens / CURVE.totalSupply) * 100;
       if (existing) existing.pctOwned += share;
       else acc.push({ account: t.account, pctOwned: share });
       return acc;
     }, [])
-    .sort((a: HolderRow, b: HolderRow) => b.pctOwned - a.pctOwned);
+    .sort((a, b) => b.pctOwned - a.pctOwned);
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-6">
@@ -70,7 +72,11 @@ export function CoinView({ address }: { address: string }) {
         ← Board
       </Link>
 
-      <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="mt-4">
+        <IndexerStatus health={data?.indexer} />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0">
           <div className="flex items-start gap-3">
             <CoinArt seed={coin.seed} hue={coin.hue} size={52} radius={6} />

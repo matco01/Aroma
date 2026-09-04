@@ -1,49 +1,71 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { type Coin } from "@/lib/mock";
-import { useTokens } from "@/lib/use-chain";
+import { useState } from "react";
+import {
+  useBoard,
+  type BoardFilter,
+  type BoardSort,
+} from "@/lib/use-chain";
 import { CoinCard, CoinRow } from "./coin-card";
+import { IndexerStatus } from "./indexer-status";
 
-type Filter = "all" | "climbing" | "graduated";
-type Sort = "buys" | "new" | "mcap" | "volume";
 type View = "grid" | "list";
 
-const FILTERS: { id: Filter; label: string }[] = [
+const FILTERS: { id: BoardFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "climbing", label: "Climbing" },
   { id: "graduated", label: "Graduated" },
 ];
 
-const SORTS: { id: Sort; label: string }[] = [
+const SORTS: { id: BoardSort; label: string }[] = [
   { id: "buys", label: "Recent buys" },
   { id: "new", label: "Newest" },
   { id: "mcap", label: "Market cap" },
   { id: "volume", label: "Volume" },
 ];
 
+const PAGE_SIZE = 24;
+
+/**
+ * The board.
+ *
+ * Filtering, sorting and paging are all server-side now. They used to be a
+ * useMemo over every token that existed, which cannot paginate — you can't
+ * page a sort the database didn't do — and which rendered the entire
+ * corpus into the DOM. A page at a time keeps both the query and the tab
+ * bounded however many tokens exist.
+ */
 export function Board() {
-  const [filter, setFilter] = useState<Filter>("all");
-  const [sort, setSort] = useState<Sort>("buys");
+  const [filter, setFilter] = useState<BoardFilter>("all");
+  const [sort, setSort] = useState<BoardSort>("buys");
   const [view, setView] = useState<View>("grid");
-  const { data: tokens, isLoading, error } = useTokens();
+  const [page, setPage] = useState(0);
 
-  const coins = useMemo(() => {
-    let pool: Coin[] = tokens ?? [];
-    if (filter === "climbing") pool = pool.filter((c) => !c.graduated);
-    if (filter === "graduated") pool = pool.filter((c) => c.graduated);
+  const { data, isLoading, isFetching, error } = useBoard({
+    filter,
+    sort,
+    limit: PAGE_SIZE,
+    skip: page * PAGE_SIZE,
+  });
 
-    const sorted = [...pool];
-    if (sort === "new") sorted.sort((a, b) => a.createdAgoSeconds - b.createdAgoSeconds);
-    if (sort === "mcap") sorted.sort((a, b) => b.marketCapUsd - a.marketCapUsd);
-    if (sort === "volume") sorted.sort((a, b) => b.volume24hUsd - a.volume24hUsd);
-    if (sort === "buys") {
-      // Volume weighted against age: what is actually being bought right now.
-      const heat = (c: Coin) => c.volume24hUsd / Math.max(600, c.createdAgoSeconds);
-      sorted.sort((a, b) => heat(b) - heat(a));
-    }
-    return sorted;
-  }, [tokens, filter, sort]);
+  // Changing what you're looking at returns you to the first page — page 3
+  // of "Graduated" is meaningless after switching to "Newest". Done in the
+  // handlers rather than an effect so there's no render with a stale page
+  // against fresh criteria.
+  function changeFilter(next: BoardFilter) {
+    setFilter(next);
+    setPage(0);
+  }
+
+  function changeSort(next: BoardSort) {
+    setSort(next);
+    setPage(0);
+  }
+
+  const coins = data?.tokens ?? [];
+  const total = data?.stats.tokenCount ?? 0;
+  const hasMore = data?.hasMore ?? false;
+  const showing = coins.length > 0;
 
   return (
     <section>
@@ -56,7 +78,7 @@ export function Board() {
             <ChipButton
               key={f.id}
               active={filter === f.id}
-              onClick={() => setFilter(f.id)}
+              onClick={() => changeFilter(f.id)}
             >
               {f.label}
             </ChipButton>
@@ -67,11 +89,7 @@ export function Board() {
 
         <ChipGroup>
           {SORTS.map((s) => (
-            <ChipButton
-              key={s.id}
-              active={sort === s.id}
-              onClick={() => setSort(s.id)}
-            >
+            <ChipButton key={s.id} active={sort === s.id} onClick={() => changeSort(s.id)}>
               {s.label}
             </ChipButton>
           ))}
@@ -81,7 +99,7 @@ export function Board() {
 
         <div className="flex items-center gap-2">
           <span className="num text-[11px] text-ink-3">
-            {coins.length} tokens
+            {total > 0 ? `${total} tokens` : " "}
           </span>
           <div className="flex overflow-hidden rounded-sm border border-line">
             <ViewButton active={view === "grid"} onClick={() => setView("grid")} label="Grid view">
@@ -103,60 +121,95 @@ export function Board() {
         </div>
       </div>
 
-      {isLoading && (
-        <p className="mt-6 text-[12.5px] text-ink-3">Reading the chain…</p>
-      )}
+      <div className="mt-4">
+        <IndexerStatus health={data?.indexer} />
+      </div>
+
+      {isLoading && <p className="mt-6 text-[12.5px] text-ink-3">Reading the chain…</p>}
 
       {error && (
         <p className="mt-6 text-[12.5px] text-down">
-          Couldn&apos;t reach Arc. {(error as Error).message.slice(0, 120)}
+          Couldn&apos;t load the board. {(error as Error).message.slice(0, 140)}
         </p>
       )}
 
       {!isLoading && !error && coins.length === 0 && (
         <div className="mt-6 rounded-md border border-line bg-surface px-6 py-16 text-center">
-          <p className="text-[13px] text-ink">Nothing launched yet</p>
+          <p className="text-[13px] text-ink">
+            {filter === "graduated" ? "Nothing has graduated yet" : "Nothing launched yet"}
+          </p>
           <p className="mt-1 text-[12px] text-ink-2">
-            Be the first — launching is free, you only pay gas.
+            {filter === "graduated"
+              ? "Tokens appear here once they complete the curve."
+              : "Be the first — launching is free, you only pay gas."}
           </p>
         </div>
       )}
 
-      {!isLoading && coins.length > 0 && (view === "grid" ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {coins.map((c) => (
-            <CoinCard key={c.id} coin={c} />
-          ))}
+      {showing &&
+        (view === "grid" ? (
+          <div
+            className={`mt-4 grid gap-3 transition-opacity sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
+              isFetching ? "opacity-60" : ""
+            }`}
+          >
+            {coins.map((c) => (
+              <CoinCard key={c.id} coin={c} />
+            ))}
+          </div>
+        ) : (
+          <div
+            className={`mt-4 overflow-hidden rounded-md border border-line bg-surface transition-opacity ${
+              isFetching ? "opacity-60" : ""
+            }`}
+          >
+            <ListHeader />
+            {coins.map((c) => (
+              <CoinRow key={c.id} coin={c} />
+            ))}
+          </div>
+        ))}
+
+      {(page > 0 || hasMore) && (
+        <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
+          <PageButton disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+            ← Previous
+          </PageButton>
+          <span className="num text-[11px] text-ink-3">
+            {page * PAGE_SIZE + 1}–{page * PAGE_SIZE + coins.length}
+            {total > 0 && ` of ${total}`}
+          </span>
+          <PageButton disabled={!hasMore} onClick={() => setPage((p) => p + 1)}>
+            Next →
+          </PageButton>
         </div>
-      ) : (
-        <div className="mt-4 overflow-hidden rounded-md border border-line bg-surface">
-          <ListHeader />
-          {coins.map((c) => (
-            <CoinRow key={c.id} coin={c} />
-          ))}
-        </div>
-      ))}
+      )}
     </section>
   );
 }
 
-function ListHeader() {
+function PageButton({
+  disabled,
+  onClick,
+  children,
+}: {
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center gap-3 border-b border-line bg-surface-2 px-3.5 py-2">
-      <span className="w-[26px] shrink-0" />
-      <span className="label flex-[2]">Token</span>
-      <span className="label hidden flex-[3] lg:block">Description</span>
-      <span className="label w-20 shrink-0 text-right">Mcap</span>
-      <span className="label hidden w-20 shrink-0 text-right sm:block">Vol 24h</span>
-      <span className="label hidden w-14 shrink-0 text-right md:block">Holders</span>
-      <span className="label w-16 shrink-0 text-right">24h</span>
-      <span className="label hidden w-24 shrink-0 sm:block">Curve</span>
-    </div>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="h-8 rounded-sm border border-line px-3 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink-2"
+    >
+      {children}
+    </button>
   );
 }
 
 function ChipGroup({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center gap-1">{children}</div>;
+  return <div className="flex items-center gap-0.5">{children}</div>;
 }
 
 function ChipButton({
@@ -171,10 +224,8 @@ function ChipButton({
   return (
     <button
       onClick={onClick}
-      className={`rounded-sm px-2.5 py-1.5 text-[12px] transition-colors ${
-        active
-          ? "bg-surface-3 text-ink"
-          : "text-ink-2 hover:bg-surface-2 hover:text-ink"
+      className={`rounded-sm px-2.5 py-1 text-[12.5px] transition-colors ${
+        active ? "bg-surface-3 text-ink" : "text-ink-2 hover:text-ink"
       }`}
     >
       {children}
@@ -198,11 +249,25 @@ function ViewButton({
       onClick={onClick}
       aria-label={label}
       aria-pressed={active}
-      className={`flex h-6 w-7 items-center justify-center transition-colors ${
+      className={`flex h-7 w-8 items-center justify-center transition-colors ${
         active ? "bg-surface-3 text-ink" : "text-ink-3 hover:text-ink-2"
       }`}
     >
       {children}
     </button>
+  );
+}
+
+function ListHeader() {
+  return (
+    <div className="hidden items-center gap-3 border-b border-line bg-surface-2 px-3.5 py-2 sm:flex">
+      <span className="w-[26px] shrink-0" />
+      <span className="label flex-[2]">Token</span>
+      <span className="label w-24 shrink-0 text-right">Price</span>
+      <span className="label w-24 shrink-0 text-right">Market cap</span>
+      <span className="label w-24 shrink-0 text-right">Volume</span>
+      <span className="label w-20 shrink-0 text-right">Change</span>
+      <span className="label hidden w-28 shrink-0 md:block">Curve</span>
+    </div>
   );
 }

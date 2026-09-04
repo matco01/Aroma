@@ -2,27 +2,34 @@
 
 import { CURVE } from "@/lib/arc";
 import { compact, usd } from "@/lib/format";
-import { useTokens } from "@/lib/use-chain";
+import { useBoard } from "@/lib/use-chain";
 
 /**
- * Board-level totals, aggregated client-side from the same query the board
- * itself uses — so the numbers and the grid can never disagree, and there's
- * one fetch rather than two.
+ * Board-level totals, read from the index's own counters.
+ *
+ * Shares the board's query key, so the header and the grid are served from
+ * one request and cannot disagree. The counters are protocol-wide, not a
+ * sum over the current page — which matters the moment the board is
+ * paginated.
  */
 export function BoardStats() {
-  const { data: tokens } = useTokens();
-  const all = tokens ?? [];
+  // Shares the board's query, so the header and the grid can never
+  // disagree — and the totals are the index's own counters rather than a
+  // sum over whichever page happens to be loaded.
+  const { data } = useBoard({ filter: "all", sort: "buys", limit: 24, skip: 0 });
+  const stats = data?.stats;
 
-  const volume = all.reduce((sum, c) => sum + c.volume24hUsd, 0);
-  const graduated = all.filter((c) => c.graduated).length;
-  const buyers = all.reduce((sum, c) => sum + c.holders, 0);
+  const volume = stats ? stats.totalVolumeUsd : 0;
+  const graduated = stats ? stats.graduatedCount : 0;
+  const tokenCount = stats ? stats.tokenCount : 0;
+  const trades = stats ? stats.tradeCount : 0;
 
   return (
     <dl className="flex flex-wrap items-center gap-x-6 gap-y-3">
-      <HeadStat label="Tokens" value={String(all.length)} />
+      <HeadStat label="Tokens" value={String(tokenCount)} />
       <HeadStat label="Volume" value={usd(volume)} />
-      <HeadStat label="Buyers" value={compact(buyers)} />
-      <HeadStat label="Graduated" value={`${graduated}`} sub={`of ${all.length}`} />
+      <HeadStat label="Trades" value={compact(trades)} />
+      <HeadStat label="Graduated" value={`${graduated}`} sub={`of ${tokenCount}`} />
       {/* Least load-bearing stat; first to go when space runs out. */}
       <div className="hidden sm:block">
         <HeadStat

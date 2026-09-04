@@ -4,23 +4,18 @@ import { curveManagerAbi } from "./abis";
 import { ARC_RPC_URL } from "./wagmi";
 import { ARC_TESTNET_CONTRACTS, CURVE } from "./arc";
 import type { Coin, Trade } from "./mock";
-import { hasSubgraph, fetchBoardFromSubgraph } from "./subgraph";
 
 /**
- * The board's data source.
+ * Direct-from-chain fallback, used only when no subgraph is configured.
  *
- * Primary path is the Goldsky subgraph (see subgraph/), which precomputes
- * price, market cap and progress at index time — one query per render
- * instead of replaying every log.
+ * The real read path is the indexer (see src/lib/server/board.ts). This
+ * exists so a fresh clone with newly deployed contracts still shows a
+ * board before anyone has stood an indexer up — it re-scans the full log
+ * range on every call and rate-limits public RPCs within minutes, so it is
+ * a bootstrap convenience, not a second supported mode.
  *
- * The direct-RPC path below is kept as a fallback for when no subgraph is
- * configured. It re-scans history on every poll and rate-limits within
- * minutes of real use, so it is a development convenience, not a second
- * supported mode. Keeping it means the app still boots against a fresh
- * deployment before an indexer exists.
- *
- * Both paths return identical `Coin`/`Trade` shapes, which is why swapping
- * in the subgraph touched no component.
+ * Returns the same `Coin`/`Trade` shapes the indexed path does, which is
+ * what made the swap invisible to every component.
  */
 
 export const publicClient = createPublicClient({
@@ -103,13 +98,6 @@ export type BoardData = {
  * Callers share this through one React Query key.
  */
 export async function fetchBoardData(): Promise<BoardData> {
-  if (hasSubgraph) {
-    return fetchBoardFromSubgraph();
-  }
-  return fetchBoardFromRpc();
-}
-
-async function fetchBoardFromRpc(): Promise<BoardData> {
   const factory = ARC_TESTNET_CONTRACTS.aramFactory as Address;
   const curve = ARC_TESTNET_CONTRACTS.curveManager as Address;
 

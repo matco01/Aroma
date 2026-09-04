@@ -37,6 +37,15 @@ type Token @entity(immutable: false) {
   volume: BigInt!
   tradeCount: Int!
   buyerCount: Int!
+  """
+  Timestamp of the most recent trade, or creation if never traded.
+
+  Exists so "recent buys" can be an indexed sort. The board previously
+  ranked by volume/age computed in the browser, which cannot be ordered by
+  or paginated server-side — and which was only ever an approximation of
+  "what is being bought right now". This is that, directly.
+  """
+  lastTradeAt: BigInt!
   "Spot price 24h ago, for change calculations. Zero until one day old."
   price24hAgo: BigInt!
 

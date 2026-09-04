@@ -79,6 +79,7 @@ export function getOrCreateToken(
   token.volume = ZERO;
   token.tradeCount = 0;
   token.buyerCount = 0;
+  token.lastTradeAt = timestamp;
   token.save();
   return token;
 }

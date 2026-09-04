@@ -4,13 +4,15 @@ import Link from "next/link";
 import { CURVE } from "@/lib/arc";
 import { compact, pct, price, usd, usdExact } from "@/lib/format";
 import { usePortfolio, type Holding } from "@/lib/use-portfolio";
+import { IndexerStatus } from "./indexer-status";
 import { CoinArt } from "./coin-art";
 import { GraduationBar } from "./primitives";
 import { useWallet } from "./wallet";
 
 export function PortfolioView() {
   const { connected, connect, usdcBalance } = useWallet();
-  const { data: holdings, isLoading } = usePortfolio();
+  const { data, isLoading } = usePortfolio();
+  const holdings = data?.holdings;
 
   if (!connected) {
     return (
@@ -64,6 +66,8 @@ export function PortfolioView() {
 
   return (
     <div>
+      <IndexerStatus health={data?.indexer} />
+
       <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 rounded-md border border-line bg-surface p-3.5 sm:grid-cols-4">
         <SummaryStat label="Net worth" value={usd(netWorth)} />
         <SummaryStat label="In positions" value={usd(holdingsValue)} />
@@ -92,9 +96,8 @@ export function PortfolioView() {
       </div>
 
       <p className="mt-2.5 text-[10.5px] leading-relaxed text-ink-3">
-        Balances read from each token&apos;s contract. Cost basis is
-        reconstructed from your trades on aram, so tokens received by
-        transfer show no recorded cost.
+        Balances and cost basis come from your trades on aram. Tokens
+        received by direct transfer are not tracked here.
       </p>
     </div>
   );

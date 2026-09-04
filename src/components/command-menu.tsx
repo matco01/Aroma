@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTokens } from "@/lib/use-chain";
+import { useBoard } from "@/lib/use-chain";
+import type { Coin } from "@/lib/mock";
 import { usd, pct } from "@/lib/format";
 import { CoinArt } from "./coin-art";
 
@@ -17,10 +18,14 @@ export function CommandMenu({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: tokens } = useTokens();
+  // Searches the most-traded page rather than every token. Real
+  // full-text search across the whole corpus belongs server-side; this at
+  // least stops the menu depending on the entire list being in memory.
+  const { data } = useBoard({ filter: "all", sort: "volume", limit: 60, skip: 0 });
+  const tokens = data?.tokens;
 
   const results = useMemo(() => {
-    const all = tokens ?? [];
+    const all: Coin[] = tokens ?? [];
     const needle = q.trim().toLowerCase();
     const pool = needle
       ? all.filter(

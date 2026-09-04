@@ -94,3 +94,47 @@ export async function pinMetadata(meta: TokenMetadata): Promise<string> {
   );
   return `ipfs://${IpfsHash}`;
 }
+
+/**
+ * Resolves a metadata URI to a directly-renderable image URL.
+ *
+ * The on-chain pointer is to metadata JSON, not to the image — that
+ * indirection is what makes a token legible to wallets and explorers that
+ * have never heard of Aroma, so it's worth the extra hop.
+ *
+ * Cached permanently and deliberately: an IPFS CID addresses content, so
+ * the bytes behind one can never change. Re-fetching is pure waste, and
+ * without the cache a board render would be one HTTP request per token.
+ */
+const imageCache = new Map<string, string>();
+
+export async function resolveImage(metadataUri: string): Promise<string> {
+  if (!metadataUri) return "";
+
+  const cached = imageCache.get(metadataUri);
+  if (cached !== undefined) return cached;
+
+  try {
+    const res = await fetch(gatewayUrl(metadataUri), {
+      signal: AbortSignal.timeout(6_000),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+
+    const meta = (await res.json()) as { image?: unknown };
+    const image = typeof meta.image === "string" ? gatewayUrl(meta.image) : "";
+    imageCache.set(metadataUri, image);
+    return image;
+  } catch {
+    // A gateway hiccup must not fail the board — cache the miss briefly by
+    // not caching it at all, so the next render retries, and fall back to
+    // generated art in the meantime.
+    return "";
+  }
+}
+
+/** Resolve many at once, bounded by the page size the caller already caps. */
+export async function resolveImages(uris: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(uris.filter(Boolean))];
+  const resolved = await Promise.all(unique.map((u) => resolveImage(u)));
+  return new Map(unique.map((u, i) => [u, resolved[i]]));
+}

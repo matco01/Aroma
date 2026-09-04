@@ -1,5 +1,6 @@
 import "server-only";
 import { query, type SubgraphMeta } from "./subgraph";
+import { resolveImages } from "./ipfs";
 import type { Coin } from "../mock";
 import type { Trade } from "../mock";
 
@@ -31,7 +32,7 @@ const SORT_FIELDS: Record<BoardSort, string> = {
 const TOKEN_FIELDS = `
   id creator name symbol description createdAt
   reserve price marketCap progressBps graduated
-  volume tradeCount buyerCount lastTradeAt
+  volume tradeCount buyerCount lastTradeAt metadataUri
 `;
 
 const TRADE_FIELDS = `
@@ -118,6 +119,7 @@ type RawToken = {
   tradeCount: number;
   buyerCount: number;
   lastTradeAt: string;
+  metadataUri: string;
 };
 
 type RawProtocol = {
@@ -179,7 +181,12 @@ function toTrade(t: RawTrade, now: number): TapeTrade {
   };
 }
 
-export function toCoin(t: RawToken, now: number, history: number[] = []): Coin {
+export function toCoin(
+  t: RawToken,
+  now: number,
+  history: number[] = [],
+  imageUrl = "",
+): Coin {
   const { hue, seed } = artFromAddress(t.id);
   const price = toNum(t.price);
   const points = history.length >= 2 ? history : [price, price];
@@ -189,6 +196,7 @@ export function toCoin(t: RawToken, now: number, history: number[] = []): Coin {
     name: t.name || "Untitled",
     ticker: t.symbol || "???",
     description: t.description || "",
+    imageUrl,
     creator: t.creator,
     contract: t.id,
     createdAgoSeconds: Math.max(1, now - Number(t.createdAt)),
@@ -255,8 +263,12 @@ export async function fetchBoardPage(opts: {
   const rows = hasMore ? data.tokens.slice(0, opts.limit) : data.tokens;
   const p = data.protocols.length > 0 ? data.protocols[0] : null;
 
+  // Bounded by the page size, and every lookup after the first is a cache
+  // hit, so this is one fetch per token that has ever been rendered.
+  const images = await resolveImages(rows.map((t) => t.metadataUri));
+
   return {
-    tokens: rows.map((t) => toCoin(t, now)),
+    tokens: rows.map((t) => toCoin(t, now, [], images.get(t.metadataUri) ?? "")),
     stats: {
       tokenCount: p ? p.tokenCount : 0,
       tradeCount: p ? p.tradeCount : 0,
@@ -381,8 +393,13 @@ export async function fetchTokenDetail(address: string): Promise<{
   history.push(toNum(data.token.price));
 
   const trades = data.trades.map((t) => toTrade(t, now));
+  const images = await resolveImages([data.token.metadataUri]);
 
-  return { coin: toCoin(data.token, now, history), trades, meta };
+  return {
+    coin: toCoin(data.token, now, history, images.get(data.token.metadataUri) ?? ""),
+    trades,
+    meta,
+  };
 }
 
 const PORTFOLIO_QUERY = `
@@ -435,8 +452,9 @@ export async function fetchPortfolio(account: string): Promise<{
   }>(`portfolio:${id}`, PORTFOLIO_QUERY, { account: id });
 
   const now = Math.floor(Date.now() / 1000);
+  const images = await resolveImages(data.balances.map((b) => b.token.metadataUri));
   const holdings = data.balances.map((b) => {
-    const coin = toCoin(b.token, now);
+    const coin = toCoin(b.token, now, [], images.get(b.token.metadataUri) ?? "");
     const tokens = toNum(b.amount);
     const valueUsd = tokens * coin.priceUsd;
     const costUsd = toNum(b.costBasis);

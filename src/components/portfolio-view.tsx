@@ -116,7 +116,7 @@ function PositionRow({ holding }: { holding: Holding }) {
       className="flex flex-col gap-2 border-b border-line px-3.5 py-3 transition-colors last:border-0 hover:bg-surface-2 sm:flex-row sm:items-center sm:gap-3"
     >
       <div className="flex items-center gap-2.5 sm:flex-[2]">
-        <CoinArt seed={coin.seed} hue={coin.hue} size={26} radius={3} />
+        <CoinArt seed={coin.seed} hue={coin.hue} size={26} radius={3} imageUrl={coin.imageUrl} alt={coin.name} />
         <div className="min-w-0">
           <div className="truncate text-[12.5px] text-ink">{coin.name}</div>
           <div className="num text-[10.5px] text-ink-3">${coin.ticker}</div>

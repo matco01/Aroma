@@ -21,6 +21,15 @@ export function CreateForm() {
   const [x, setX] = useState("");
   const [telegram, setTelegram] = useState("");
 
+  // Image upload. The preview is a local object URL so it appears the
+  // instant a file is chosen, rather than after a round trip to IPFS —
+  // pinning takes a second or two and staring at an empty box in the
+  // meantime makes the whole form feel broken.
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [metadataUri, setMetadataUri] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const devBuyValue = Number(devBuy) || 0;
   // Measured on Arc testnet: deploying a token through the factory costs
   // ~1.22M gas at roughly 24 gwei effective. The earlier estimate here
@@ -56,16 +65,44 @@ export function CreateForm() {
   async function submit() {
     if (!connected) return connect();
     if (!valid || insufficient) return;
-    await create(name.trim(), ticker.trim(), description.trim(), devBuy || "0");
+    await create(name.trim(), ticker.trim(), description.trim(), devBuy || "0", metadataUri);
   }
 
-  const busy = phase === "signing" || phase === "pending";
+  const busy = phase === "signing" || phase === "pending" || uploading;
+
+  async function onPickImage(file: File | undefined) {
+    if (!file) return;
+    setUploadError(null);
+    setMetadataUri("");
+    setImagePreview(URL.createObjectURL(file));
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("image", file);
+      body.append("name", name.trim());
+      body.append("symbol", ticker.trim());
+      body.append("description", description.trim());
+
+      const res = await fetch("/api/upload", { method: "POST", body });
+      const json = (await res.json()) as { metadataUri?: string; error?: string };
+      if (!res.ok || !json.metadataUri) {
+        throw new Error(json.error ?? "Upload failed");
+      }
+      setMetadataUri(json.metadataUri);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Upload failed");
+      // Keep the preview: the picture they chose is still the picture they
+      // want, and clearing it would look like the file was rejected.
+    } finally {
+      setUploading(false);
+    }
+  }
 
   if (phase === "success") {
     return (
       <div className="mx-auto max-w-md rounded-md border border-line bg-surface p-5 text-center">
         <div className="mx-auto w-fit">
-          <CoinArt seed={seed} hue={hue} size={56} radius={6} />
+          <CoinArt seed={seed} hue={hue} size={56} radius={6} imageUrl={imagePreview} alt={name} />
         </div>
         <h2 className="mt-3 text-[15px] font-semibold text-ink">
           {name} is live
@@ -135,19 +172,49 @@ export function CreateForm() {
             />
           </Field>
 
-          <Field label="Image">
-            <label className="flex cursor-pointer items-center gap-3 rounded-sm border border-dashed border-line bg-bg px-3 py-3 transition-colors hover:border-line-strong">
-              <CoinArt seed={seed} hue={hue} size={36} />
+          <Field label="Image" hint="optional">
+            <label
+              className={`flex cursor-pointer items-center gap-3 rounded-sm border border-dashed bg-bg px-3 py-3 transition-colors ${
+                uploadError ? "border-down/50" : "border-line hover:border-line-strong"
+              }`}
+            >
+              <CoinArt
+                seed={seed}
+                hue={hue}
+                size={36}
+                imageUrl={imagePreview}
+                alt=""
+              />
               <span className="min-w-0 flex-1">
                 <span className="block text-[12px] text-ink-2">
-                  Drop an image or click to browse
+                  {uploading
+                    ? "Pinning to IPFS…"
+                    : metadataUri
+                      ? "Image pinned — stored on IPFS, not on our servers"
+                      : "Drop an image or click to browse"}
                 </span>
                 <span className="block text-[11px] text-ink-3">
-                  PNG, JPG or GIF · square · up to 2 MB
+                  {uploadError
+                    ? uploadError
+                    : "PNG, JPG, GIF or WebP · square · up to 5 MB"}
                 </span>
               </span>
-              <input type="file" accept="image/*" className="hidden" />
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                disabled={uploading}
+                onChange={(e) => onPickImage(e.target.files?.[0])}
+                className="hidden"
+              />
             </label>
+            {!metadataUri && !uploading && (
+              <p className="mt-1.5 text-[10.5px] leading-relaxed text-ink-3">
+                Without one, your coin gets art generated from its contract
+                address. An uploaded image goes on IPFS and its address is
+                written on-chain, so it stays with the token wherever it is
+                shown.
+              </p>
+            )}
           </Field>
         </Panel>
 
@@ -214,7 +281,7 @@ export function CreateForm() {
         <div className="rounded-md border border-line bg-surface p-3.5">
           <div className="label mb-2.5">Preview</div>
           <div className="flex items-start gap-2.5">
-            <CoinArt seed={seed} hue={hue} size={40} />
+            <CoinArt seed={seed} hue={hue} size={40} imageUrl={imagePreview} alt={name} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-medium text-ink">
                 {name || "Untitled"}

@@ -80,7 +80,7 @@ export function CoinView({ address }: { address: string }) {
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0">
           <div className="flex items-start gap-3">
-            <CoinArt seed={coin.seed} hue={coin.hue} size={52} radius={6} />
+            <CoinArt seed={coin.seed} hue={coin.hue} size={52} radius={6} imageUrl={coin.imageUrl} alt={coin.name} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-[19px] font-semibold tracking-[-0.02em] text-ink">

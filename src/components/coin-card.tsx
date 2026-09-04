@@ -19,7 +19,7 @@ export function CoinCard({ coin }: { coin: Coin }) {
       className="group flex flex-col rounded-md border border-line bg-surface p-3.5 transition-colors hover:border-line-strong hover:bg-surface-2"
     >
       <div className="flex items-start gap-3">
-        <CoinArt seed={coin.seed} hue={coin.hue} size={40} />
+        <CoinArt seed={coin.seed} hue={coin.hue} size={40} imageUrl={coin.imageUrl} alt={coin.name} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13.5px] font-medium text-ink">
             {coin.name}
@@ -89,7 +89,7 @@ export function CoinRow({ coin }: { coin: Coin }) {
       href={`/coin/${coin.id}`}
       className="flex items-center gap-3 border-b border-line px-3.5 py-2.5 transition-colors hover:bg-surface-2"
     >
-      <CoinArt seed={coin.seed} hue={coin.hue} size={26} radius={3} />
+      <CoinArt seed={coin.seed} hue={coin.hue} size={26} radius={3} imageUrl={coin.imageUrl} alt={coin.name} />
 
       <div className="min-w-0 flex-[2]">
         <div className="truncate text-[12.5px] text-ink">{coin.name}</div>

@@ -32,6 +32,8 @@ export type Coin = {
   name: string;
   ticker: string;
   description: string;
+  /** Gateway URL for the creator's image, or "" to fall back to art. */
+  imageUrl: string;
   creator: string;
   contract: string;
   createdAgoSeconds: number;
@@ -163,6 +165,7 @@ function buildCoin(index: number): Coin {
     name,
     ticker,
     description,
+    imageUrl: "",
     creator: addr(rnd),
     contract: addr(rnd),
     createdAgoSeconds,

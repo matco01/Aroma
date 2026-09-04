@@ -99,7 +99,7 @@ export function CommandMenu({ onClose }: { onClose: () => void }) {
                 i === selected ? "bg-surface-2" : ""
               }`}
             >
-              <CoinArt seed={c.seed} hue={c.hue} size={24} radius={3} />
+              <CoinArt seed={c.seed} hue={c.hue} size={24} radius={3} imageUrl={c.imageUrl} alt={c.name} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[12.5px] text-ink">
                   {c.name}

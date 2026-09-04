@@ -1,19 +1,55 @@
+"use client";
+
+import { useState } from "react";
+
 /**
- * Deterministic token art. Real launches upload an image; until then a coin
- * gets a symmetric identicon derived from its seed. Saturation is kept low on
- * purpose — 48 of these on one board must not read as a bag of skittles.
+ * A token's picture.
+ *
+ * Renders the creator's uploaded image when there is one, and otherwise a
+ * symmetric identicon derived from the token's own address. Saturation on
+ * the generated art is kept low on purpose — 48 of these on one board must
+ * not read as a bag of skittles.
+ *
+ * The fallback is not only for tokens without an image. IPFS gateways
+ * fail, and a broken-image icon on every card is far worse than art that
+ * was always going to be fine: onError quietly drops back rather than
+ * leaving a hole where the token should be.
  */
 export function CoinArt({
   seed,
   hue,
   size = 40,
   radius = 6,
+  imageUrl,
+  alt = "",
 }: {
   seed: number;
   hue: number;
   size?: number;
   radius?: number;
+  imageUrl?: string;
+  alt?: string;
 }) {
+  const [failed, setFailed] = useState(false);
+
+  if (imageUrl && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- the source is
+      // an arbitrary IPFS gateway, which next/image cannot optimise without
+      // allowlisting every gateway a creator might use.
+      <img
+        src={imageUrl}
+        alt={alt}
+        width={size}
+        height={size}
+        onError={() => setFailed(true)}
+        loading="lazy"
+        className="shrink-0 object-cover"
+        style={{ width: size, height: size, borderRadius: radius }}
+      />
+    );
+  }
+
   const grid = 5;
   const half = Math.ceil(grid / 2);
   const cells: boolean[] = [];

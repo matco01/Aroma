@@ -16,7 +16,28 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/**
+ * The origin every relative metadata URL is resolved against.
+ *
+ * Without this Next falls back to http://localhost:3000, and og:image
+ * resolves to a localhost URL — which is fine locally and useless in
+ * production: Telegram, X and every other unfurler fetches that address,
+ * gets nothing, and shows the link with no picture. The failure is
+ * invisible from inside the app, because the page itself renders fine.
+ *
+ * RAILWAY_PUBLIC_DOMAIN is injected by the platform, so a Railway deploy
+ * gets this right with no configuration. NEXT_PUBLIC_SITE_URL overrides it
+ * for anywhere else — a custom domain, most obviously, which is what this
+ * should point at once one exists.
+ */
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : "http://localhost:3000");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Aroma — launch coins on Arc",
     template: "%s · Aroma",

@@ -357,7 +357,7 @@ export function CreateForm() {
           <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3">
             <span className="text-[12px] text-up">You earn</span>
             <span className="num text-[12.5px] text-up">
-              {CURVE.creatorFeeShareBps / 100}% of every trade
+              {CURVE.creatorFeeShareBps / 100}% of every fee
             </span>
           </div>
 

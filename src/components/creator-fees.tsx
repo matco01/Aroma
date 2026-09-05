@@ -39,7 +39,7 @@ export function CreatorFees({ coin }: { coin: Coin }) {
       <div className="flex items-baseline justify-between">
         <span className="label">Creator fees</span>
         <span className="num text-[11px] text-ink-3">
-          {CURVE.creatorFeeShareBps / 100}% of each trade
+          {CURVE.creatorFeeShareBps / 100}% of each fee
         </span>
       </div>
 

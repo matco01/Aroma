@@ -9,7 +9,10 @@ import { ConnectButton } from "./wallet";
 import { CommandMenu } from "./command-menu";
 
 /**
- * Portfolio is deliberately absent.
+ * Two items. Create is absent too — it was a nav link pointing at the
+ * same page as the button sitting a few pixels to its right, so one of
+ * them was always redundant, and the button is the one that looks like an
+ * action.
  *
  * It is the one page that means nothing until you connect, so as a nav
  * item it is dead weight for every first-time visitor — and "my holdings"
@@ -20,7 +23,6 @@ import { CommandMenu } from "./command-menu";
  */
 const NAV = [
   { href: "/", label: "Board" },
-  { href: "/create", label: "Create" },
 ] as const;
 
 export function SiteHeader() {
@@ -99,12 +101,22 @@ export function SiteHeader() {
             </kbd>
           </button>
 
+          {/* The one fully-rounded thing in an interface built on square
+              corners. That contrast is the point: it marks the primary
+              action without having to be louder than everything else. */}
           <Link
             href="/create"
-            className="flex h-9 shrink-0 items-center rounded-sm bg-accent px-3.5 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-hi"
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-accent pl-3 pr-3.5 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-hi"
           >
-            <span className="hidden sm:inline">Launch a coin</span>
-            <span className="sm:hidden">Launch</span>
+            <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
+              <path
+                d="M5.5 1v9M1 5.5h9"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+            Create
           </Link>
 
           <ConnectButton />

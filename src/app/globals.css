@@ -41,14 +41,29 @@
   --color-surface-2: #29241f;
   --color-surface-3: #342d27;
 
-  /* Hairlines lifted to match — a border that was invisible against the
-     old surface is invisible against a lighter one too. */
-  --color-line: #2f2923;
-  --color-line-strong: #453c33;
+  /* Hairlines, and the one place the ramp is allowed to run cool.
+     
+     The old line sat at 1.20:1 against the panel it was supposed to
+     outline, which is not an edge — it is a rumour. Panels had no
+     definition and the page read as one sheet with text scattered on it.
+     
+     These are pitched slightly blue against the warm surfaces on purpose.
+     A cold rim on a warm body is how an edge catches light in the real
+     world, and the small temperature difference does more to separate a
+     panel from its ground than another few percent of lightness would. */
+  --color-line: #3c3f46;
+  --color-line-strong: #4d515a;
 
+  /* Secondary and tertiary text, both lifted hard.
+     
+     ink-3 was 3.54:1 — below AA, and it carries the small-caps labels,
+     addresses and ages, which is to say most of the text someone actually
+     has to squint at. It clears AA for body text now. ink-2 goes up with
+     it so the two stay a readable step apart rather than collapsing into
+     one another. */
   --color-ink: #ece9e4;
-  --color-ink-2: #a49e96;
-  --color-ink-3: #76706a;
+  --color-ink-2: #c3bcb3;
+  --color-ink-3: #9a938a;
 
   /* Arc blue — the primary action, and nothing else. If it is blue, it is
      the thing to press. */

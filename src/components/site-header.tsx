@@ -44,7 +44,7 @@ export function SiteHeader() {
       {/* Solid background, not a blurred translucent one. Blur over a scrolling
           data table is noise, and it is the most over-used generated-UI effect. */}
       <header className="sticky top-0 z-40 border-b border-line bg-bg">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-4">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4">
           <Link href="/" className="flex items-center gap-2">
             <Wordmark />
           </Link>
@@ -59,7 +59,7 @@ export function SiteHeader() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-sm px-2.5 py-1.5 text-[12.5px] transition-colors ${
+                  className={`rounded-sm px-2.5 py-1.5 text-[13px] transition-colors ${
                     active
                       ? "text-ink"
                       : "text-ink-2 hover:bg-surface-2 hover:text-ink"
@@ -73,7 +73,7 @@ export function SiteHeader() {
               href={ARC_TESTNET.explorer}
               target="_blank"
               rel="noreferrer"
-              className="rounded-sm px-2.5 py-1.5 text-[12.5px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+              className="rounded-sm px-2.5 py-1.5 text-[13px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
             >
               Explorer
               <span className="ml-0.5 text-ink-3">↗</span>
@@ -84,7 +84,7 @@ export function SiteHeader() {
 
           <button
             onClick={() => setMenuOpen(true)}
-            className="flex h-8 items-center gap-2 rounded-sm border border-line bg-surface px-2.5 text-ink-3 transition-colors hover:border-line-strong sm:w-56"
+            className="flex h-9 items-center gap-2 rounded-sm border border-line bg-surface px-3 text-ink-3 transition-colors hover:border-line-strong sm:w-60"
             aria-label="Search tokens"
           >
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -101,7 +101,7 @@ export function SiteHeader() {
 
           <Link
             href="/create"
-            className="flex h-8 shrink-0 items-center rounded-sm bg-accent px-3 text-[12px] font-medium text-white transition-colors hover:bg-accent-hi"
+            className="flex h-9 shrink-0 items-center rounded-sm bg-accent px-3.5 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-hi"
           >
             <span className="hidden sm:inline">Launch a coin</span>
             <span className="sm:hidden">Launch</span>
@@ -136,7 +136,7 @@ function Wordmark() {
         priority
         className="shrink-0"
       />
-      <span className="text-[15px] font-semibold tracking-[-0.02em] text-ink">
+      <span className="text-[15.5px] font-semibold tracking-[-0.02em] text-ink">
         Aroma
       </span>
     </span>

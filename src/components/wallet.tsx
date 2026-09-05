@@ -146,7 +146,7 @@ export function ConnectButton() {
     return (
       <button
         onClick={connect}
-        className="h-8 rounded-sm border border-line-strong px-3 text-[12px] font-medium text-ink transition-colors hover:border-ink-3 hover:bg-surface-2"
+        className="h-9 rounded-sm border border-line-strong px-3.5 text-[12.5px] font-medium text-ink transition-colors hover:border-ink-3 hover:bg-surface-2"
       >
         Connect
       </button>
@@ -176,7 +176,7 @@ export function ConnectButton() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border bg-surface-2 px-3 transition-colors ${
+        className={`flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border bg-surface-2 px-3 transition-colors ${
           open ? "border-line-strong" : "border-line hover:border-line-strong"
         }`}
       >

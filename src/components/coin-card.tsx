@@ -69,13 +69,13 @@ export function CoinCard({ coin }: { coin: Coin }) {
         />
 
         {coin.graduated && (
-          <span className="absolute left-1.5 top-1.5 rounded-xs bg-bg/85 px-1.5 py-0.5 text-[10px] font-medium text-up backdrop-blur-sm">
+          <span className="absolute left-2 top-2 rounded-xs bg-bg/80 px-2 py-1 text-[11px] font-medium text-up backdrop-blur-sm">
             graduated
           </span>
         )}
 
         <span
-          className={`num absolute right-1.5 top-1.5 rounded-xs bg-bg/85 px-1.5 py-0.5 text-[10.5px] backdrop-blur-sm ${
+          className={`num absolute right-2 top-2 rounded-xs bg-bg/80 px-2 py-1 text-[11.5px] backdrop-blur-sm ${
             up ? "text-up" : "text-down"
           }`}
         >
@@ -83,26 +83,26 @@ export function CoinCard({ coin }: { coin: Coin }) {
         </span>
       </div>
 
-      <div className="flex flex-1 flex-col px-1.5 pb-0.5 pt-2.5">
+      <div className="flex flex-1 flex-col px-2 pb-1 pt-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-medium leading-tight text-ink">
+            <div className="truncate text-[14.5px] font-medium leading-tight text-ink">
               {coin.name}
             </div>
-            <div className="num mt-0.5 truncate text-[11px] text-ink-2">
+            <div className="num mt-1 truncate text-[12px] text-ink-2">
               ${coin.ticker}
             </div>
           </div>
-          <Sparkline data={coin.history} up={up} width={48} height={16} />
+          <Sparkline data={coin.history} up={up} width={56} height={18} />
         </div>
 
         {/* "MC" earns its place: without it the biggest number on the card
             is unlabelled, and market cap and volume are easy to confuse. */}
         <div className="mt-2 flex items-baseline gap-1.5">
-          <span className="num text-[16px] leading-none text-ink">
+          <span className="num text-[19px] leading-none text-ink">
             {usd(coin.marketCapUsd)}
           </span>
-          <span className="num text-[10px] text-ink-3">MC</span>
+          <span className="num text-[11px] text-ink-3">MC</span>
         </div>
 
         <div className="mt-2.5 flex items-center gap-2">
@@ -111,7 +111,7 @@ export function CoinCard({ coin }: { coin: Coin }) {
             graduated={coin.graduated}
           />
           <span
-            className={`num shrink-0 text-[10.5px] ${
+            className={`num shrink-0 text-[11.5px] ${
               coin.graduated ? "text-up" : "text-ink-3"
             }`}
           >
@@ -122,7 +122,7 @@ export function CoinCard({ coin }: { coin: Coin }) {
         {/* Contract and age. The address is what someone pastes into a
             wallet or explorer, and it is the one identifier that cannot be
             faked by a copycat using the same name and picture. */}
-        <div className="num mt-auto flex items-center justify-between gap-2 pt-2.5 text-[10px]">
+        <div className="num mt-auto flex items-center justify-between gap-2 pt-3 text-[11px]">
           <span className="truncate text-ink-3">{shortAddr(coin.contract)}</span>
           <span className={`shrink-0 ${fresh ? "text-up" : "text-ink-2"}`}>
             {ago(coin.createdAgoSeconds)}

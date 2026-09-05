@@ -15,17 +15,28 @@
    ========================================================================= */
 
 @theme inline {
-  --color-bg: #0b0c0f;
-  --color-surface: #131519;
-  --color-surface-2: #181b21;
-  --color-surface-3: #1e222a;
+  /* The page drops, the surfaces rise.
+     
+     bg to surface used to be a 1.07x step, which is not a card sitting on
+     a page — it is two slightly different blacks, and a board of them
+     reads as one flat sheet. Pulling the ground down and the cards up
+     makes them objects you could pick up. */
+  --color-bg: #08090b;
+  --color-surface: #16181d;
+  --color-surface-2: #1e2027;
+  --color-surface-3: #272a32;
 
-  --color-line: #1c1f26;
-  --color-line-strong: #2a2f38;
+  /* Hairlines lifted to match — a border that was invisible against the
+     old surface is invisible against a lighter one too. */
+  --color-line: #23262e;
+  --color-line-strong: #343843;
 
-  --color-ink: #e3e5e9;
-  --color-ink-2: #8f96a1;
-  --color-ink-3: #61686f;
+  /* Warmed very slightly off the blue-grey. The old ramp was
+     blue-led at every step, which is what makes an interface read as cold
+     and clinical rather than calm. */
+  --color-ink: #e8e9ec;
+  --color-ink-2: #9a9fa8;
+  --color-ink-3: #6b7079;
 
   /* Arc blue. The only accent in the system. */
   --color-accent: #3d7dff;
@@ -41,9 +52,12 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
-  --radius-xs: 5px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
+  /* Rounder. Corner radius is most of the difference between an interface
+     that feels like a terminal and one that feels approachable, and this
+     is a product people are meant to enjoy using, not administer. */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
 }
 
 :root {

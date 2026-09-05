@@ -104,7 +104,7 @@ export function Board() {
             glance and not worth a row of their own — a card each with the
             label stacked over the value is the shape of a dashboard, and
             this is a market. */}
-        <div className="num flex items-center gap-2.5 text-[11px] text-ink-3">
+        <div className="num flex items-center gap-2.5 text-[11.5px] text-ink-3">
           {stats && (
             <>
               <span>
@@ -253,7 +253,7 @@ function ChipButton({
   return (
     <button
       onClick={onClick}
-      className={`rounded-sm px-2.5 py-1 text-[12.5px] transition-colors ${
+      className={`rounded-sm px-3 py-1.5 text-[13px] transition-colors ${
         active ? "bg-surface-3 text-ink" : "text-ink-2 hover:text-ink"
       }`}
     >

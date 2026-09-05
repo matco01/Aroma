@@ -171,144 +171,150 @@ export function CreateForm() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-      <div className="min-w-0 space-y-4">
-        <Panel title="Identity">
-          <Field label="Name" error={nameError} hint={`${name.length}/32`}>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Dollar Doge"
-              className={inputClass}
-            />
-          </Field>
+      {/* One panel, not three.
+          
+          Identity / Links / First buy were three bordered boxes stacked
+          down the page, which is a lot of chrome for eight fields, and the
+          helper prose under half of them explained things to someone who
+          had already decided to launch. Name and ticker sit side by side
+          because they are one thought, and so do the two socials. */}
+      <div className="min-w-0">
+        <div className="rounded-md border border-line bg-surface p-4">
+          <h1 className="text-[16px] font-semibold tracking-[-0.02em] text-ink">
+            Launch a coin
+          </h1>
 
-          <Field label="Ticker" error={tickerError} hint={`${ticker.length}/10`}>
-            <div className="flex items-center rounded-sm border border-line bg-bg px-2.5 focus-within:border-line-strong">
-              <span className="num text-[13px] text-ink-3">$</span>
-              <input
-                value={ticker}
-                onChange={(e) =>
-                  setTicker(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
-                }
-                placeholder="DOGEUSD"
-                className="num h-10 flex-1 bg-transparent pl-1 text-[13px] text-ink outline-none placeholder:text-ink-3"
-              />
+          <div className="mt-4 space-y-3.5">
+            <div className="grid gap-3.5 sm:grid-cols-2">
+              <Field label="Name" error={nameError} hint={`${name.length}/32`}>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Dollar Doge"
+                  className={inputClass}
+                />
+              </Field>
+
+              <Field label="Ticker" error={tickerError} hint={`${ticker.length}/10`}>
+                <div className="flex items-center rounded-sm border border-line bg-bg px-2.5 focus-within:border-line-strong">
+                  <span className="num text-[13px] text-ink-3">$</span>
+                  <input
+                    value={ticker}
+                    onChange={(e) =>
+                      setTicker(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+                    }
+                    placeholder="DOGEUSD"
+                    className="num h-10 flex-1 bg-transparent pl-1 text-[13px] text-ink outline-none placeholder:text-ink-3"
+                  />
+                </div>
+              </Field>
             </div>
-          </Field>
 
-          <Field label="Description" hint={`${description.length}/200`}>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value.slice(0, 200))}
-              rows={3}
-              placeholder="What is this coin about?"
-              className={`${inputClass} resize-none py-2`}
-            />
-          </Field>
+            <Field label="Description" hint={`${description.length}/200`}>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value.slice(0, 200))}
+                rows={2}
+                placeholder="What is this coin about?"
+                className={`${inputClass} resize-none py-2`}
+              />
+            </Field>
 
-          <Field label="Image" hint="optional">
-            <label
-              className={`flex cursor-pointer items-center gap-3 rounded-sm border border-dashed bg-bg px-3 py-3 transition-colors ${
-                uploadError ? "border-down/50" : "border-line hover:border-line-strong"
-              }`}
-            >
-              <CoinArt
-                seed={seed}
-                hue={hue}
-                size={36}
-                imageUrl={imagePreview}
-                alt=""
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[12px] text-ink-2">
-                  {uploading
-                    ? "Pinning to IPFS…"
-                    : metadataUri
-                      ? "Image pinned — stored on IPFS, not on our servers"
-                      : "Drop an image or click to browse"}
+            <Field label="Image" hint="optional">
+              <label
+                className={`flex cursor-pointer items-center gap-3 rounded-sm border border-dashed bg-bg px-3 py-2.5 transition-colors ${
+                  uploadError ? "border-down/50" : "border-line hover:border-line-strong"
+                }`}
+              >
+                <CoinArt
+                  seed={seed}
+                  hue={hue}
+                  size={32}
+                  radius={4}
+                  imageUrl={imagePreview}
+                  alt=""
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] text-ink-2">
+                    {uploading
+                      ? "Pinning to IPFS…"
+                      : metadataUri
+                        ? "Pinned to IPFS"
+                        : "Choose image"}
+                  </span>
+                  <span className="block truncate text-[10.5px] text-ink-3">
+                    {uploadError
+                      ? uploadError
+                      : `PNG, JPG, GIF or WebP · ${IMAGE_RULES.minDimension}–${IMAGE_RULES.maxDimension}px`}
+                  </span>
                 </span>
-                <span className="block text-[11px] text-ink-3">
-                  {uploadError
-                    ? uploadError
-                    : `PNG, JPG, GIF or WebP · square · ${IMAGE_RULES.minDimension}–${IMAGE_RULES.maxDimension}px · up to ${IMAGE_RULES.maxBytes / 1024 / 1024} MB`}
-                </span>
-              </span>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                disabled={uploading}
-                onChange={(e) => onPickImage(e.target.files?.[0])}
-                className="hidden"
-              />
-            </label>
-            {!metadataUri && !uploading && (
-              <p className="mt-1.5 text-[10.5px] leading-relaxed text-ink-3">
-                Without one, your coin gets art generated from its contract
-                address. An uploaded image goes on IPFS and its address is
-                written on-chain, so it stays with the token wherever it is
-                shown.
-              </p>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  disabled={uploading}
+                  onChange={(e) => onPickImage(e.target.files?.[0])}
+                  className="hidden"
+                />
+              </label>
+            </Field>
+
+            {showSocials ? (
+              <div className="space-y-3.5">
+                <Field label="Website">
+                  <input
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://"
+                    className={inputClass}
+                  />
+                </Field>
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  <Field label="X">
+                    <input
+                      value={x}
+                      onChange={(e) => setX(e.target.value)}
+                      placeholder="@handle"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Telegram">
+                    <input
+                      value={telegram}
+                      onChange={(e) => setTelegram(e.target.value)}
+                      placeholder="t.me/"
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowSocials(true)}
+                className="text-[12px] text-accent transition-colors hover:text-accent-hi"
+              >
+                + Add website, X or Telegram
+              </button>
             )}
-          </Field>
-        </Panel>
 
-        <Panel title="Links" optional>
-          {!showSocials ? (
-            <button
-              onClick={() => setShowSocials(true)}
-              className="text-[12px] text-accent transition-colors hover:text-accent-hi"
+            <Field
+              label="First buy"
+              hint="optional · public as a dev holding"
             >
-              + Add website, X or Telegram
-            </button>
-          ) : (
-            <div className="space-y-3">
-              <Field label="Website">
+              <div className="flex items-center rounded-sm border border-line bg-bg px-2.5 focus-within:border-line-strong">
                 <input
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  placeholder="https://"
-                  className={inputClass}
+                  value={devBuy}
+                  onChange={(e) => {
+                    if (/^\d*\.?\d*$/.test(e.target.value)) setDevBuy(e.target.value);
+                  }}
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  className="num h-10 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
                 />
-              </Field>
-              <Field label="X">
-                <input
-                  value={x}
-                  onChange={(e) => setX(e.target.value)}
-                  placeholder="@handle"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Telegram">
-                <input
-                  value={telegram}
-                  onChange={(e) => setTelegram(e.target.value)}
-                  placeholder="t.me/"
-                  className={inputClass}
-                />
-              </Field>
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="First buy" optional>
-          <p className="mb-2.5 text-[11.5px] leading-relaxed text-ink-2">
-            Buy your own token in the same transaction that deploys it. This is
-            public and shows up on your token page as a dev holding — buyers
-            will look at it.
-          </p>
-          <div className="flex items-center rounded-sm border border-line bg-bg px-2.5 focus-within:border-line-strong">
-            <input
-              value={devBuy}
-              onChange={(e) => {
-                if (/^\d*\.?\d*$/.test(e.target.value)) setDevBuy(e.target.value);
-              }}
-              inputMode="decimal"
-              placeholder="0.00"
-              className="num h-10 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
-            />
-            <span className="num text-[12px] text-ink-2">USDC</span>
+                <span className="num text-[12px] text-ink-2">USDC</span>
+              </div>
+            </Field>
           </div>
-        </Panel>
+        </div>
       </div>
 
       <aside className="space-y-4 lg:sticky lg:top-16 lg:self-start">
@@ -397,26 +403,6 @@ export function CreateForm() {
 
 const inputClass =
   "h-10 w-full rounded-sm border border-line bg-bg px-3 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-line-strong";
-
-function Panel({
-  title,
-  optional,
-  children,
-}: {
-  title: string;
-  optional?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-md border border-line bg-surface p-3.5">
-      <div className="mb-3.5 flex items-baseline gap-2">
-        <h2 className="label">{title}</h2>
-        {optional && <span className="text-[10px] text-ink-3">optional</span>}
-      </div>
-      <div className="space-y-3.5">{children}</div>
-    </section>
-  );
-}
 
 function Field({
   label,

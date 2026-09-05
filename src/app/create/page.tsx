@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CreateForm } from "@/components/create-form";
-import { CURVE } from "@/lib/arc";
-import { compact, usd } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Launch a coin",
@@ -9,57 +8,43 @@ export const metadata: Metadata = {
     "Deploy a fixed-supply token on Arc in one transaction, priced in USDC from the first block.",
 };
 
+/**
+ * The form, and a way back to the board.
+ *
+ * There used to be a headline, a paragraph, and three numbered cards
+ * explaining deploy / trade / graduate. All of it was written for someone
+ * deciding whether to use a launchpad — but you only reach this page by
+ * pressing Create, so that decision is already made. It pushed the first
+ * field most of a screen down and made a two-minute task look like
+ * homework.
+ *
+ * The mechanics that mattered are still stated, next to the field they
+ * actually affect: the cost panel says what launching costs and what a
+ * creator earns, and the curve panel says where it graduates.
+ */
 export default function CreatePage() {
   return (
-    <div className="mx-auto max-w-[940px] px-4 py-7">
-      <div className="max-w-2xl">
-        <h1 className="text-[19px] font-semibold tracking-[-0.02em] text-ink">
-          Launch a coin
-        </h1>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">
-          One transaction deploys a {compact(CURVE.totalSupply)}-supply token
-          and opens its bonding curve. Free to launch — you pay Arc network
-          gas and nothing else, in USDC, so there is nothing to swap for first.
-        </p>
-      </div>
+    <div className="mx-auto max-w-[940px] px-4 py-5">
+      <Link
+        href="/"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line px-3 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+      >
+        <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden>
+          <path
+            d="M5.5 1.5 L2.5 4.5 L5.5 7.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        Back
+      </Link>
 
-      {/* Three-step explainer, because the mechanics are the product and
-          hiding them behind a docs link is how launchpads lose trust. */}
-      <ol className="mt-5 grid gap-3 sm:grid-cols-3">
-        <Step
-          n={1}
-          title="Deploy"
-          body={`Fixed supply, no mint function, no owner keys. Final in under a second.`}
-        />
-        <Step
-          n={2}
-          title="Trade on the curve"
-          body={`Anyone can buy. Price rises along a public curve as USDC flows in.`}
-        />
-        <Step
-          n={3}
-          title="Graduate"
-          body={`At a ${usd(CURVE.graduationMarketCapUsd)} market cap, liquidity moves to a permanently locked pool.`}
-        />
-      </ol>
-
-      <div className="mt-7">
+      <div className="mt-4">
         <CreateForm />
       </div>
     </div>
-  );
-}
-
-function Step({ n, title, body }: { n: number; title: string; body: string }) {
-  return (
-    <li className="rounded-md border border-line bg-surface p-3.5">
-      <div className="flex items-center gap-2">
-        <span className="num flex h-4 w-4 items-center justify-center rounded-xs bg-surface-3 text-[10px] text-ink-2">
-          {n}
-        </span>
-        <span className="text-[12.5px] font-medium text-ink">{title}</span>
-      </div>
-      <p className="mt-2 text-[12px] leading-relaxed text-ink-2">{body}</p>
-    </li>
   );
 }

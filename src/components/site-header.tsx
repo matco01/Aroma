@@ -47,7 +47,7 @@ export function SiteHeader() {
           data table is noise, and it is the most over-used generated-UI effect. */}
       <header className="sticky top-0 z-40 border-b border-line bg-bg">
         <div className="mx-auto flex h-[76px] max-w-[1400px] items-center gap-2 px-3 sm:h-(--header-h) sm:gap-4 sm:px-5">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="mr-2 flex items-center gap-2.5">
             <Wordmark />
           </Link>
 
@@ -61,7 +61,7 @@ export function SiteHeader() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-sm px-3 py-2 text-[15px] transition-colors ${
+                  className={`rounded-sm px-3 py-2 text-[16px] transition-colors ${
                     active
                       ? "text-ink"
                       : "text-ink-2 hover:bg-surface-2 hover:text-ink"
@@ -75,7 +75,7 @@ export function SiteHeader() {
               href={ARC_TESTNET.explorer}
               target="_blank"
               rel="noreferrer"
-              className="rounded-sm px-3 py-2 text-[15px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+              className="rounded-sm px-3 py-2 text-[16px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
             >
               Explorer
               <span className="ml-0.5 text-ink-3">↗</span>
@@ -134,8 +134,11 @@ export function SiteHeader() {
  * background was #030910, close enough to our #0b0c0f to read as a
  * mistake rather than a choice.
  *
- * 34px against 21px text: the wisp is tall and narrow, so matching the cap
- * height would leave it looking smaller than it is.
+ * 44px against 24px text: the wisp is tall and narrow, so matching the cap
+ * height would leave it looking smaller than it is. It is also sized
+ * against the 48px controls across the bar rather than against the
+ * wordmark alone — at 34px it was the lightest object in a header built
+ * out of 48px ones, which is what made the left side look unfinished.
  */
 function Wordmark() {
   return (
@@ -143,12 +146,12 @@ function Wordmark() {
       <Image
         src="/logo.png"
         alt=""
-        width={34}
-        height={34}
+        width={44}
+        height={44}
         priority
-        className="size-[26px] shrink-0 sm:size-[34px]"
+        className="size-[30px] shrink-0 sm:size-[44px]"
       />
-      <span className="text-[17px] font-semibold tracking-[-0.02em] text-ink sm:text-[21px]">
+      <span className="text-[18px] font-semibold tracking-[-0.02em] text-ink sm:text-[24px]">
         Aroma
       </span>
     </span>

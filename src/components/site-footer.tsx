@@ -76,7 +76,7 @@ function FooterLink({ href, children }: { href: string; children: React.ReactNod
     <li>
       <Link
         href={href}
-        className="text-[12px] text-ink-2 transition-colors hover:text-ink"
+        className="-my-1 inline-block py-1 text-[12px] text-ink-2 transition-colors hover:text-ink"
       >
         {children}
       </Link>
@@ -91,7 +91,7 @@ function FooterExternal({ href, children }: { href: string; children: React.Reac
         href={href}
         target="_blank"
         rel="noreferrer"
-        className="text-[12px] text-ink-2 transition-colors hover:text-ink"
+        className="-my-1 inline-block py-1 text-[12px] text-ink-2 transition-colors hover:text-ink"
       >
         {children}
         <span className="ml-0.5 text-ink-3">↗</span>

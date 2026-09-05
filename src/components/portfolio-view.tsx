@@ -23,7 +23,7 @@ export function PortfolioView() {
         action={
           <button
             onClick={connect}
-            className="h-8 rounded-sm bg-accent px-3 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-hi"
+            className="h-10 rounded-sm bg-accent px-4 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-hi sm:h-9"
           >
             Connect wallet
           </button>

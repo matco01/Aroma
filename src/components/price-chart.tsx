@@ -192,7 +192,7 @@ export function PriceChart({
                 setWindowId(w.id);
                 setHover(null);
               }}
-              className={`num px-2.5 py-1 text-[11px] transition-colors ${
+              className={`num px-3 py-2.5 text-[11px] transition-colors sm:px-2.5 sm:py-1 ${
                 windowId === w.id
                   ? "bg-accent-2-dim text-accent-2"
                   : "text-ink-3 hover:text-ink-2"

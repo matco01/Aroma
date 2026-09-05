@@ -30,7 +30,7 @@ export function CoinActivity({
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`rounded-sm px-2.5 py-1.5 text-[12.5px] transition-colors ${
+            className={`rounded-sm px-3 py-2.5 text-[12.5px] transition-colors sm:px-2.5 sm:py-1.5 ${
               tab === t.id
                 ? "bg-surface-3 text-ink"
                 : "text-ink-2 hover:bg-surface-2 hover:text-ink"

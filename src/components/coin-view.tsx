@@ -28,7 +28,7 @@ export function CoinView({ address }: { address: string }) {
   if (error || !coin) {
     return (
       <div className="mx-auto max-w-[1400px] px-4 py-10">
-        <Link href="/" className="text-[12px] text-ink-3 hover:text-ink-2">
+        <Link href="/" className="-my-2 inline-block py-2 text-[12px] text-ink-3 hover:text-ink-2">
           ← Board
         </Link>
         <div className="mt-6 rounded-md border border-line bg-surface px-6 py-16 text-center">
@@ -65,7 +65,7 @@ export function CoinView({ address }: { address: string }) {
     <div className="mx-auto max-w-[1400px] px-4 py-6">
       <Link
         href="/"
-        className="text-[12px] text-ink-3 transition-colors hover:text-ink-2"
+        className="-my-2 inline-block py-2 text-[12px] text-ink-3 transition-colors hover:text-ink-2"
       >
         ← Board
       </Link>
@@ -74,8 +74,15 @@ export function CoinView({ address }: { address: string }) {
         <IndexerStatus health={data?.indexer} />
       </div>
 
+      {/* Three items, not two, so the phone can put the trade panel between
+          the chart and the trades table. Stacked in DOM order a two-column
+          layout buries the buy box under the whole activity table, which on
+          a phone is most of a screen of scrolling to reach the one control
+          the page exists for. Explicit placement at lg keeps the desktop
+          layout exactly as it was: chart and table in column one, panel
+          spanning both rows in column two. */}
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        <div className="min-w-0">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <div className="flex items-start gap-3">
             <CoinArt seed={coin.seed} hue={coin.hue} size={52} radius={6} imageUrl={coin.imageUrl} alt={coin.name} />
             <div className="min-w-0 flex-1">
@@ -101,7 +108,7 @@ export function CoinView({ address }: { address: string }) {
                   href={`${ARC_TESTNET.explorer}/token/${coin.contract}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="transition-colors hover:text-ink-2"
+                  className="-my-1.5 inline-block py-1.5 transition-colors hover:text-ink-2"
                   title={coin.contract}
                 >
                   contract {shortAddr(coin.contract)} ↗
@@ -136,17 +143,13 @@ export function CoinView({ address }: { address: string }) {
           <div className="mt-4.5">
 <PriceChart series={data?.series ?? []} />
           </div>
-
-          <div className="mt-4.5">
-            <CoinActivity
-              trades={trades ?? []}
-              holders={holders}
-              ticker={coin.ticker}
-            />
-          </div>
         </div>
 
-        <aside className="space-y-4.5 lg:sticky lg:top-[calc(var(--header-h)+16px)] lg:self-start">
+        {/* min-w-0 is load-bearing. A grid item defaults to min-width:auto,
+            so without it the trade panel's min-content width sets the track
+            for the whole single-column mobile layout — and drags the left
+            column out with it, scrolling the entire page sideways. */}
+        <aside className="min-w-0 space-y-4.5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-[calc(var(--header-h)+16px)] lg:self-start">
           <TradePanel coin={coin} />
 
           <CreatorFees coin={coin} />
@@ -183,6 +186,16 @@ export function CoinView({ address }: { address: string }) {
             View on Arcscan ↗
           </a>
         </aside>
+
+        {/* Last in DOM, so on a phone it lands below the trade panel; back
+            under the chart in column one on desktop. */}
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <CoinActivity
+            trades={trades ?? []}
+            holders={holders}
+            ticker={coin.ticker}
+          />
+        </div>
       </div>
     </div>
   );

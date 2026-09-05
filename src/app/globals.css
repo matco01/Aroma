@@ -106,7 +106,7 @@ body {
 
 /* Small caps label used above every data group. */
 .label {
-  font-size: 10.5px;
+  font-size: 11.5px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-ink-3);

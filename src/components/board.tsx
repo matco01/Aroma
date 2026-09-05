@@ -230,7 +230,7 @@ function PageButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="h-8 rounded-sm border border-line px-3 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink-2"
+      className="h-10 rounded-sm border border-line px-3 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink-2 sm:h-8"
     >
       {children}
     </button>
@@ -253,7 +253,7 @@ function ChipButton({
   return (
     <button
       onClick={onClick}
-      className={`rounded-sm px-3 py-1.5 text-[13px] transition-colors ${
+      className={`rounded-sm px-3 py-2.5 text-[13px] transition-colors sm:py-1.5 ${
         active
           ? "bg-accent-2-dim text-accent-2"
           : "text-ink-2 hover:bg-surface-2 hover:text-ink"
@@ -280,7 +280,7 @@ function ViewButton({
       onClick={onClick}
       aria-label={label}
       aria-pressed={active}
-      className={`flex h-7 w-8 items-center justify-center transition-colors ${
+      className={`flex h-9 w-10 items-center justify-center transition-colors sm:h-7 sm:w-8 ${
         active ? "bg-accent-2-dim text-accent-2" : "text-ink-3 hover:text-ink-2"
       }`}
     >

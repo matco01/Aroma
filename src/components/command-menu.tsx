@@ -122,7 +122,9 @@ export function CommandMenu({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="flex items-center gap-3 border-t border-line px-3 py-1.5 text-[10px] text-ink-3">
+        {/* Keyboard-only, so it is a row of instructions a phone can never
+            follow. Hidden until there is a keyboard to use. */}
+        <div className="hidden items-center gap-3 border-t border-line px-3 py-1.5 text-[10px] text-ink-3 sm:flex">
           <span>
             <Key>↑</Key>
             <Key>↓</Key> navigate

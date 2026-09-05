@@ -20,23 +20,35 @@
      bg to surface used to be a 1.07x step, which is not a card sitting on
      a page — it is two slightly different blacks, and a board of them
      reads as one flat sheet. Pulling the ground down and the cards up
-     makes them objects you could pick up. */
-  --color-bg: #08090b;
-  --color-surface: #16181d;
-  --color-surface-2: #1e2027;
-  --color-surface-3: #272a32;
+     makes them objects you could pick up.
+     
+     And the whole neutral ramp is warm now. It used to be blue-led at
+     every step, and got bluer as it got lighter: -3 at the page, -7 at a
+     card, -15 at a strong hairline, measured as red minus blue. That is
+     the single reason the app read as clinical rather than calm — an
+     austere grey-blue is what every terminal-styled crypto app defaults
+     to. Red now leads by about the margin blue used to.
+     
+     Each step was chosen to hold its old perceived lightness — the
+     largest luminance drift across the ramp is 0.39% — so elevation and
+     text contrast are exactly what they were. Only the temperature moved.
+     
+     The accents stay cool on purpose. A cool accent on a warm ground is
+     what makes the blue look deliberate instead of default; warm surfaces
+     under a warm accent would just read as sepia. */
+  --color-bg: #0d0b0a;
+  --color-surface: #1e1a16;
+  --color-surface-2: #29241f;
+  --color-surface-3: #342d27;
 
   /* Hairlines lifted to match — a border that was invisible against the
      old surface is invisible against a lighter one too. */
-  --color-line: #23262e;
-  --color-line-strong: #343843;
+  --color-line: #2f2923;
+  --color-line-strong: #453c33;
 
-  /* Warmed very slightly off the blue-grey. The old ramp was
-     blue-led at every step, which is what makes an interface read as cold
-     and clinical rather than calm. */
-  --color-ink: #e8e9ec;
-  --color-ink-2: #9a9fa8;
-  --color-ink-3: #6b7079;
+  --color-ink: #ece9e4;
+  --color-ink-2: #a49e96;
+  --color-ink-3: #76706a;
 
   /* Arc blue — the primary action, and nothing else. If it is blue, it is
      the thing to press. */

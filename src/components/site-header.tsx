@@ -131,8 +131,9 @@ export function SiteHeader() {
 /**
  * The wisp, cut off its original backing so it sits on the header rather
  * than in a slightly-wrong square on top of it — the source PNG's
- * background was #030910, close enough to our #0b0c0f to read as a
- * mistake rather than a choice.
+ * background was a cool near-black, close enough to the page to read as a
+ * mistake rather than a choice — and further off now that the page ground
+ * is warm.
  *
  * 44px against 24px text: the wisp is tall and narrow, so matching the cap
  * height would leave it looking smaller than it is. It is also sized

@@ -230,6 +230,136 @@ select:focus-visible {
   animation: aroma-card-enter 320ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
+/* The Create button, cut from the same material as the mark.
+ *
+ * The colours are sampled from logo.png rather than invented: its shadow
+ * sits at #487b92, its body at #5b95a8, its lit face at #93cbdf and its
+ * rim highlight at #a2e6f4. The button reproduces that ramp top to bottom,
+ * so the pill reads as a piece of the same glass the wisp is made of.
+ *
+ * Glass normally works by refracting what is behind it, and there is
+ * nothing behind this — it sits on a solid header, so backdrop-filter
+ * would blur an empty colour. The illusion is built out of light instead:
+ * a gloss falling across the top curve, a hard rim on the very top edge,
+ * the underside turning away into shadow, and a faint bloom that stands in
+ * for the internal luminosity the mark has.
+ *
+ * This is a deliberate exception to the no-shadows rule at the top of this
+ * file. That rule exists because shadows scattered across an interface are
+ * the tell of a generated page; one lit object, which is also the single
+ * primary action and the brand's own material, is the opposite — it only
+ * works *because* nothing else in the app is lit.
+ *
+ * Ink is #06222c, sampled to sit against the wisp's own tones. It clears
+ * AA across the entire face: 13.9:1 at the top of the ramp, 7.6:1 through
+ * the middle where the label actually sits, and 4.8:1 at the base. The
+ * base stop was lifted from #3f87a3 to reach that last figure — at the
+ * original value the extreme bottom edge came in at 4.09:1, and "the text
+ * is centred so it never lands there" is an argument that stops being
+ * true the moment someone changes the button's height. */
+.btn-ice {
+  position: relative;
+  overflow: hidden;
+  color: #06222c;
+  background:
+    /* The specular caustic, thrown off-centre. A single vertical ramp is a
+       glossy 2010 button; what makes something read as ice is one bright
+       spot that clearly is not in the middle. */
+    radial-gradient(
+      115% 85% at 24% -18%,
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(255, 255, 255, 0.2) 36%,
+      rgba(255, 255, 255, 0) 60%
+    ),
+    /* Cold light climbing back up from the base, the way it does through a
+       block of ice lit from behind. */
+    radial-gradient(
+      130% 115% at 52% 128%,
+      rgba(126, 224, 246, 0.6) 0%,
+      rgba(126, 224, 246, 0) 58%
+    ),
+    /* A hard specular band just under the top edge — the line of light
+       that sits on a curved glass surface and is what separates ice from
+       a plastic gradient. */
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(255, 255, 255, 0) 14%
+    ),
+    /* The wisp's own ramp, with the saturated core it actually has rather
+       than a flat mid-tone. */
+    linear-gradient(
+      180deg,
+      #d4f0f9 0%,
+      #8fd8ec 26%,
+      #5cbcd8 58%,
+      #4a93ad 100%
+    );
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -6px 12px -8px rgba(168, 234, 248, 0.75),
+    inset 0 -1px 0 rgba(6, 34, 44, 0.4),
+    0 0 0 0.5px rgba(150, 216, 232, 0.5),
+    0 1px 3px rgba(0, 0, 0, 0.45),
+    0 0 24px -8px rgba(124, 202, 223, 0.9);
+  transition:
+    box-shadow 200ms ease,
+    filter 200ms ease,
+    transform 120ms ease;
+}
+
+/* Light travelling across the face. It runs on the way in and resets with
+   no duration on the way out — transitioning it back would play the sweep
+   in reverse, which glass does not do. */
+.btn-ice::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.4) 48%,
+    transparent 62%
+  );
+  transform: translateX(-130%);
+  transition: transform 0s;
+}
+
+@media (hover: hover) {
+  .btn-ice:hover {
+    filter: brightness(1.06);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      inset 0 -1px 0 rgba(6, 34, 44, 0.35),
+      0 0 0 0.5px rgba(160, 222, 238, 0.6),
+      0 1px 3px rgba(0, 0, 0, 0.45),
+      0 0 30px -6px rgba(116, 188, 208, 1);
+  }
+  .btn-ice:hover::after {
+    transform: translateX(130%);
+    transition: transform 750ms cubic-bezier(0.3, 0, 0.2, 1);
+  }
+}
+
+.btn-ice:active {
+  transform: translateY(1px);
+  filter: brightness(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-ice,
+  .btn-ice:active {
+    transition: none;
+    transform: none;
+  }
+  .btn-ice::after,
+  .btn-ice:hover::after {
+    transition: none;
+    transform: translateX(-130%);
+  }
+}
+
 /* The hover lift on a board card.
  *
  * Gated behind hover:hover so it never runs on a touch screen, where

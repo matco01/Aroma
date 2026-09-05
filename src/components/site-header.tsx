@@ -102,11 +102,12 @@ export function SiteHeader() {
           </button>
 
           {/* The one fully-rounded thing in an interface built on square
-              corners. That contrast is the point: it marks the primary
-              action without having to be louder than everything else. */}
+              corners, and now the one lit one. It is cut from the mark's
+              own glass — see .btn-ice — which makes the primary action and
+              the brand the same object. */}
           <Link
             href="/create"
-            className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent pl-3 pr-4 text-[13.5px] font-medium text-white transition-colors hover:bg-accent-hi sm:h-12 sm:gap-2 sm:pl-4 sm:pr-5 sm:text-[15px]"
+            className="btn-ice flex h-10 shrink-0 items-center gap-1.5 rounded-full pl-3 pr-4 text-[13.5px] font-semibold sm:h-12 sm:gap-2 sm:pl-4 sm:pr-5 sm:text-[15px]"
           >
             <svg width="13" height="13" viewBox="0 0 11 11" aria-hidden>
               <path

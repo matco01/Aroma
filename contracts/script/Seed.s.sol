@@ -42,7 +42,7 @@ contract Seed is Script {
             // from their address, the same as any launch without an image.
             address token = factory.createToken{value: devBuys[i]}(
                 names[i], symbols[i], descriptions[i], "", devBuys[i], 0
-            );
+            , AromaFactory.LaunchGuard(0, 0, new address[](0)));
             console.log(symbols[i], token);
         }
         vm.stopBroadcast();

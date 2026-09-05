@@ -59,13 +59,27 @@ contract AromaFactory is ReentrancyGuard {
     /// launchpad that created it disappears. pump.fun does the same. An
     /// empty string is allowed, and the UI falls back to art derived from
     /// the token address.
+    /// @notice The launch-tax settings, grouped.
+    /// @dev A struct rather than three more parameters because the flat
+    /// version put createToken over the EVM's stack limit — nine arguments
+    /// plus locals is past what solc can hold without via-ir, and turning
+    /// that on to buy three stack slots would slow every compile and change
+    /// every contract's bytecode. Grouping is cheaper and reads better at
+    /// the call site anyway.
+    struct LaunchGuard {
+        uint32 windowSeconds;
+        uint16 startBps;
+        address[] exemptWallets;
+    }
+
     function createToken(
         string calldata name,
         string calldata symbol,
         string calldata description,
         string calldata metadataUri,
         uint256 devBuyUsdc,
-        uint256 minDevTokensOut
+        uint256 minDevTokensOut,
+        LaunchGuard calldata guard
     ) external payable nonReentrant returns (address token) {
         // The cap is enforced here, at the only place a dev-buy can
         // happen. It deliberately does *not* live in CurveManager.buy():
@@ -78,7 +92,9 @@ contract AromaFactory is ReentrancyGuard {
         require(msg.value >= devBuyUsdc, "insufficient payment");
 
         token = address(new AromaToken(name, symbol, TOTAL_SUPPLY, address(curveManager)));
-        curveManager.registerToken(token, msg.sender);
+        curveManager.registerToken(
+            token, msg.sender, guard.windowSeconds, guard.startBps, guard.exemptWallets
+        );
 
         // Announce the token *before* the dev-buy, not after.
         //

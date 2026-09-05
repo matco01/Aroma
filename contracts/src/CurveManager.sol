@@ -97,6 +97,39 @@ contract CurveManager is ReentrancyGuard, Ownable2Step {
 
     mapping(address token => TokenState) public tokenState;
 
+    /**
+     * Launch-window tax on buys, to price out snipers.
+     *
+     * A bot reading the mempool can buy in the first block and sell into
+     * the humans who arrive a second later. Taxing that window makes the
+     * trade unprofitable rather than merely frowned upon.
+     *
+     * Both bounds are hard caps, not suggestions, and that is the whole
+     * reason this is safe to expose to creators. Uncapped, a creator could
+     * set 99% forever, exempt only themselves, and every buyer after them
+     * would be donating — a honeypot with a friendly name. A tax that must
+     * decay to nothing within half a minute cannot be that.
+     */
+    uint32 public constant MAX_SNIPE_WINDOW = 30 seconds;
+    uint16 public constant MAX_SNIPE_BPS = 9_900; // 99%
+
+    struct SnipeGuard {
+        uint64 launchedAt;    // 0 when the token predates registration
+        uint32 windowSeconds; // 0 disables the guard entirely
+        uint16 startBps;      // rate at t=0, decaying linearly to zero
+    }
+
+    mapping(address token => SnipeGuard) public snipeGuard;
+
+    /// @notice Wallets the launch tax does not apply to — the team's own,
+    /// declared at creation and fixed from then on. Fixed because a list
+    /// the creator could extend mid-window is not an exemption list, it is
+    /// a switch for deciding who gets taxed after the fact.
+    mapping(address token => mapping(address wallet => bool)) public snipeExempt;
+
+    event SnipeGuardSet(address indexed token, uint32 windowSeconds, uint16 startBps, uint256 exemptCount);
+    event SnipeTaxPaid(address indexed token, address indexed payer, uint256 amount, uint16 bps);
+
     /// @notice Set once, by the owner, immediately after both this contract
     /// and AromaFactory are deployed — see their shared NatSpec note on the
     /// bootstrap ordering. Immutable in practice (guarded to set-once) even
@@ -240,11 +273,50 @@ contract CurveManager is ReentrancyGuard, Ownable2Step {
     // deploys a fresh AromaToken (which mints the full supply here).
     // ---------------------------------------------------------------
 
-    function registerToken(address token, address creator) external onlyFactory {
+    function registerToken(
+        address token,
+        address creator,
+        uint32 snipeWindowSeconds,
+        uint16 snipeStartBps,
+        address[] calldata exemptWallets
+    ) external onlyFactory {
         require(tokenState[token].creator == address(0), "already registered");
         require(IERC20(token).balanceOf(address(this)) == TOTAL_SUPPLY, "bad supply");
+        require(snipeWindowSeconds <= MAX_SNIPE_WINDOW, "snipe window too long");
+        require(snipeStartBps <= MAX_SNIPE_BPS, "snipe rate too high");
+        require(exemptWallets.length <= 10, "too many exempt wallets");
+
         tokenState[token] = TokenState({realUsdcReserve: 0, tokensSold: 0, creator: creator, graduated: false});
+
+        if (snipeWindowSeconds > 0 && snipeStartBps > 0) {
+            snipeGuard[token] = SnipeGuard({
+                launchedAt: uint64(block.timestamp),
+                windowSeconds: snipeWindowSeconds,
+                startBps: snipeStartBps
+            });
+            for (uint256 i = 0; i < exemptWallets.length; i++) {
+                snipeExempt[token][exemptWallets[i]] = true;
+            }
+            emit SnipeGuardSet(token, snipeWindowSeconds, snipeStartBps, exemptWallets.length);
+        }
+
         emit TokenRegistered(token, creator);
+    }
+
+    /// @notice The launch tax on a buy of `token` right now, in basis
+    /// points. Decays linearly from startBps to zero across the window, so
+    /// the cost of being early falls continuously rather than in a cliff a
+    /// bot could simply wait behind.
+    function snipeTaxBps(address token, address buyer) public view returns (uint16) {
+        SnipeGuard memory g = snipeGuard[token];
+        if (g.windowSeconds == 0) return 0;
+        if (snipeExempt[token][buyer]) return 0;
+
+        uint256 elapsed = block.timestamp - g.launchedAt;
+        if (elapsed >= g.windowSeconds) return 0;
+
+        uint256 remaining = g.windowSeconds - elapsed;
+        return uint16((uint256(g.startBps) * remaining) / g.windowSeconds);
     }
 
     // ---------------------------------------------------------------
@@ -271,9 +343,22 @@ contract CurveManager is ReentrancyGuard, Ownable2Step {
         require(!st.graduated, "graduated");
         require(msg.value > 0, "usdcIn=0");
 
-        uint256 fee = (msg.value * TRADE_FEE_BPS) / FEE_DENOMINATOR;
-        uint256 usdcInNet = msg.value - fee;
+        // The launch tax comes off first, so the ordinary 1% is charged on
+        // what is actually being spent on the curve rather than on money
+        // already forfeited.
+        uint16 taxBps = snipeTaxBps(token, msg.sender);
+        uint256 snipeTax = (msg.value * taxBps) / FEE_DENOMINATOR;
+        uint256 spendable = msg.value - snipeTax;
+        require(spendable > 0, "all of it was launch tax");
+
+        uint256 fee = (spendable * TRADE_FEE_BPS) / FEE_DENOMINATOR;
+        uint256 usdcInNet = spendable - fee;
         uint256 creatorFee = (fee * CREATOR_FEE_SHARE_BPS) / FEE_DENOMINATOR;
+
+        // The tax follows the same 70/30 path as an ordinary fee. It goes
+        // mostly to the creator on the reasoning that the creator is the
+        // party a sniper takes from — and because sending it anywhere the
+        // buyer could reach would just be a rebate on sniping.
 
         tokensOut = _buyQuote(st.realUsdcReserve, st.tokensSold, usdcInNet);
         // A trade too small to move the curve by one wei of token would
@@ -292,6 +377,13 @@ contract CurveManager is ReentrancyGuard, Ownable2Step {
         st.tokensSold += tokensOut;
         creatorFeesAccrued[token] += creatorFee;
         accumulatedFees += fee - creatorFee;
+
+        if (snipeTax > 0) {
+            uint256 creatorShare = (snipeTax * CREATOR_FEE_SHARE_BPS) / FEE_DENOMINATOR;
+            creatorFeesAccrued[token] += creatorShare;
+            accumulatedFees += snipeTax - creatorShare;
+            emit SnipeTaxPaid(token, msg.sender, snipeTax, taxBps);
+        }
 
         emit Bought(token, recipient, msg.sender, msg.value, fee, creatorFee, tokensOut);
 

@@ -47,7 +47,7 @@ contract CurveManagerTest is Test {
 
     function _launch() internal returns (address token) {
         vm.prank(creator);
-        token = factory.createToken("Test Coin", "TEST", "", "", 0, 0);
+        token = factory.createToken("Test Coin", "TEST", "", "", 0, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
     }
 
     function _signPermit(uint256 pk, address signerAddr, address token, uint256 value, uint256 deadline)

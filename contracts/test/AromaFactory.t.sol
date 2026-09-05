@@ -31,7 +31,7 @@ contract AramFactoryTest is Test {
         uint256 balBefore = creator.balance;
 
         vm.prank(creator);
-        address token = factory.createToken("Free Coin", "FREE", "", "", 0, 0);
+        address token = factory.createToken("Free Coin", "FREE", "", "", 0, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         assertEq(creator.balance, balBefore, "no creation fee, matching pump.fun's own $0 schedule");
         assertTrue(token != address(0));
@@ -39,7 +39,7 @@ contract AramFactoryTest is Test {
 
     function test_createToken_mintsFullSupplyToCurve() public {
         vm.prank(creator);
-        address token = factory.createToken("Supply Coin", "SUP", "", "", 0, 0);
+        address token = factory.createToken("Supply Coin", "SUP", "", "", 0, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         assertEq(IERC20(token).totalSupply(), factory.TOTAL_SUPPLY(), "fixed 1B supply");
         assertEq(
@@ -52,7 +52,7 @@ contract AramFactoryTest is Test {
 
     function test_createToken_recordsCreatorAndMetadata() public {
         vm.prank(creator);
-        address token = factory.createToken("Named Coin", "NAME", "", "", 0, 0);
+        address token = factory.createToken("Named Coin", "NAME", "", "", 0, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         (,, address recordedCreator, bool graduated) = curve.tokenState(token);
         assertEq(recordedCreator, creator, "creator recorded for fee routing");
@@ -70,7 +70,7 @@ contract AramFactoryTest is Test {
         uint256 devBuy = 500e18;
 
         vm.prank(creator);
-        address token = factory.createToken{value: devBuy}("Dev Coin", "DEV", "", "", devBuy, 0);
+        address token = factory.createToken{value: devBuy}("Dev Coin", "DEV", "", "", devBuy, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         assertGt(IERC20(token).balanceOf(creator), 0, "creator holds their dev-buy");
         assertEq(IERC20(token).balanceOf(address(factory)), 0, "factory must never retain tokens");
@@ -82,11 +82,11 @@ contract AramFactoryTest is Test {
         // What a normal buyer would receive for the same amount on a fresh
         // curve — the dev must get exactly this, no preferential pricing.
         vm.prank(creator);
-        address refToken = factory.createToken("Ref Coin", "REF", "", "", 0, 0);
+        address refToken = factory.createToken("Ref Coin", "REF", "", "", 0, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
         (uint256 publicQuote,) = curve.quoteBuy(refToken, devBuy);
 
         vm.prank(creator);
-        address token = factory.createToken{value: devBuy}("Dev Coin", "DEV", "", "", devBuy, 0);
+        address token = factory.createToken{value: devBuy}("Dev Coin", "DEV", "", "", devBuy, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         assertEq(IERC20(token).balanceOf(creator), publicQuote, "dev-buy priced identically to a public buy");
     }
@@ -95,7 +95,7 @@ contract AramFactoryTest is Test {
         uint256 devBuy = 1_000e18;
 
         vm.prank(creator);
-        address token = factory.createToken{value: devBuy}("Dev Coin", "DEV", "", "", devBuy, 0);
+        address token = factory.createToken{value: devBuy}("Dev Coin", "DEV", "", "", devBuy, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         // The dev-buy pays the same 1% as any trade, and 70% of that
         // routes straight back to the creator — who is the buyer here.
@@ -108,7 +108,7 @@ contract AramFactoryTest is Test {
         uint256 balBefore = creator.balance;
 
         vm.prank(creator);
-        factory.createToken{value: overpay}("Refund Coin", "RFND", "", "", devBuy, 0);
+        factory.createToken{value: overpay}("Refund Coin", "RFND", "", "", devBuy, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         assertEq(creator.balance, balBefore - devBuy, "only the dev-buy is spent; the rest comes back");
     }
@@ -116,19 +116,19 @@ contract AramFactoryTest is Test {
     function test_createToken_revertsWhenPaymentBelowDevBuy() public {
         vm.prank(creator);
         vm.expectRevert(bytes("insufficient payment"));
-        factory.createToken{value: 10e18}("Short Coin", "SHRT", "", "", 500e18, 0);
+        factory.createToken{value: 10e18}("Short Coin", "SHRT", "", "", 500e18, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
     }
 
     function test_devBuy_respectsSlippageBound() public {
         uint256 devBuy = 500e18;
 
         vm.prank(creator);
-        address refToken = factory.createToken("Ref Coin", "REF", "", "", 0, 0);
+        address refToken = factory.createToken("Ref Coin", "REF", "", "", 0, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
         (uint256 quote,) = curve.quoteBuy(refToken, devBuy);
 
         vm.prank(creator);
         vm.expectRevert(bytes("slippage"));
-        factory.createToken{value: devBuy}("Dev Coin", "DEV", "", "", devBuy, quote + 1);
+        factory.createToken{value: devBuy}("Dev Coin", "DEV", "", "", devBuy, quote + 1, AromaFactory.LaunchGuard(0, 0, new address[](0)));
     }
 
     /// @dev The cap existed as a constant but nothing checked it — a
@@ -140,7 +140,7 @@ contract AramFactoryTest is Test {
 
         vm.prank(creator);
         vm.expectRevert(bytes("dev buy exceeds cap"));
-        factory.createToken{value: overCap}("Sniper Coin", "SNIPE", "", "", overCap, 0);
+        factory.createToken{value: overCap}("Sniper Coin", "SNIPE", "", "", overCap, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
     }
 
     function test_devBuy_atExactlyTheCapIsAllowed() public {
@@ -148,14 +148,14 @@ contract AramFactoryTest is Test {
         vm.deal(creator, atCap + 1e18);
 
         vm.prank(creator);
-        address token = factory.createToken{value: atCap}("Edge Coin", "EDGE", "", "", atCap, 0);
+        address token = factory.createToken{value: atCap}("Edge Coin", "EDGE", "", "", atCap, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
         assertGt(IERC20(token).balanceOf(creator), 0, "a dev-buy exactly at the cap must still succeed");
     }
 
     function test_registerToken_onlyCallableByFactory() public {
         vm.prank(stranger);
         vm.expectRevert(bytes("only factory"));
-        curve.registerToken(makeAddr("fakeToken"), stranger);
+        curve.registerToken(makeAddr("fakeToken"), stranger, 0, 0, new address[](0));
     }
 
     function test_setFactory_isOneTimeOnly() public {
@@ -166,7 +166,7 @@ contract AramFactoryTest is Test {
 
     function test_launchedTokenHasNoMintFunction() public {
         vm.prank(creator);
-        address token = factory.createToken("Fixed Coin", "FIXD", "", "", 0, 0);
+        address token = factory.createToken("Fixed Coin", "FIXD", "", "", 0, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         uint256 supplyBefore = IERC20(token).totalSupply();
 
@@ -193,7 +193,7 @@ contract AramFactoryTest is Test {
         vm.recordLogs();
 
         vm.prank(creator);
-        factory.createToken{value: 100e18}("Ordered", "ORD", "", "", 100e18, 0);
+        factory.createToken{value: 100e18}("Ordered", "ORD", "", "", 100e18, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 

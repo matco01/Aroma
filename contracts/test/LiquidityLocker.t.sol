@@ -73,7 +73,7 @@ contract LiquidityLockerTest is Test {
 
     function _graduate(CurveManager c, AromaFactory f) internal returns (address token) {
         vm.prank(creator);
-        token = f.createToken("Grad Coin", "GRAD", "", "", 0, 0);
+        token = f.createToken("Grad Coin", "GRAD", "", "", 0, 0, AromaFactory.LaunchGuard(0, 0, new address[](0)));
 
         uint256 gross = _grossForNet(c, c.GRADUATION_RAISE_USDC());
         vm.deal(buyer, gross + 1e18);

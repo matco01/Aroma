@@ -10,7 +10,6 @@ import { CURVE } from "@/lib/arc";
 import { usd } from "@/lib/format";
 import { CoinCard, CoinRow } from "./coin-card";
 import { IndexerStatus } from "./indexer-status";
-import { useLiveFeed } from "./live-provider";
 import { useValueFlash } from "@/lib/use-value-flash";
 
 type View = "grid" | "list";
@@ -44,7 +43,6 @@ export function Board() {
   const [sort, setSort] = useState<BoardSort>("buys");
   const [view, setView] = useState<View>("grid");
   const [page, setPage] = useState(0);
-  const { connected } = useLiveFeed();
 
   const { data, isLoading, isFetching, error } = useBoard({
     filter,
@@ -109,24 +107,6 @@ export function Board() {
             label stacked over the value is the shape of a dashboard, and
             this is a market. */}
         <div className="num flex items-center gap-2.5 text-[11.5px] text-ink-3">
-          {/* Whether the stream is actually open. A board that has silently
-              stopped updating looks exactly like a quiet market, and those
-              are very different things to a trader deciding whether to
-              trust the prices in front of them. */}
-          <span
-            className="flex items-center gap-1.5"
-            title={connected ? "Live — updates as trades land" : "Reconnecting…"}
-          >
-            <span
-              className={`size-1.5 rounded-full ${
-                connected ? "live-dot bg-up" : "bg-ink-3"
-              }`}
-            />
-            <span className={connected ? "text-ink-2" : "text-ink-3"}>
-              {connected ? "live" : "offline"}
-            </span>
-          </span>
-          <span className="text-line-strong">/</span>
           {stats && (
             <>
               <span>

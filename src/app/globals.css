@@ -266,28 +266,13 @@ select:focus-visible {
   animation: aroma-card-enter 320ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
-/* The live dot. Slow, low-contrast — a heartbeat, not a siren. */
-@keyframes aroma-live-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-.live-dot {
-  animation: aroma-live-pulse 2s ease-in-out infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .flash-up,
   .flash-down,
   .slide-in,
   .card-pulse,
   .value-flash,
-  .card-enter,
-  .live-dot {
+  .card-enter {
     animation: none;
   }
 }

@@ -1,9 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import type { Coin } from "@/lib/mock";
 import { CURVE } from "@/lib/arc";
 import { ago, compact, pct, shortAddr, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
 import { GraduationBar } from "./primitives";
+import { useTokenPulse } from "./live-provider";
+import { useValueFlash } from "@/lib/use-value-flash";
 
 function progressOf(coin: Coin): number {
   return coin.graduated
@@ -42,11 +46,28 @@ export function CoinCard({ coin }: { coin: Coin }) {
   const progress = progressOf(coin);
   const fresh = coin.createdAgoSeconds < FRESH_SECONDS;
 
+  const pulse = useTokenPulse(coin.contract);
+  const mcFlash = useValueFlash(coin.marketCapUsd);
+
   return (
     <Link
       href={`/coin/${coin.id}`}
-      className="group flex flex-col rounded-md border border-line bg-surface p-2 transition-colors hover:border-line-strong hover:bg-surface-2"
+      className="group relative flex flex-col rounded-md border border-line bg-surface p-2 transition-colors hover:border-line-strong hover:bg-surface-2"
     >
+      {/* Keyed by seq so a second trade restarts the animation instead of
+          being swallowed — a running CSS animation does not replay just
+          because its class is still there. Above the card's own content so
+          it reads over a bright uploaded image, but below pointer events
+          so it never eats the click. */}
+      {pulse && (
+        <span
+          key={pulse.seq}
+          aria-hidden
+          className={`card-pulse pointer-events-none absolute inset-0 z-10 rounded-md ${
+            pulse.side === "buy" ? "card-pulse-up" : "card-pulse-down"
+          }`}
+        />
+      )}
       {/* Inset with its own corners rather than bleeding to the card edge.
           The card then frames the art instead of the art cutting the card
           in half, and the small margin reads as one layer sitting on
@@ -93,7 +114,14 @@ export function CoinCard({ coin }: { coin: Coin }) {
         {/* "MC" earns its place: without it the biggest number on the card
             is unlabelled, and market cap and volume are easy to confuse. */}
         <div className="mt-1.5 flex items-baseline gap-1.5">
-          <span className="num text-[19px] leading-none text-ink">
+          <span
+            key={mcFlash.seq}
+            className={`num text-[19px] leading-none text-ink ${
+              mcFlash.dir
+                ? `value-flash ${mcFlash.dir === "up" ? "card-pulse-up" : "card-pulse-down"}`
+                : ""
+            }`}
+          >
             {usd(coin.marketCapUsd)}
           </span>
           <span className="num text-[11px] text-ink-3">MC</span>
@@ -131,12 +159,24 @@ export function CoinCard({ coin }: { coin: Coin }) {
 export function CoinRow({ coin }: { coin: Coin }) {
   const up = coin.change24hPct >= 0;
   const progress = progressOf(coin);
+  const pulse = useTokenPulse(coin.contract);
 
   return (
     <Link
       href={`/coin/${coin.id}`}
-      className="flex items-center gap-3 border-b border-line px-3.5 py-2.5 transition-colors hover:bg-surface-2"
+      className="relative flex items-center gap-3 border-b border-line px-3.5 py-2.5 transition-colors hover:bg-surface-2"
     >
+      {/* The row flash is the shorter one — a line in a list you are
+          already scanning needs less time to be caught than a tile. */}
+      {pulse && (
+        <span
+          key={pulse.seq}
+          aria-hidden
+          className={`pointer-events-none absolute inset-0 ${
+            pulse.side === "buy" ? "flash-up" : "flash-down"
+          }`}
+        />
+      )}
       <CoinArt
         seed={coin.seed}
         hue={coin.hue}

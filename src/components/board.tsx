@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useBoard,
   type BoardFilter,
@@ -10,6 +10,8 @@ import { CURVE } from "@/lib/arc";
 import { usd } from "@/lib/format";
 import { CoinCard, CoinRow } from "./coin-card";
 import { IndexerStatus } from "./indexer-status";
+import { useLiveFeed } from "./live-provider";
+import { useValueFlash } from "@/lib/use-value-flash";
 
 type View = "grid" | "list";
 
@@ -42,6 +44,7 @@ export function Board() {
   const [sort, setSort] = useState<BoardSort>("buys");
   const [view, setView] = useState<View>("grid");
   const [page, setPage] = useState(0);
+  const { connected } = useLiveFeed();
 
   const { data, isLoading, isFetching, error } = useBoard({
     filter,
@@ -65,6 +68,7 @@ export function Board() {
   }
 
   const coins = data?.tokens ?? [];
+  const arrivals = useArrivals(coins, `${filter}:${sort}:${page}`);
   const stats = data?.stats;
   const total = stats?.tokenCount ?? 0;
   const hasMore = data?.hasMore ?? false;
@@ -105,6 +109,24 @@ export function Board() {
             label stacked over the value is the shape of a dashboard, and
             this is a market. */}
         <div className="num flex items-center gap-2.5 text-[11.5px] text-ink-3">
+          {/* Whether the stream is actually open. A board that has silently
+              stopped updating looks exactly like a quiet market, and those
+              are very different things to a trader deciding whether to
+              trust the prices in front of them. */}
+          <span
+            className="flex items-center gap-1.5"
+            title={connected ? "Live — updates as trades land" : "Reconnecting…"}
+          >
+            <span
+              className={`size-1.5 rounded-full ${
+                connected ? "live-dot bg-up" : "bg-ink-3"
+              }`}
+            />
+            <span className={connected ? "text-ink-2" : "text-ink-3"}>
+              {connected ? "live" : "offline"}
+            </span>
+          </span>
+          <span className="text-line-strong">/</span>
           {stats && (
             <>
               <span>
@@ -112,7 +134,7 @@ export function Board() {
               </span>
               <span className="text-line-strong">/</span>
               <span>
-                <span className="text-ink-2">{usd(stats.totalVolumeUsd)}</span> vol
+                <FlashingValue value={stats.totalVolumeUsd} /> vol
               </span>
               <span className="hidden text-line-strong sm:inline">/</span>
               <span className="hidden sm:inline">
@@ -183,7 +205,9 @@ export function Board() {
             }`}
           >
             {coins.map((c) => (
-              <CoinCard key={c.id} coin={c} />
+              <div key={c.id} className={arrivals.has(c.id) ? "card-enter" : ""}>
+                <CoinCard coin={c} />
+              </div>
             ))}
           </div>
         ) : (
@@ -194,7 +218,9 @@ export function Board() {
           >
             <ListHeader />
             {coins.map((c) => (
-              <CoinRow key={c.id} coin={c} />
+              <div key={c.id} className={arrivals.has(c.id) ? "slide-in" : ""}>
+                <CoinRow coin={c} />
+              </div>
             ))}
           </div>
         ))}
@@ -308,5 +334,64 @@ function ListHeader() {
       <span className="label w-16 shrink-0 text-right">Change</span>
       <span className="label hidden w-24 shrink-0 sm:block">Curve</span>
     </div>
+  );
+}
+
+/**
+ * Which coins on screen were not on screen a moment ago.
+ *
+ * The first list is never an arrival — everything is new when you have
+ * just loaded the page, and animating all of it in is a page transition,
+ * not a signal. Only what appears afterwards gets to move.
+ *
+ * `view` is the same idea one level up. Paging to the next page, or
+ * re-sorting, replaces the entire id list, and without resetting here
+ * every card would animate in as though twenty coins had just launched.
+ * A new view primes exactly like a first load.
+ *
+ * Keyed off the ids alone: a coin whose price changed has not arrived,
+ * and re-animating it on every trade would make the grid twitch.
+ */
+function useArrivals(coins: { id: string }[], view: string): Set<string> {
+  const ids = useMemo(() => coins.map((c) => c.id).join(","), [coins]);
+  const known = useRef<Set<string> | null>(null);
+  const lastView = useRef(view);
+  const [arrivals, setArrivals] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const current = ids ? ids.split(",") : [];
+    if (!current.length) return;
+
+    if (known.current === null || lastView.current !== view) {
+      lastView.current = view;
+      known.current = new Set(current);
+      setArrivals(new Set());
+      return;
+    }
+
+    const fresh = current.filter((id) => !known.current!.has(id));
+    // Track everything present, so paging back and forth does not make
+    // already-seen coins animate again.
+    for (const id of current) known.current.add(id);
+    if (fresh.length) setArrivals(new Set(fresh));
+  }, [ids, view]);
+
+  return arrivals;
+}
+
+/** A figure in the stats run that tints when it moves. */
+function FlashingValue({ value }: { value: number }) {
+  const flash = useValueFlash(value);
+  return (
+    <span
+      key={flash.seq}
+      className={`text-ink-2 ${
+        flash.dir
+          ? `value-flash ${flash.dir === "up" ? "card-pulse-up" : "card-pulse-down"}`
+          : ""
+      }`}
+    >
+      {usd(value)}
+    </span>
   );
 }

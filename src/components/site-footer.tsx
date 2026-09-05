@@ -17,6 +17,22 @@ export function SiteFooter() {
               Launch and trade fixed-supply tokens on Arc. Your wallet signs and
               submits every transaction. Aroma never takes custody of your funds.
             </p>
+
+            {/* Quiet on purpose. The mark rather than the handle, at the size
+                of the text above it — findable by someone looking for it,
+                not competing with the board for attention. */}
+            <a
+              href="https://x.com/Aromadotmoney"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Aroma on X"
+              className="mt-2 inline-flex items-center gap-1.5 py-1 text-[12px] text-ink-3 transition-colors hover:text-ink"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              Aromadotmoney
+            </a>
           </div>
 
           <FooterCol title="Protocol">

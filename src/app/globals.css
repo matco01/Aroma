@@ -176,29 +176,6 @@ select:focus-visible {
   outline: none;
 }
 
-@keyframes aroma-flash-up {
-  from {
-    background-color: color-mix(in srgb, var(--color-up) 22%, transparent);
-  }
-  to {
-    background-color: transparent;
-  }
-}
-@keyframes aroma-flash-down {
-  from {
-    background-color: color-mix(in srgb, var(--color-down) 22%, transparent);
-  }
-  to {
-    background-color: transparent;
-  }
-}
-.flash-up {
-  animation: aroma-flash-up 620ms ease-out;
-}
-.flash-down {
-  animation: aroma-flash-down 620ms ease-out;
-}
-
 @keyframes aroma-slide-in {
   from {
     opacity: 0;
@@ -213,37 +190,12 @@ select:focus-visible {
   animation: aroma-slide-in 220ms ease-out;
 }
 
-/* A trade landing on a card.
- *
- * An inset ring rather than an outer glow or a scale: the board is a tight
- * grid, so anything that grows or casts light bleeds onto its neighbours
- * and eight trades in a row turn into a light show. Drawn on an overlay
- * that sits above the art, so it reads on a bright uploaded image as well
- * as on a dark placeholder.
- *
- * 900ms is deliberately longer than the 620ms row flash. A row is one line
- * in a list you are already scanning; a card is one tile in a grid your eye
- * has to find, and it needs longer to be caught. */
-@keyframes aroma-card-pulse {
-  from {
-    box-shadow: inset 0 0 0 1.5px var(--pulse-color);
-    background-color: color-mix(in srgb, var(--pulse-color) 14%, transparent);
-  }
-  60% {
-    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pulse-color) 45%, transparent);
-  }
-  to {
-    box-shadow: inset 0 0 0 1.5px transparent;
-    background-color: transparent;
-  }
-}
-.card-pulse {
-  animation: aroma-card-pulse 900ms ease-out;
-}
-.card-pulse-up {
+/* Which direction a changed figure moved. Carried as a variable so the
+   tint below has a colour to use. */
+.flash-tone-up {
   --pulse-color: var(--color-up);
 }
-.card-pulse-down {
+.flash-tone-down {
   --pulse-color: var(--color-down);
 }
 
@@ -310,10 +262,7 @@ select:focus-visible {
     transform: none;
   }
 
-  .flash-up,
-  .flash-down,
   .slide-in,
-  .card-pulse,
   .value-flash,
   .card-enter {
     animation: none;

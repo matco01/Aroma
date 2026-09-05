@@ -367,7 +367,7 @@ function FlashingValue({ value }: { value: number }) {
       key={flash.seq}
       className={`text-ink-2 ${
         flash.dir
-          ? `value-flash ${flash.dir === "up" ? "card-pulse-up" : "card-pulse-down"}`
+          ? `value-flash ${flash.dir === "up" ? "flash-tone-up" : "flash-tone-down"}`
           : ""
       }`}
     >

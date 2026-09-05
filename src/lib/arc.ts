@@ -29,8 +29,11 @@ export const ARC_TESTNET = {
  * wired up — see contracts/README.md.
  */
 export const ARC_TESTNET_CONTRACTS = {
-  curveManager: "0xa05De5C74eC4C9c90041B147eB1FADcf906D2Bad",
-  aromaFactory: "0xFB27D25cC5ca3F6B2cb078fA5d680F5e23bE70e7",
+  curveManager: "0x98D436Bb667300Fc60fCeF23DFd6d797Ab287f09",
+  aromaFactory: "0x8cE3Dd48f5981238Db315AaF0721790d667153B0",
+  /** Holds graduated liquidity. Seeds a v4 pool where v4 exists; on
+   *  testnet it has no PoolManager and simply holds the funds. */
+  liquidityLocker: "0x965b96dF259Ad337596CEb5BE0768ed42971B761",
   /** Native USDC's ERC-20 interface. 6 decimals; the native view is 18. */
   usdc: "0x3600000000000000000000000000000000000000",
   /**
@@ -38,7 +41,7 @@ export const ARC_TESTNET_CONTRACTS = {
    * genesis — Arc is already past block 60,000,000 and the public RPC
    * rejects a range that wide outright. Update on any redeploy.
    */
-  deployBlock: 60_424_031n,
+  deployBlock: 60_601_584n,
 } as const;
 
 /** ERC-20 view of native USDC. Use for anything a user types or reads. */

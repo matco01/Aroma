@@ -13,9 +13,9 @@ dataSources:
     name: AromaFactory
     network: arc-testnet
     source:
-      address: "0xFB27D25cC5ca3F6B2cb078fA5d680F5e23bE70e7"
+      address: "0x8cE3Dd48f5981238Db315AaF0721790d667153B0"
       abi: AromaFactory
-      startBlock: 60424031
+      startBlock: 60601584
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -35,9 +35,9 @@ dataSources:
     name: CurveManager
     network: arc-testnet
     source:
-      address: "0xa05De5C74eC4C9c90041B147eB1FADcf906D2Bad"
+      address: "0x98D436Bb667300Fc60fCeF23DFd6d797Ab287f09"
       abi: CurveManager
-      startBlock: 60424031
+      startBlock: 60601584
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

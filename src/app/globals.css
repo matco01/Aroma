@@ -278,7 +278,38 @@ select:focus-visible {
   animation: aroma-card-enter 320ms cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
+/* The hover lift on a board card.
+ *
+ * Gated behind hover:hover so it never runs on a touch screen, where
+ * :hover sticks after a tap and would leave a card raised until you
+ * pressed something else.
+ *
+ * 3px and 180ms: far enough to read as the card coming toward you,
+ * short enough that moving across a dense grid does not leave a wake of
+ * cards still settling behind the cursor. The easing is weighted to the
+ * front so it lifts promptly and lands softly. */
+@media (hover: hover) {
+  .card-lift:hover {
+    transform: translateY(-3px);
+  }
+}
+.card-lift {
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.3, 1),
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .card-lift {
+    transition:
+      border-color 150ms ease,
+      background-color 150ms ease;
+  }
+  .card-lift:hover {
+    transform: none;
+  }
+
   .flash-up,
   .flash-down,
   .slide-in,

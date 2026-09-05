@@ -28,8 +28,13 @@ function progressOf(coin: Coin): number {
  * the grid feel like a document rather than a market, and the description
  * is on the coin page where someone reading it has actually asked.
  *
- * Hover still changes border and background only — nothing lifts, scales or
- * casts a shadow. On a board of these, those effects turn into static.
+ * Hover lifts the card 3px as well as changing its border and background.
+ * The earlier rule here was that nothing should move, on the grounds that
+ * motion across a dense grid turns into static — which is true of scaling
+ * and of shadows, both of which change a card's footprint and bleed onto
+ * its neighbours. A small translate does neither: the card keeps its exact
+ * size and the grid never reflows, so the only thing that reads is the one
+ * card under the cursor coming forward.
  */
 /**
  * Under an hour old.
@@ -52,7 +57,7 @@ export function CoinCard({ coin }: { coin: Coin }) {
   return (
     <Link
       href={`/coin/${coin.id}`}
-      className="group relative flex flex-col rounded-md border border-line bg-surface p-2 transition-colors hover:border-line-strong hover:bg-surface-2"
+      className="card-lift group relative flex flex-col rounded-md border border-line bg-surface p-2 hover:border-line-strong hover:bg-surface-2"
     >
       {/* Keyed by seq so a second trade restarts the animation instead of
           being swallowed — a running CSS animation does not replay just

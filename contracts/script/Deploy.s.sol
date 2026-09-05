@@ -39,6 +39,9 @@ contract Deploy is Script {
         uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(pk);
 
+        // The deployer owns the contract through the broadcast because
+        // setFactory is onlyOwner, then hands it over. Handing over first
+        // would leave the factory unwireable by anyone but the new owner.
         address owner = vm.envOr("PROTOCOL_OWNER", deployer);
         address poolManager = vm.envOr("POOL_MANAGER", address(0));
 
@@ -64,12 +67,20 @@ contract Deploy is Script {
 
         vm.startBroadcast(pk);
 
-        CurveManager curve = new CurveManager(owner, predictedLocker);
+        CurveManager curve = new CurveManager(deployer, predictedLocker);
         LiquidityLocker locker = new LiquidityLocker(poolManager, address(curve));
         require(address(locker) == predictedLocker, "locker address prediction failed");
 
         AromaFactory factory = new AromaFactory(address(curve));
         curve.setFactory(address(factory));
+
+        // Ownable2Step: this only nominates. Ownership does not move until
+        // the nominee calls acceptOwnership from that address, which is the
+        // point — it makes it impossible to hand the fee key to an address
+        // nobody can sign for, which would strand every fee permanently.
+        if (owner != deployer) {
+            curve.transferOwnership(owner);
+        }
 
         vm.stopBroadcast();
 
@@ -83,5 +94,15 @@ contract Deploy is Script {
         console.log("  vault is locker:", curve.graduationVault() == address(locker));
         console.log("  locker -> curve:", address(locker.curve()) == address(curve));
         console.log("  pool manager:  ", address(locker.poolManager()));
+        console.log("  owner now:     ", curve.owner());
+        console.log("  owner pending: ", curve.pendingOwner());
+
+        if (curve.pendingOwner() != address(0)) {
+            console.log("");
+            console.log("ACTION REQUIRED: ownership is nominated, not transferred.");
+            console.log("From the wallet above, call acceptOwnership() on:");
+            console.log("  ", address(curve));
+            console.log("Until then the deployer still owns fee withdrawal.");
+        }
     }
 }

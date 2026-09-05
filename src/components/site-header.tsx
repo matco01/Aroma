@@ -136,7 +136,7 @@ export function SiteHeader() {
  * mistake rather than a choice — and further off now that the page ground
  * is warm.
  *
- * 44px against 24px text: the wisp is tall and narrow, so matching the cap
+ * 52px against 24px text: the wisp is tall and narrow, so matching the cap
  * height would leave it looking smaller than it is. It is also sized
  * against the 48px controls across the bar rather than against the
  * wordmark alone — at 34px it was the lightest object in a header built
@@ -148,10 +148,10 @@ function Wordmark() {
       <Image
         src="/logo.png"
         alt=""
-        width={44}
-        height={44}
+        width={52}
+        height={52}
         priority
-        className="size-[30px] shrink-0 sm:size-[44px]"
+        className="size-[30px] shrink-0 sm:size-[52px]"
       />
       <span className="text-[18px] font-semibold tracking-[-0.02em] text-ink sm:text-[24px]">
         Aroma

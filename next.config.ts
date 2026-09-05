@@ -47,6 +47,17 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  /**
+   * Emit a self-contained server bundle.
+   *
+   * Railway runs this as one long-lived container, which is the whole
+   * reason the single-poller design works. Standalone output ships only
+   * the files the server actually reaches, so the image does not carry a
+   * full node_modules — it is the difference between a ~200MB image and a
+   * ~1.5GB one, on every deploy.
+   */
+  output: "standalone",
+
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

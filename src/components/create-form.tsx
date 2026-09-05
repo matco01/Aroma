@@ -17,7 +17,6 @@ export function CreateForm() {
   const [ticker, setTicker] = useState("");
   const [description, setDescription] = useState("");
   const [devBuy, setDevBuy] = useState("");
-  const [showSocials, setShowSocials] = useState(false);
   const [website, setWebsite] = useState("");
   const [x, setX] = useState("");
   const [telegram, setTelegram] = useState("");
@@ -179,13 +178,13 @@ export function CreateForm() {
           had already decided to launch. Name and ticker sit side by side
           because they are one thought, and so do the two socials. */}
       <div className="min-w-0">
-        <div className="rounded-md border border-line bg-surface p-4">
-          <h1 className="text-[16px] font-semibold tracking-[-0.02em] text-ink">
+        <div className="rounded-md border border-line bg-surface p-5">
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ink">
             Launch a coin
           </h1>
 
-          <div className="mt-4 space-y-3.5">
-            <div className="grid gap-3.5 sm:grid-cols-2">
+          <div className="mt-5 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Name" error={nameError} hint={`${name.length}/32`}>
                 <input
                   value={name}
@@ -197,14 +196,14 @@ export function CreateForm() {
 
               <Field label="Ticker" error={tickerError} hint={`${ticker.length}/10`}>
                 <div className="flex items-center rounded-sm border border-line bg-bg px-2.5 focus-within:border-line-strong">
-                  <span className="num text-[13px] text-ink-3">$</span>
+                  <span className="num text-[14px] text-ink-3">$</span>
                   <input
                     value={ticker}
                     onChange={(e) =>
                       setTicker(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
                     }
                     placeholder="DOGEUSD"
-                    className="num h-10 flex-1 bg-transparent pl-1 text-[13px] text-ink outline-none placeholder:text-ink-3"
+                    className="num h-11 flex-1 bg-transparent pl-1 text-[14px] text-ink outline-none placeholder:text-ink-3"
                   />
                 </div>
               </Field>
@@ -214,7 +213,7 @@ export function CreateForm() {
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value.slice(0, 200))}
-                rows={2}
+                rows={3}
                 placeholder="What is this coin about?"
                 className={`${inputClass} resize-none py-2`}
               />
@@ -222,27 +221,27 @@ export function CreateForm() {
 
             <Field label="Image" hint="optional">
               <label
-                className={`flex cursor-pointer items-center gap-3 rounded-sm border border-dashed bg-bg px-3 py-2.5 transition-colors ${
+                className={`flex cursor-pointer items-center gap-3 rounded-sm border border-dashed bg-bg px-3.5 py-3 transition-colors ${
                   uploadError ? "border-down/50" : "border-line hover:border-line-strong"
                 }`}
               >
                 <CoinArt
                   seed={seed}
                   hue={hue}
-                  size={32}
-                  radius={4}
+                  size={38}
+                  radius={5}
                   imageUrl={imagePreview}
                   alt=""
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[12px] text-ink-2">
+                  <span className="block text-[13px] text-ink-2">
                     {uploading
                       ? "Pinning to IPFS…"
                       : metadataUri
                         ? "Pinned to IPFS"
                         : "Choose image"}
                   </span>
-                  <span className="block truncate text-[10.5px] text-ink-3">
+                  <span className="block truncate text-[11px] text-ink-3">
                     {uploadError
                       ? uploadError
                       : `PNG, JPG, GIF or WebP · ${IMAGE_RULES.minDimension}–${IMAGE_RULES.maxDimension}px`}
@@ -258,8 +257,11 @@ export function CreateForm() {
               </label>
             </Field>
 
-            {showSocials ? (
-              <div className="space-y-3.5">
+            {/* Shown, not hidden behind a toggle. Links are what a coin
+                gets judged on — a launch with no X account reads as a rug,
+                and a disclosure this load-bearing should not need
+                discovering. */}
+            <div className="space-y-4">
                 <Field label="Website">
                   <input
                     value={website}
@@ -268,7 +270,7 @@ export function CreateForm() {
                     className={inputClass}
                   />
                 </Field>
-                <div className="grid gap-3.5 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="X">
                     <input
                       value={x}
@@ -286,15 +288,7 @@ export function CreateForm() {
                     />
                   </Field>
                 </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowSocials(true)}
-                className="text-[12px] text-accent transition-colors hover:text-accent-hi"
-              >
-                + Add website, X or Telegram
-              </button>
-            )}
+            </div>
 
             <Field
               label="First buy"
@@ -308,7 +302,7 @@ export function CreateForm() {
                   }}
                   inputMode="decimal"
                   placeholder="0.00"
-                  className="num h-10 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
+                  className="num h-11 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-ink-3"
                 />
                 <span className="num text-[12px] text-ink-2">USDC</span>
               </div>
@@ -401,8 +395,16 @@ export function CreateForm() {
   );
 }
 
+/**
+ * Deliberately larger than the rest of the app.
+ *
+ * A board is scanned, so it wants density; a form is filled in, and the
+ * same 10px-tall inputs that read as tidy in a table read as cramped when
+ * someone is typing into them. Bigger targets are also the difference
+ * between usable and not on a phone.
+ */
 const inputClass =
-  "h-10 w-full rounded-sm border border-line bg-bg px-3 text-[13px] text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-line-strong";
+  "h-11 w-full rounded-sm border border-line bg-bg px-3 text-[14px] text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-line-strong";
 
 function Field({
   label,
@@ -418,11 +420,11 @@ function Field({
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between">
-        <label className="text-[12px] text-ink-2">{label}</label>
+        <label className="text-[12.5px] text-ink-2">{label}</label>
         {error ? (
-          <span className="text-[10.5px] text-down">{error}</span>
+          <span className="text-[11px] text-down">{error}</span>
         ) : hint ? (
-          <span className="num text-[10.5px] text-ink-3">{hint}</span>
+          <span className="num text-[11px] text-ink-3">{hint}</span>
         ) : null}
       </div>
       {children}

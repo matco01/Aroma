@@ -24,7 +24,7 @@ export const metadata: Metadata = {
  */
 export default function CreatePage() {
   return (
-    <div className="mx-auto max-w-[940px] px-4 py-5">
+    <div className="mx-auto max-w-[1000px] px-4 py-5">
       <Link
         href="/"
         className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line px-3 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { CoinArt } from "./coin-art";
 
 export type TradeToastData = {
@@ -23,6 +24,15 @@ type Phase = "enter" | "shown" | "exit";
  *
  * Same floating-layer language as the command menu: bg-surface + a stronger
  * hairline, no shadow — elevation still comes from contrast, not blur.
+ *
+ * Rendered through a portal to document.body, which is not cosmetic. This
+ * component is returned from inside the coin page's <aside>, and that aside
+ * is position:sticky — which creates a stacking context. A fixed child
+ * cannot escape one: z-50 then ranks the toast only against its siblings
+ * inside the sidebar, and the whole sidebar paints below the header. The
+ * confirmation for a trade someone just paid for was rendering underneath
+ * the top bar. The portal moves it to the document root, where its z-index
+ * is measured against the header rather than against the sidebar.
  */
 export function TradeToast({
   data,
@@ -54,8 +64,13 @@ export function TradeToast({
   const visible = phase === "shown";
   const up = data.side === "buy";
 
-  return (
-    <div className="pointer-events-none fixed inset-x-4 top-[70px] z-50 flex justify-center sm:inset-x-auto sm:right-5 sm:justify-end">
+  // document does not exist while rendering on the server, so the portal
+  // waits for the client. A toast only ever appears in response to a click,
+  // so there is nothing to show on a first server render anyway.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="pointer-events-none fixed inset-x-4 top-[calc(var(--header-h)+12px)] z-[60] flex justify-center sm:inset-x-auto sm:right-5 sm:justify-end">
       <div
         role="status"
         className={`pointer-events-auto flex w-full max-w-[360px] items-center gap-3 rounded-md border border-line-strong bg-surface p-3.5 transition-all duration-200 ease-out ${
@@ -102,6 +117,7 @@ export function TradeToast({
           </svg>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

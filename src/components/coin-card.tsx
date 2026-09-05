@@ -32,9 +32,20 @@ function progressOf(coin: Coin): number {
  * Hover still changes border and background only — nothing lifts, scales or
  * casts a shadow. On a board of these, those effects turn into static.
  */
+/**
+ * Under an hour old.
+ *
+ * On a launchpad, new *is* the signal — the coins worth looking at are
+ * usually the ones that just appeared, and on a board sorted by anything
+ * else they are invisible. Colouring the age gives the eye somewhere to
+ * land without adding a badge, a border or another row.
+ */
+const FRESH_SECONDS = 3600;
+
 export function CoinCard({ coin }: { coin: Coin }) {
   const up = coin.change24hPct >= 0;
   const progress = progressOf(coin);
+  const fresh = coin.createdAgoSeconds < FRESH_SECONDS;
 
   return (
     <Link
@@ -113,7 +124,7 @@ export function CoinCard({ coin }: { coin: Coin }) {
             faked by a copycat using the same name and picture. */}
         <div className="num mt-auto flex items-center justify-between gap-2 pt-2.5 text-[10px]">
           <span className="truncate text-ink-3">{shortAddr(coin.contract)}</span>
-          <span className="shrink-0 text-ink-2">
+          <span className={`shrink-0 ${fresh ? "text-up" : "text-ink-2"}`}>
             {ago(coin.createdAgoSeconds)}
           </span>
         </div>

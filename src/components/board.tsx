@@ -6,6 +6,8 @@ import {
   type BoardFilter,
   type BoardSort,
 } from "@/lib/use-chain";
+import { CURVE } from "@/lib/arc";
+import { usd } from "@/lib/format";
 import { CoinCard, CoinRow } from "./coin-card";
 import { IndexerStatus } from "./indexer-status";
 
@@ -63,7 +65,8 @@ export function Board() {
   }
 
   const coins = data?.tokens ?? [];
-  const total = data?.stats.tokenCount ?? 0;
+  const stats = data?.stats;
+  const total = stats?.tokenCount ?? 0;
   const hasMore = data?.hasMore ?? false;
   const showing = coins.length > 0;
 
@@ -97,10 +100,36 @@ export function Board() {
 
         <div className="flex-1" />
 
+        {/* Stats inline rather than a block above the grid. They are worth a
+            glance and not worth a row of their own — a card each with the
+            label stacked over the value is the shape of a dashboard, and
+            this is a market. */}
+        <div className="num flex items-center gap-2.5 text-[11px] text-ink-3">
+          {stats && (
+            <>
+              <span>
+                <span className="text-ink-2">{stats.tokenCount}</span> tokens
+              </span>
+              <span className="text-line-strong">/</span>
+              <span>
+                <span className="text-ink-2">{usd(stats.totalVolumeUsd)}</span> vol
+              </span>
+              <span className="hidden text-line-strong sm:inline">/</span>
+              <span className="hidden sm:inline">
+                <span className="text-ink-2">{stats.graduatedCount}</span> graduated
+              </span>
+              <span className="hidden text-line-strong lg:inline">/</span>
+              <span className="hidden lg:inline">
+                graduates at{" "}
+                <span className="text-ink-2">
+                  {usd(CURVE.graduationMarketCapUsd)}
+                </span>
+              </span>
+            </>
+          )}
+        </div>
+
         <div className="flex items-center gap-2">
-          <span className="num text-[11px] text-ink-3">
-            {total > 0 ? `${total} tokens` : " "}
-          </span>
           <div className="flex overflow-hidden rounded-sm border border-line">
             <ViewButton active={view === "grid"} onClick={() => setView("grid")} label="Grid view">
               <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>

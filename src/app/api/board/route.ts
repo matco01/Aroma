@@ -21,6 +21,7 @@ import { fetchBoardData } from "@/lib/chain-data";
 
 const FILTERS: BoardFilter[] = ["all", "climbing", "graduated"];
 const SORTS: BoardSort[] = ["buys", "new", "mcap", "volume"];
+const MAX_SKIP = 5_000;
 const MAX_LIMIT = 60;
 
 function pick<T extends string>(value: string | null, allowed: T[], fallback: T): T {
@@ -31,7 +32,10 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const filter = pick(params.get("filter"), FILTERS, "all");
   const sort = pick(params.get("sort"), SORTS, "buys");
-  const skip = Math.max(0, Number(params.get("skip") ?? 0) || 0);
+  // Clamped, not just floored. An unbounded skip is a distinct cache key
+  // per value, so ?skip=1..1000000 was a way to grow the server cache
+  // without limit. The indexer will not paginate this deep anyway.
+  const skip = Math.min(MAX_SKIP, Math.max(0, Number(params.get("skip") ?? 0) || 0));
   const limit = Math.min(MAX_LIMIT, Math.max(1, Number(params.get("limit") ?? 24) || 24));
   const withTape = params.get("tape") !== "0";
 

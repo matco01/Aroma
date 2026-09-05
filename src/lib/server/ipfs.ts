@@ -28,10 +28,25 @@ const GATEWAY = process.env.NEXT_PUBLIC_PINATA_GATEWAY || "gateway.pinata.cloud"
 const PIN_FILE = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 const PIN_JSON = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
 
+/**
+ * A CID, and nothing else.
+ *
+ * Both halves of what this guards are attacker-supplied: `metadataUri` is
+ * free text on a token anyone can create, and the `image` field inside the
+ * metadata is whatever that document says. Pasting either straight into a
+ * URL means a stranger picks the path we fetch server-side and the src we
+ * hand a browser. Base32 CIDv1 and base58 CIDv0 are both covered; a
+ * trailing path segment is allowed because that is legitimate IPFS
+ * addressing, and anything with a scheme, a host, a dot-segment or a
+ * backslash in it is not a CID and is refused.
+ */
+const CID = /^[A-Za-z0-9]{46,64}(\/[A-Za-z0-9._-]{1,128})*$/;
+
 /** What a browser will actually render an image from. */
 export function gatewayUrl(uri: string): string {
   if (!uri) return "";
   const cid = uri.startsWith("ipfs://") ? uri.slice("ipfs://".length) : uri;
+  if (!CID.test(cid)) return "";
   return `https://${GATEWAY}/ipfs/${cid}`;
 }
 
@@ -109,20 +124,64 @@ export async function pinMetadata(meta: TokenMetadata): Promise<string> {
  */
 const imageCache = new Map<string, string>();
 
+/** One entry per token ever launched, otherwise. Launching costs gas, so
+ *  this grows slowly — but "slowly" is not "never", and this process is
+ *  meant to stay up. */
+const MAX_IMAGE_CACHE = 5_000;
+
+/** A token's metadata document is a few hundred bytes of JSON. Anything
+ *  approaching this is not metadata, and reading it would be our memory
+ *  spent on someone else's decision. */
+const MAX_METADATA_BYTES = 64 * 1024;
+
+/** Reads at most `limit` bytes, and gives up rather than truncating —
+ *  a half-read JSON document is not something to guess at. */
+async function readCapped(res: Response, limit: number): Promise<string | null> {
+  const declared = Number(res.headers.get("content-length") ?? 0);
+  if (declared > limit) return null;
+
+  const reader = res.body?.getReader();
+  if (!reader) return null;
+
+  const decoder = new TextDecoder();
+  let out = "";
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel();
+      return null;
+    }
+    out += decoder.decode(value, { stream: true });
+  }
+  return out + decoder.decode();
+}
+
 export async function resolveImage(metadataUri: string): Promise<string> {
   if (!metadataUri) return "";
 
   const cached = imageCache.get(metadataUri);
   if (cached !== undefined) return cached;
 
+  const url = gatewayUrl(metadataUri);
+  if (!url) return "";
+
   try {
-    const res = await fetch(gatewayUrl(metadataUri), {
-      signal: AbortSignal.timeout(6_000),
-    });
+    const res = await fetch(url, { signal: AbortSignal.timeout(6_000) });
     if (!res.ok) throw new Error(String(res.status));
 
-    const meta = (await res.json()) as { image?: unknown };
+    const body = await readCapped(res, MAX_METADATA_BYTES);
+    if (body === null) throw new Error("metadata too large");
+
+    const meta = JSON.parse(body) as { image?: unknown };
     const image = typeof meta.image === "string" ? gatewayUrl(meta.image) : "";
+
+    if (imageCache.size >= MAX_IMAGE_CACHE) {
+      const oldest = imageCache.keys().next();
+      if (!oldest.done) imageCache.delete(oldest.value);
+    }
     imageCache.set(metadataUri, image);
     return image;
   } catch {

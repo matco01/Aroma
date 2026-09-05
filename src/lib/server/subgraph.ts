@@ -26,6 +26,39 @@ type Entry = { value: unknown; expires: number };
 const cache = new Map<string, Entry>();
 const inflight = new Map<string, Promise<unknown>>();
 
+/**
+ * Hard ceiling on cached queries.
+ *
+ * Entries expired by TTL but never read again were still sitting in this
+ * Map forever, and cache keys carry caller-supplied values — the board's
+ * `skip`, the search term. Walking ?skip=1..1000000, or searching a
+ * million random strings, therefore grew this Map without bound, each
+ * entry holding a full GraphQL response. That is a remote memory
+ * exhaustion with no authentication and no cost to the attacker.
+ *
+ * A Map iterates in insertion order, so the oldest key is simply the
+ * first one. Evicting expired entries first means a burst of junk keys
+ * cannot push out the small set of hot ones that are actually serving
+ * traffic; only if everything is live do we fall back to dropping the
+ * oldest.
+ */
+const MAX_ENTRIES = 500;
+
+function evictIfFull() {
+  if (cache.size < MAX_ENTRIES) return;
+
+  const now = Date.now();
+  for (const [key, entry] of cache) {
+    if (entry.expires <= now) cache.delete(key);
+  }
+
+  while (cache.size >= MAX_ENTRIES) {
+    const oldest = cache.keys().next();
+    if (oldest.done) break;
+    cache.delete(oldest.value);
+  }
+}
+
 export type SubgraphMeta = {
   indexedBlock: number;
   hasIndexingErrors: boolean;
@@ -65,6 +98,7 @@ export async function query<T>(
     if (json.errors?.length) throw new SubgraphError(json.errors[0].message);
     if (!json.data) throw new SubgraphError("subgraph returned no data");
 
+    evictIfFull();
     cache.set(key, { value: json.data, expires: Date.now() + TTL_MS });
     return json.data;
   })();

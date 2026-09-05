@@ -8,7 +8,8 @@ import {
   gatewayUrl,
   IpfsError,
 } from "@/lib/server/ipfs";
-import { checkImageFile, checkImageDimensions } from "@/lib/image-rules";
+import { checkImageFile, checkImageDimensions, IMAGE_RULES } from "@/lib/image-rules";
+import { rateLimit, clientKey } from "@/lib/server/rate-limit";
 
 /**
  * Takes a creator's image, pins it and its metadata to IPFS, and returns
@@ -17,13 +18,47 @@ import { checkImageFile, checkImageDimensions } from "@/lib/image-rules";
  * One round trip rather than two: the client uploads once and gets back a
  * URI ready to pass to createToken. Doing it server-side keeps the Pinata
  * JWT out of the browser — otherwise anyone could pin to this account.
+ *
+ * Keeping the JWT server-side stops the key leaking, but on its own it did
+ * not stop the abuse it was protecting against: the endpoint was open and
+ * unmetered, so anyone could still pin unlimited content to our account
+ * through it. That is our storage bill and our name on whatever they
+ * uploaded. Hence the limit below, and the length check before the body is
+ * read at all.
  */
+
+/** Generous for a person launching a coin, useless for a script. */
+const UPLOADS_PER_WINDOW = 10;
+const WINDOW_MS = 60_000;
+
+/** Slack over the per-image cap for multipart overhead and the text fields. */
+const MAX_BODY_BYTES = IMAGE_RULES.maxBytes + 1_000_000;
 
 export async function POST(request: Request) {
   if (!hasPinata) {
     return NextResponse.json(
       { error: "Image uploads aren't configured on this deployment." },
       { status: 503 },
+    );
+  }
+
+  const limited = rateLimit(`upload:${clientKey(request)}`, UPLOADS_PER_WINDOW, WINDOW_MS);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: "Too many uploads. Wait a moment and try again." },
+      { status: 429, headers: { "retry-after": String(limited.retryAfter) } },
+    );
+  }
+
+  // Refuse oversized bodies before parsing rather than after. checkImageFile
+  // runs on file.size, which is only known once the whole multipart body has
+  // been read into memory — by which point a hostile 2GB upload has already
+  // cost us the memory it was meant to be rejected for.
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > MAX_BODY_BYTES) {
+    return NextResponse.json(
+      { error: "That file is too large." },
+      { status: 413 },
     );
   }
 

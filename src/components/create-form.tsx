@@ -20,6 +20,9 @@ export function CreateForm() {
   const [website, setWebsite] = useState("");
   const [x, setX] = useState("");
   const [telegram, setTelegram] = useState("");
+  const [snipeGuard, setSnipeGuard] = useState(false);
+  const [exemptWallets, setExemptWallets] = useState<string[]>([]);
+  const [exemptDraft, setExemptDraft] = useState("");
 
   // Image upload. The preview is a local object URL so it appears the
   // instant a file is chosen, rather than after a round trip to IPFS —
@@ -65,7 +68,10 @@ export function CreateForm() {
   async function submit() {
     if (!connected) return connect();
     if (!valid || insufficient) return;
-    await create(name.trim(), ticker.trim(), description.trim(), devBuy || "0", metadataUri);
+    await create(name.trim(), ticker.trim(), description.trim(), devBuy || "0", metadataUri, {
+      enabled: snipeGuard,
+      exemptWallets,
+    });
   }
 
   const busy = phase === "signing" || phase === "pending" || uploading;
@@ -290,6 +296,26 @@ export function CreateForm() {
                 </div>
             </div>
 
+            {/* Off by default. A tax nobody asked for is a worse default
+                than no tax, and a creator who wants one should have to say
+                so — it is their buyers who pay for it. */}
+            <SnipeGuardField
+              enabled={snipeGuard}
+              onToggle={setSnipeGuard}
+              wallets={exemptWallets}
+              draft={exemptDraft}
+              onDraft={setExemptDraft}
+              onAdd={() => {
+                const w = exemptDraft.trim();
+                if (!/^0x[0-9a-fA-F]{40}$/.test(w)) return;
+                if (exemptWallets.some((x) => x.toLowerCase() === w.toLowerCase())) return;
+                if (exemptWallets.length >= 10) return;
+                setExemptWallets([...exemptWallets, w]);
+                setExemptDraft("");
+              }}
+              onRemove={(w) => setExemptWallets(exemptWallets.filter((x) => x !== w))}
+            />
+
             <Field
               label="First buy"
               hint="optional · public as a dev holding"
@@ -452,6 +478,129 @@ function Summary({
       <dd className={`num text-[11.5px] ${strong ? "text-ink" : "text-ink-2"}`}>
         {value}
       </dd>
+    </div>
+  );
+}
+
+/**
+ * The launch-window tax, and the wallets it spares.
+ *
+ * Written as a claim the creator is making to their buyers rather than a
+ * setting they are tuning: there is nothing to tune, because the contract
+ * fixes both the rate and the window and rejects anything else. What a
+ * creator chooses is whether it is on, and which of their own wallets are
+ * exempt — and both of those are visible on-chain afterwards, which is the
+ * only reason a stranger should believe either.
+ */
+function SnipeGuardField({
+  enabled,
+  onToggle,
+  wallets,
+  draft,
+  onDraft,
+  onAdd,
+  onRemove,
+}: {
+  enabled: boolean;
+  onToggle: (v: boolean) => void;
+  wallets: string[];
+  draft: string;
+  onDraft: (v: string) => void;
+  onAdd: () => void;
+  onRemove: (w: string) => void;
+}) {
+  const draftValid = /^0x[0-9a-fA-F]{40}$/.test(draft.trim());
+
+  return (
+    <div className="rounded-sm border border-line bg-bg p-3.5">
+      <label className="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onToggle(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+        />
+        <span className="min-w-0">
+          <span className="block text-[14px] text-ink">Tax the first buyers</span>
+          <span className="mt-1 block text-[12.5px] leading-relaxed text-ink-2">
+            Buys in the launch second pay{" "}
+            <span className="num">{CURVE.snipeStartBps / 100}%</span>, decaying
+            to zero across{" "}
+            <span className="num">{CURVE.snipeWindowSeconds}s</span>. Prices out
+            bots without touching anyone who arrives a moment later.
+          </span>
+        </span>
+      </label>
+
+      {enabled && (
+        <div className="slide-in mt-3.5 border-t border-line pt-3.5">
+          <div className="label">Exempt wallets</div>
+          <p className="mt-1 text-[12px] leading-relaxed text-ink-2">
+            Declare the wallets your team opens with. Fixed at launch — nobody,
+            including you, can add to this list afterwards.
+          </p>
+
+          <div className="mt-2.5 flex items-center gap-2">
+            <input
+              value={draft}
+              onChange={(e) => onDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onAdd();
+                }
+              }}
+              placeholder="0x wallet address"
+              spellCheck={false}
+              className="num h-10 min-w-0 flex-1 rounded-sm border border-line bg-surface px-2.5 text-[12.5px] text-ink outline-none placeholder:text-ink-3 focus:border-line-strong"
+            />
+            <button
+              type="button"
+              onClick={onAdd}
+              disabled={!draftValid || wallets.length >= 10}
+              aria-label="Add wallet"
+              className="flex size-10 shrink-0 items-center justify-center rounded-sm border border-line text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+                <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+
+          {draft.trim() !== "" && !draftValid && (
+            <p className="mt-1.5 text-[11.5px] text-down">
+              That is not a wallet address.
+            </p>
+          )}
+
+          {wallets.length > 0 && (
+            <ul className="mt-2.5 space-y-1.5">
+              {wallets.map((w) => (
+                <li
+                  key={w}
+                  className="flex items-center justify-between gap-2 rounded-sm border border-line bg-surface px-2.5 py-2"
+                >
+                  <span className="num truncate text-[12px] text-ink-2">{w}</span>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(w)}
+                    aria-label={`Remove ${w}`}
+                    className="shrink-0 rounded-xs p-1 text-ink-3 transition-colors hover:bg-surface-3 hover:text-ink-2"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden>
+                      <path d="M1.5 1.5L10.5 10.5M10.5 1.5L1.5 10.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="mt-2 text-[11.5px] text-ink-3">
+            {wallets.length}/10 declared
+          </p>
+        </div>
+      )}
     </div>
   );
 }

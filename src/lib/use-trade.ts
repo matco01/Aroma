@@ -5,7 +5,7 @@ import { useAccount, useSignTypedData, useWriteContract, usePublicClient } from 
 import { useQueryClient } from "@tanstack/react-query";
 import { parseUnits, type Address } from "viem";
 import { curveManagerAbi, aromaTokenAbi, aromaFactoryAbi } from "./abis";
-import { ARC_TESTNET_CONTRACTS } from "./arc";
+import { ARC_TESTNET_CONTRACTS, CURVE as CURVE_CONFIG } from "./arc";
 
 /**
  * The write side: buys, sells and launches as real transactions.
@@ -244,6 +244,14 @@ export function useCreateToken() {
       description: string,
       devBuyUsdc: string,
       metadataUri = "",
+      /**
+       * Launch-window tax. Off unless the creator turned it on, because a
+       * tax nobody asked for is a worse default than none.
+       */
+      snipeGuard: { enabled: boolean; exemptWallets: string[] } = {
+        enabled: false,
+        exemptWallets: [],
+      },
     ) => {
       if (!address || !publicClient) return;
       try {
@@ -255,7 +263,23 @@ export function useCreateToken() {
           address: FACTORY,
           abi: aromaFactoryAbi,
           functionName: "createToken",
-          args: [name, symbol, description, metadataUri, devBuy, 0n],
+          args: [
+            name,
+            symbol,
+            description,
+            metadataUri,
+            devBuy,
+            0n,
+            {
+              // The contract caps both of these; passing the maximum is
+              // the whole feature, so there is nothing to configure.
+              windowSeconds: snipeGuard.enabled ? CURVE_CONFIG.snipeWindowSeconds : 0,
+              startBps: snipeGuard.enabled ? CURVE_CONFIG.snipeStartBps : 0,
+              exemptWallets: snipeGuard.enabled
+                ? (snipeGuard.exemptWallets as Address[])
+                : [],
+            },
+          ],
           value: devBuy,
         });
 

@@ -491,6 +491,28 @@ export const aromaFactoryAbi = [
         "name": "minDevTokensOut",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "guard",
+        "type": "tuple",
+        "internalType": "struct AromaFactory.LaunchGuard",
+        "components": [
+          {
+            "name": "windowSeconds",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "startBps",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "exemptWallets",
+            "type": "address[]",
+            "internalType": "address[]"
+          }
+        ]
       }
     ],
     "outputs": [

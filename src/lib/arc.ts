@@ -94,6 +94,15 @@ export const CURVE = {
   /** ...and the portion held back to seed the pool at graduation. */
   lpReserveSupply: 200_000_000,
   /** Taken on each buy and sell, in basis points. */
+  /**
+   * Launch-window tax, when a creator switches it on. Both are the
+   * contract's own maximums — CurveManager rejects anything higher — so
+   * there is nothing to tune and nothing a creator can set that outlives
+   * three seconds.
+   */
+  snipeWindowSeconds: 3,
+  snipeStartBps: 9_900,
+
   tradeFeeBps: 100,
   /**
    * Share of each trade fee routed to the token's creator rather than the

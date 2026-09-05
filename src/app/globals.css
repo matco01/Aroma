@@ -71,6 +71,12 @@
   --radius-xs: 6px;
   --radius-sm: 10px;
   --radius-md: 16px;
+
+  /* The header's height, as a token, because two sticky sidebars have to
+     clear it and they were pinned to a hardcoded 64px that silently went
+     stale the moment the bar grew. Anything that offsets against the
+     header reads this. */
+  --header-h: 124px;
 }
 
 :root {

@@ -311,7 +311,7 @@ export function CreateForm() {
         </div>
       </div>
 
-      <aside className="space-y-4 lg:sticky lg:top-16 lg:self-start">
+      <aside className="space-y-4 lg:sticky lg:top-[calc(var(--header-h)+16px)] lg:self-start">
         <div className="rounded-md border border-line bg-surface p-3.5">
           <div className="label mb-2.5">Preview</div>
           <div className="flex items-start gap-2.5">

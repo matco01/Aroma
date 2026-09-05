@@ -146,7 +146,7 @@ export function ConnectButton() {
     return (
       <button
         onClick={connect}
-        className="h-9 rounded-sm border border-line-strong px-3.5 text-[12.5px] font-medium text-ink transition-colors hover:border-ink-3 hover:bg-surface-2"
+        className="h-10 shrink-0 rounded-sm border border-line-strong px-3.5 text-[13.5px] font-medium text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 sm:h-12 sm:px-5 sm:text-[15px]"
       >
         Connect
       </button>
@@ -176,20 +176,20 @@ export function ConnectButton() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border bg-surface-2 px-3 transition-colors ${
+        className={`flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border bg-surface-2 px-3 transition-colors sm:h-12 sm:gap-2.5 sm:px-4 ${
           open ? "border-line-strong" : "border-line hover:border-line-strong"
         }`}
       >
-        <span className="num text-[12px] text-ink">{usdExact(usdcBalance)}</span>
+        <span className="num text-[13px] text-ink sm:text-[14.5px]">{usdExact(usdcBalance)}</span>
         {/* Address is the least useful glance-value in a narrow header — the
             same collapse the "Launch a coin" button already does. */}
-        <span className="hidden h-3 w-px bg-line-strong sm:block" />
-        <span className="num hidden text-[12px] text-ink-2 sm:inline">
+        <span className="hidden h-4 w-px bg-line-strong sm:block" />
+        <span className="num hidden text-[14.5px] text-ink-2 sm:inline">
           {shortAddr(address!)}
         </span>
         <svg
-          width="8"
-          height="5"
+          width="10"
+          height="6"
           viewBox="0 0 8 5"
           aria-hidden
           className={`text-ink-3 transition-transform ${open ? "rotate-180" : ""}`}

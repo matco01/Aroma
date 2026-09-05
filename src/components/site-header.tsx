@@ -46,7 +46,7 @@ export function SiteHeader() {
       {/* Solid background, not a blurred translucent one. Blur over a scrolling
           data table is noise, and it is the most over-used generated-UI effect. */}
       <header className="sticky top-0 z-40 border-b border-line bg-bg">
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4">
+        <div className="mx-auto flex h-[76px] max-w-[1400px] items-center gap-2 px-3 sm:h-(--header-h) sm:gap-4 sm:px-5">
           <Link href="/" className="flex items-center gap-2">
             <Wordmark />
           </Link>
@@ -61,7 +61,7 @@ export function SiteHeader() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-sm px-2.5 py-1.5 text-[13px] transition-colors ${
+                  className={`rounded-sm px-3 py-2 text-[15px] transition-colors ${
                     active
                       ? "text-ink"
                       : "text-ink-2 hover:bg-surface-2 hover:text-ink"
@@ -75,7 +75,7 @@ export function SiteHeader() {
               href={ARC_TESTNET.explorer}
               target="_blank"
               rel="noreferrer"
-              className="rounded-sm px-2.5 py-1.5 text-[13px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+              className="rounded-sm px-3 py-2 text-[15px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
             >
               Explorer
               <span className="ml-0.5 text-ink-3">↗</span>
@@ -86,17 +86,17 @@ export function SiteHeader() {
 
           <button
             onClick={() => setMenuOpen(true)}
-            className="flex h-9 items-center gap-2 rounded-sm border border-line bg-surface px-3 text-ink-3 transition-colors hover:border-line-strong sm:w-60"
+            className="flex h-10 items-center gap-2.5 rounded-sm border border-line bg-surface px-3 text-ink-3 transition-colors hover:border-line-strong sm:h-12 sm:w-72 sm:px-3.5"
             aria-label="Search tokens"
           >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
               <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.3" />
               <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
-            <span className="hidden flex-1 text-left text-[12px] sm:block">
+            <span className="hidden flex-1 text-left text-[14px] sm:block">
               Search
             </span>
-            <kbd className="num hidden rounded-xs border border-line px-1 text-[10px] sm:block">
+            <kbd className="num hidden rounded-xs border border-line px-1.5 py-0.5 text-[11.5px] sm:block">
               ⌘K
             </kbd>
           </button>
@@ -106,9 +106,9 @@ export function SiteHeader() {
               action without having to be louder than everything else. */}
           <Link
             href="/create"
-            className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-accent pl-3 pr-3.5 text-[12.5px] font-medium text-white transition-colors hover:bg-accent-hi"
+            className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent pl-3 pr-4 text-[13.5px] font-medium text-white transition-colors hover:bg-accent-hi sm:h-12 sm:gap-2 sm:pl-4 sm:pr-5 sm:text-[15px]"
           >
-            <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
+            <svg width="13" height="13" viewBox="0 0 11 11" aria-hidden>
               <path
                 d="M5.5 1v9M1 5.5h9"
                 stroke="currentColor"
@@ -134,7 +134,7 @@ export function SiteHeader() {
  * background was #030910, close enough to our #0b0c0f to read as a
  * mistake rather than a choice.
  *
- * 22px against 15px text: the wisp is tall and narrow, so matching the cap
+ * 34px against 21px text: the wisp is tall and narrow, so matching the cap
  * height would leave it looking smaller than it is.
  */
 function Wordmark() {
@@ -143,12 +143,12 @@ function Wordmark() {
       <Image
         src="/logo.png"
         alt=""
-        width={22}
-        height={22}
+        width={34}
+        height={34}
         priority
-        className="shrink-0"
+        className="size-[26px] shrink-0 sm:size-[34px]"
       />
-      <span className="text-[15.5px] font-semibold tracking-[-0.02em] text-ink">
+      <span className="text-[17px] font-semibold tracking-[-0.02em] text-ink sm:text-[21px]">
         Aroma
       </span>
     </span>

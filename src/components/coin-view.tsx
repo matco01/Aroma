@@ -146,7 +146,7 @@ export function CoinView({ address }: { address: string }) {
           </div>
         </div>
 
-        <aside className="space-y-4.5 lg:sticky lg:top-16 lg:self-start">
+        <aside className="space-y-4.5 lg:sticky lg:top-[calc(var(--header-h)+16px)] lg:self-start">
           <TradePanel coin={coin} />
 
           <CreatorFees coin={coin} />

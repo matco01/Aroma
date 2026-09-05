@@ -38,11 +38,24 @@
   --color-ink-2: #9a9fa8;
   --color-ink-3: #6b7079;
 
-  /* Arc blue. The only accent in the system. */
+  /* Arc blue — the primary action, and nothing else. If it is blue, it is
+     the thing to press. */
   --color-accent: #3d7dff;
   --color-accent-hi: #5a91ff;
   --color-accent-ink: #ffffff;
   --color-accent-dim: #16264a;
+
+  /* The logo's own cyan, sampled from the wisp: #6db1c5 average, #2f9ab2 at
+     its most saturated, brightened here to hold up as UI on a dark ground.
+     
+     It marks state rather than action — which filter is active, how far a
+     curve has climbed. Two accents from the same family read as one system
+     with a quiet second voice; a contrasting second colour would read as
+     two systems arguing. It also ties every screen back to the mark in the
+     header, which is the cheapest kind of brand there is. */
+  --color-accent-2: #5fc4dc;
+  --color-accent-2-hi: #7ad3e8;
+  --color-accent-2-dim: #123038;
 
   /* Direction only. */
   --color-up: #34c77b;

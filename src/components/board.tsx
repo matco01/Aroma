@@ -254,7 +254,9 @@ function ChipButton({
     <button
       onClick={onClick}
       className={`rounded-sm px-3 py-1.5 text-[13px] transition-colors ${
-        active ? "bg-surface-3 text-ink" : "text-ink-2 hover:text-ink"
+        active
+          ? "bg-accent-2-dim text-accent-2"
+          : "text-ink-2 hover:bg-surface-2 hover:text-ink"
       }`}
     >
       {children}
@@ -279,7 +281,7 @@ function ViewButton({
       aria-label={label}
       aria-pressed={active}
       className={`flex h-7 w-8 items-center justify-center transition-colors ${
-        active ? "bg-surface-3 text-ink" : "text-ink-3 hover:text-ink-2"
+        active ? "bg-accent-2-dim text-accent-2" : "text-ink-3 hover:text-ink-2"
       }`}
     >
       {children}

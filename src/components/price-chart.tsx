@@ -184,7 +184,7 @@ export function PriceChart({
               }}
               className={`num px-2.5 py-1 text-[11px] transition-colors ${
                 windowId === w.id
-                  ? "bg-surface-3 text-ink"
+                  ? "bg-accent-2-dim text-accent-2"
                   : "text-ink-3 hover:text-ink-2"
               }`}
             >

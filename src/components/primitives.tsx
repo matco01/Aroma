@@ -55,7 +55,7 @@ export function GraduationBar({
       )}
       <div className="h-[4px] w-full overflow-hidden rounded-full bg-surface-3">
         <div
-          className={graduated ? "h-full bg-up" : "h-full bg-accent"}
+          className={graduated ? "h-full bg-up" : "h-full bg-accent-2"}
           style={{ width: `${pctDone}%` }}
         />
       </div>
@@ -137,7 +137,7 @@ export function Chip({
 }) {
   const tones = {
     neutral: "border-line text-ink-2",
-    accent: "border-accent/40 text-accent bg-accent-dim",
+    accent: "border-accent-2/40 text-accent-2 bg-accent-2-dim",
     up: "border-up/30 text-up bg-up/8",
     warn: "border-warn/30 text-warn bg-warn/8",
   } as const;

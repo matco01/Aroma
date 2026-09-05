@@ -48,10 +48,14 @@ export function GraduationBar({
           </span>
         </div>
       )}
-      <div className="h-[4px] w-full overflow-hidden rounded-full bg-surface-3">
+      {/* 5px rather than 4, and a minimum visible sliver once anything at
+          all has been raised. A bar that renders as an empty groove until
+          a coin is several percent in is a bar that says nothing on the
+          day a coin most needs to look alive. */}
+      <div className="h-[5px] w-full overflow-hidden rounded-full bg-surface-3">
         <div
-          className={graduated ? "h-full bg-up" : "h-full bg-accent-2"}
-          style={{ width: `${pctDone}%` }}
+          className={`h-full rounded-full ${graduated ? "bg-up" : "bg-accent-2"}`}
+          style={{ width: `${pctDone > 0 ? Math.max(3, pctDone) : 0}%` }}
         />
       </div>
     </div>

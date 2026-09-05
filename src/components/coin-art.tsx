@@ -79,14 +79,20 @@ export function CoinArt({
    * turns a 5x5 grid into slabs of colour — a board of them reads as a bag
    * of skittles and drowns out the coins that have real art.
    *
-   * So at fill size it recedes: a much darker ground, a calmer mark, and
-   * the pattern inset rather than bleeding to the edges. It becomes a
-   * placeholder that looks deliberate, and a coin whose creator uploaded
-   * something actually stands out — which is the right incentive anyway.
+   * So at fill size it recedes — but only relatively. The first pass at
+   * this put the ground at 9% lightness, which is not a dark colour, it is
+   * black: a board of coins without uploaded art came out as a grid of
+   * near-empty rectangles that blended into the page instead of reading as
+   * tiles at all. Receding has to stop somewhere above invisible.
+   *
+   * These values are the compromise. The ground is unmistakably a colour
+   * and the tile has edges, while a real uploaded image — full saturation,
+   * actual detail — still wins the eye by a mile. The incentive to upload
+   * survives; a board of fresh coins no longer looks broken.
    */
   const filling = Boolean(className);
-  const bg = filling ? `hsl(${hue} 26% 9%)` : `hsl(${hue} 32% 13%)`;
-  const fg = filling ? `hsl(${hue} 34% 42%)` : `hsl(${hue} 52% 62%)`;
+  const bg = filling ? `hsl(${hue} 30% 19%)` : `hsl(${hue} 32% 15%)`;
+  const fg = filling ? `hsl(${hue} 48% 56%)` : `hsl(${hue} 52% 64%)`;
   const unit = 100 / grid;
 
   const rects = [];

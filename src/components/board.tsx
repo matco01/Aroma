@@ -178,7 +178,7 @@ export function Board() {
       {showing &&
         (view === "grid" ? (
           <div
-            className={`mt-4 grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 ${
+            className={`mt-4 grid grid-cols-2 gap-2.5 transition-opacity sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 ${
               isFetching ? "opacity-60" : ""
             }`}
           >

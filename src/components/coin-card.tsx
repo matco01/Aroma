@@ -3,7 +3,7 @@ import type { Coin } from "@/lib/mock";
 import { CURVE } from "@/lib/arc";
 import { ago, compact, pct, shortAddr, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
-import { GraduationBar, Sparkline } from "./primitives";
+import { GraduationBar } from "./primitives";
 
 function progressOf(coin: Coin): number {
   return coin.graduated
@@ -78,22 +78,21 @@ export function CoinCard({ coin }: { coin: Coin }) {
         </span>
       </div>
 
-      <div className="flex flex-1 flex-col px-2 pb-1 pt-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="truncate text-[14.5px] font-medium leading-tight text-ink">
-              {coin.name}
-            </div>
-            <div className="num mt-1 truncate text-[12px] text-ink-2">
-              ${coin.ticker}
-            </div>
-          </div>
-          <Sparkline data={coin.history} up={up} width={56} height={18} />
+      <div className="flex flex-1 flex-col px-2 pb-1 pt-2.5">
+        {/* No sparkline. At the width a card allows it is a dash rather
+            than a shape, and on a young coin it is a flat dash — it was
+            occupying the space beside the name while saying nothing. The
+            percentage badge over the art already carries direction. */}
+        <div className="truncate text-[14.5px] font-medium leading-tight text-ink">
+          {coin.name}
+        </div>
+        <div className="num mt-0.5 truncate text-[12px] text-ink-2">
+          ${coin.ticker}
         </div>
 
         {/* "MC" earns its place: without it the biggest number on the card
             is unlabelled, and market cap and volume are easy to confuse. */}
-        <div className="mt-2 flex items-baseline gap-1.5">
+        <div className="mt-1.5 flex items-baseline gap-1.5">
           <span className="num text-[19px] leading-none text-ink">
             {usd(coin.marketCapUsd)}
           </span>
@@ -101,23 +100,23 @@ export function CoinCard({ coin }: { coin: Coin }) {
         </div>
 
         <div className="mt-2.5 flex items-center gap-2">
-          <GraduationBar
-            raisedUsd={coin.raisedUsd}
-            graduated={coin.graduated}
-          />
+          <GraduationBar raisedUsd={coin.raisedUsd} graduated={coin.graduated} />
+          {/* Two decimals, like the reference. "0%" and "0.4%" are very
+              different states for a coin that just launched, and rounding
+              them together hides the only movement it has. */}
           <span
-            className={`num shrink-0 text-[11.5px] ${
-              coin.graduated ? "text-up" : "text-ink-3"
+            className={`num shrink-0 text-[11px] ${
+              coin.graduated ? "text-up" : "text-ink-2"
             }`}
           >
-            {progress.toFixed(0)}%
+            {progress < 10 ? progress.toFixed(2) : progress.toFixed(0)}%
           </span>
         </div>
 
         {/* Contract and age. The address is what someone pastes into a
             wallet or explorer, and it is the one identifier that cannot be
             faked by a copycat using the same name and picture. */}
-        <div className="num mt-auto flex items-center justify-between gap-2 pt-3 text-[11px]">
+        <div className="num mt-auto flex items-center justify-between gap-2 pt-2.5 text-[11px]">
           <span className="truncate text-ink-3">{shortAddr(coin.contract)}</span>
           <span className={`shrink-0 ${fresh ? "text-up" : "text-ink-2"}`}>
             {ago(coin.createdAgoSeconds)}

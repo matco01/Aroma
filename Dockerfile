@@ -4,17 +4,33 @@
 # same runtime.
 FROM node:22.14-alpine AS base
 
+# npm, pinned to the version that writes the lockfile.
+#
+# node:22.14-alpine bundles npm 10.9.2, and this repo's lockfile is written
+# by npm 11. The two resolve dependency trees differently, so `npm ci` under
+# 10 rejected a lockfile that 11 considers correct — the first Railway build
+# failed exactly this way, on packages nobody added by hand (@solana/kit,
+# zod, @emnapi/*) that are transitive deps of Reown's adapters.
+#
+# Pinning here rather than loosening `npm ci` to `npm install`: the whole
+# value of `ci` is that the build installs precisely what was committed.
+ARG NPM_VERSION=11.6.2
+
 # --- dependencies -----------------------------------------------------
 FROM base AS deps
 # sharp normalises uploaded images and ships prebuilt binaries; libc6-compat
 # is what lets those load on Alpine's musl.
 RUN apk add --no-cache libc6-compat
+ARG NPM_VERSION
+RUN npm i -g npm@${NPM_VERSION}
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # --- build ------------------------------------------------------------
 FROM base AS builder
+ARG NPM_VERSION
+RUN npm i -g npm@${NPM_VERSION}
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

@@ -8,9 +8,18 @@ import { ARC_TESTNET } from "@/lib/arc";
 import { ConnectButton } from "./wallet";
 import { CommandMenu } from "./command-menu";
 
+/**
+ * Portfolio is deliberately absent.
+ *
+ * It is the one page that means nothing until you connect, so as a nav
+ * item it is dead weight for every first-time visitor — and "my holdings"
+ * is something people look for under their own wallet, not in the site
+ * nav. It lives in the wallet menu now, which also keeps this list short:
+ * the competition is running seven top-level items and it is the thing
+ * that makes their app feel heavy.
+ */
 const NAV = [
   { href: "/", label: "Board" },
-  { href: "/portfolio", label: "Portfolio" },
   { href: "/create", label: "Create" },
 ] as const;
 

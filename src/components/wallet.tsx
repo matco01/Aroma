@@ -4,9 +4,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
+import { useRouter } from "next/navigation";
 import { useAccount, useBalance, useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { openWalletModal } from "@/lib/appkit-bridge";
@@ -104,8 +108,39 @@ export function useWallet(): WalletState {
   return v;
 }
 
+/**
+ * The wallet button, and everything that belongs behind it.
+ *
+ * It used to disconnect on click, which is a trap: the button showing your
+ * balance is the one people press to see their holdings, and pressing it
+ * logged them out. Now it opens a menu — address, copy, disconnect — with
+ * the address itself going to the portfolio.
+ *
+ * That is also where the Portfolio nav item went. People look for their
+ * own positions under their own wallet, and the nav stays short.
+ */
 export function ConnectButton() {
   const { connected, address, usdcBalance, connect, disconnect } = useWallet();
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   if (!connected) {
     return (
@@ -118,19 +153,100 @@ export function ConnectButton() {
     );
   }
 
+  async function copy() {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      // Clipboard access can be refused outright; saying nothing is better
+      // than claiming a copy that did not happen.
+    }
+  }
+
+  function openPortfolio() {
+    setOpen(false);
+    router.push("/portfolio");
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border bg-surface-2 px-3 transition-colors ${
+          open ? "border-line-strong" : "border-line hover:border-line-strong"
+        }`}
+      >
+        <span className="num text-[12px] text-ink">{usdExact(usdcBalance)}</span>
+        {/* Address is the least useful glance-value in a narrow header — the
+            same collapse the "Launch a coin" button already does. */}
+        <span className="hidden h-3 w-px bg-line-strong sm:block" />
+        <span className="num hidden text-[12px] text-ink-2 sm:inline">
+          {shortAddr(address!)}
+        </span>
+        <svg
+          width="8"
+          height="5"
+          viewBox="0 0 8 5"
+          aria-hidden
+          className={`text-ink-3 transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          <path d="M0.5 0.5 L4 4 L7.5 0.5" fill="none" stroke="currentColor" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="slide-in absolute right-0 z-50 mt-1.5 w-52 overflow-hidden rounded-md border border-line-strong bg-surface py-1 shadow-lg"
+        >
+          <MenuItem onClick={openPortfolio}>
+            <span className="num truncate">{shortAddr(address!)}</span>
+            <span className="ml-auto text-[10.5px] text-ink-3">Portfolio</span>
+          </MenuItem>
+
+          <MenuItem onClick={copy}>
+            {copied ? "Copied" : "Copy address"}
+          </MenuItem>
+
+          <div className="my-1 h-px bg-line" />
+
+          <MenuItem
+            onClick={() => {
+              setOpen(false);
+              disconnect();
+            }}
+            tone="down"
+          >
+            Disconnect
+          </MenuItem>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({
+  onClick,
+  tone = "default",
+  children,
+}: {
+  onClick: () => void;
+  tone?: "default" | "down";
+  children: React.ReactNode;
+}) {
   return (
     <button
-      onClick={disconnect}
-      title={`${usdExact(usdcBalance)} · ${address} · disconnect`}
-      className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-line bg-surface-2 px-3 transition-colors hover:border-line-strong"
+      role="menuitem"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] transition-colors hover:bg-surface-2 ${
+        tone === "down" ? "text-down" : "text-ink"
+      }`}
     >
-      <span className="num text-[12px] text-ink">{usdExact(usdcBalance)}</span>
-      {/* Address is the least useful glance-value in a narrow header — the
-          same collapse the "Launch a coin" button already does. */}
-      <span className="hidden h-3 w-px bg-line-strong sm:block" />
-      <span className="num hidden text-[12px] text-ink-2 sm:inline">
-        {shortAddr(address!)}
-      </span>
+      {children}
     </button>
   );
 }

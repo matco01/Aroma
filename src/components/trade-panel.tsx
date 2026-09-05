@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { formatUnits, type Address } from "viem";
 import type { Coin } from "@/lib/mock";
-import { CURVE, MIN_MAX_FEE_PER_GAS_GWEI } from "@/lib/arc";
+import { CURVE } from "@/lib/arc";
 import { compact, usd, usdExact } from "@/lib/format";
 import { aromaTokenAbi } from "@/lib/abis";
 import { useTrade } from "@/lib/use-trade";
@@ -32,7 +32,17 @@ export function TradePanel({ coin }: { coin: Coin }) {
   const { connected, usdcBalance, connect } = useWallet();
   const { address } = useAccount();
   const [side, setSide] = useState<Side>("buy");
+  /**
+   * `amount` is always USDC — it is what the contract takes and what every
+   * quote is denominated in. The token field is a view onto it, converted
+   * at the current spot price.
+   *
+   * Kept as separate strings rather than one number so a half-typed "0."
+   * survives, and so the field being typed into is never reformatted under
+   * the cursor.
+   */
   const [amount, setAmount] = useState("");
+  const [tokenAmountText, setTokenAmountText] = useState("");
   const [slippage, setSlippage] = useState(1);
   const [customSlippage, setCustomSlippage] = useState("");
   const [editingSlippage, setEditingSlippage] = useState(false);
@@ -79,6 +89,33 @@ export function TradePanel({ coin }: { coin: Coin }) {
   );
 
   const value = Number(amount) || 0;
+
+  /** Typing USDC: the token side follows. */
+  function setPayAmount(v: string) {
+    if (!/^\d*\.?\d*$/.test(v)) return;
+    setAmount(v);
+    const n = Number(v) || 0;
+    setTokenAmountText(
+      n > 0 && coin.priceUsd > 0 ? String(Math.round(n / coin.priceUsd)) : "",
+    );
+    if (phase === "error") reset();
+  }
+
+  /**
+   * Typing tokens: the USDC side follows.
+   *
+   * Converted at spot, which is deliberately an estimate — the curve moves
+   * as the trade fills, so the true cost is only known at execution. The
+   * quote that actually binds is taken on submit and enforced on-chain,
+   * so this is a preview, not a promise.
+   */
+  function setTokenAmountText_(v: string) {
+    if (!/^\d*\.?\d*$/.test(v)) return;
+    setTokenAmountText(v);
+    const n = Number(v) || 0;
+    setAmount(n > 0 && coin.priceUsd > 0 ? (n * coin.priceUsd).toFixed(6) : "");
+    if (phase === "error") reset();
+  }
   const tradeFee = value * (CURVE.tradeFeeBps / 10_000);
   // Measured on Arc testnet: a buy costs ~70k gas and a sell ~110k (permit
   // verification is the difference), at roughly 24 gwei effective.
@@ -135,6 +172,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
         hue: coin.hue,
       });
       setAmount("");
+      setTokenAmountText("");
       refetchBalance();
       reset();
     }
@@ -165,6 +203,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
                 onClick={() => {
                   setSide(s);
                   setAmount("");
+                  setTokenAmountText("");
                   reset();
                 }}
                 className={`rounded-sm py-2 text-[12.5px] font-medium capitalize transition-colors ${
@@ -178,41 +217,63 @@ export function TradePanel({ coin }: { coin: Coin }) {
         </div>
 
         <div className="p-3.5">
-          <div className="mb-2 flex items-baseline justify-between">
-            <span className="label">{isBuy ? "You pay" : "You sell"}</span>
-            <span className="num text-[11px] text-ink-3">
-              {isBuy
+          {/* Two boxes, either one editable.
+              
+              A bonding curve is a swap, so it should behave like one:
+              somebody deciding "I want 100k of this" should not have to
+              work out the USDC themselves. Typing in either box fills the
+              other. */}
+          <AmountBox
+            label={isBuy ? "You pay" : "You sell"}
+            symbol={isBuy ? "USDC" : coin.ticker}
+            value={isBuy ? amount : tokenAmountText}
+            onChange={(v) => (isBuy ? setPayAmount(v) : setTokenAmountText_(v))}
+            secondary={
+              isBuy
                 ? `Balance ${usdExact(usdcBalance)}`
-                : `Holding ${compact(Math.round(held))} ${coin.ticker}`}
-            </span>
+                : `Holding ${compact(Math.round(held))}`
+            }
+            disabled={busy}
+            invalid={blocked}
+          />
+
+          <div className="relative my-1.5 flex justify-center">
+            <button
+              onClick={() => {
+                setSide(isBuy ? "sell" : "buy");
+                setAmount("");
+                setTokenAmountText("");
+                reset();
+              }}
+              aria-label="Switch between buying and selling"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface-2 text-ink-3 transition-colors hover:border-line-strong hover:text-ink"
+            >
+              <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden>
+                <path
+                  d="M3 1.5v8M3 9.5 1.2 7.7M8 9.5v-8M8 1.5l1.8 1.8"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
           </div>
 
-          <div
-            className={`flex items-center rounded-sm border bg-bg px-2.5 ${
-              blocked ? "border-down/50" : "border-line focus-within:border-line-strong"
-            }`}
-          >
-            <input
-              value={amount}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (/^\d*\.?\d*$/.test(v)) setAmount(v);
-                if (phase === "error") reset();
-              }}
-              inputMode="decimal"
-              placeholder="0.00"
-              disabled={busy}
-              aria-label={isBuy ? "Amount to spend in USDC" : "Amount to sell in USDC"}
-              className="num h-14 flex-1 bg-transparent text-[26px] text-ink outline-none placeholder:text-ink-3 disabled:opacity-50"
-            />
-            <span className="num text-[13px] text-ink-2">USDC</span>
-          </div>
+          <AmountBox
+            label={isBuy ? "You receive" : "You get"}
+            symbol={isBuy ? coin.ticker : "USDC"}
+            value={isBuy ? tokenAmountText : amount}
+            onChange={(v) => (isBuy ? setTokenAmountText_(v) : setPayAmount(v))}
+            secondary={isBuy ? `≈ ${usd(value)}` : `≈ ${usd(value)}`}
+            disabled={busy}
+          />
 
           <div className="mt-2.5 flex gap-1.5">
             {PRESETS.map((p) => (
               <button
                 key={p}
-                onClick={() => setAmount(String(p))}
+                onClick={() => setPayAmount(String(p))}
                 disabled={busy}
                 className="num flex-1 rounded-sm border border-line py-2 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
               >
@@ -221,7 +282,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
             ))}
             <button
               onClick={() =>
-                setAmount(
+                setPayAmount(
                   isBuy
                     ? // Floor rather than round, so rounding can never push
                       // the total back over the balance.
@@ -236,29 +297,26 @@ export function TradePanel({ coin }: { coin: Coin }) {
             </button>
           </div>
 
-          <dl className="mt-3.5 space-y-2 border-t border-line pt-3.5">
-            <Row
-              label={isBuy ? "You receive" : "You return"}
-              value={`${compact(Math.round(tokens))} ${coin.ticker}`}
-            />
-            <Row
-              label="Price impact"
-              value={`${impact.toFixed(2)}%`}
-              tone={impact > 5 ? "warn" : "default"}
-            />
-            <Row
-              label="Network fee"
-              value={`$${networkFee.toFixed(4)}`}
-              hint={`${MIN_MAX_FEE_PER_GAS_GWEI} gwei floor, paid in USDC`}
-            />
-            <div className="border-t border-line pt-2">
-              <Row
-                label={isBuy ? "Total cost" : "You get"}
-                value={usd(Math.max(0, total))}
-                strong
-              />
-            </div>
-          </dl>
+          {/* One line instead of four rows.
+              
+              Network fee and total cost were their own rows for a fee of
+              $0.0017 — four-hundredths of a cent. Stating it that loudly
+              made a rounding error look like a decision the reader had to
+              make. Price impact stays because on a curve it is real, and
+              it moves into the same line rather than above it. */}
+          <p className="mt-3 text-[11px] text-ink-3">
+            Routed through the bonding curve
+            {value > 0 && (
+              <>
+                {" · "}
+                <span className={impact > 5 ? "text-warn" : ""}>
+                  {impact.toFixed(2)}% impact
+                </span>
+                {" · "}
+                {CURVE.tradeFeeBps / 100}% fee
+              </>
+            )}
+          </p>
 
           <div className="mt-3.5 flex items-center gap-2">
             <span className="label shrink-0">Max slippage</span>
@@ -349,32 +407,53 @@ export function TradePanel({ coin }: { coin: Coin }) {
   );
 }
 
-function Row({
+/**
+ * One side of the swap: a large amount, its unit, and a quiet second line.
+ *
+ * The number is 28px because it is the thing being decided. It sat at the
+ * size of a table cell before, which is the wrong weight for a figure
+ * someone is about to commit money to.
+ */
+function AmountBox({
   label,
+  symbol,
   value,
-  hint,
-  strong,
-  tone = "default",
+  onChange,
+  secondary,
+  disabled,
+  invalid,
 }: {
   label: string;
+  symbol: string;
   value: string;
-  hint?: string;
-  strong?: boolean;
-  tone?: "default" | "warn";
+  onChange: (v: string) => void;
+  secondary: string;
+  disabled?: boolean;
+  invalid?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-[12px] text-ink-2">
-        {label}
-        {hint && <span className="ml-1 text-[10.5px] text-ink-3">{hint}</span>}
-      </dt>
-      <dd
-        className={`num shrink-0 text-[12px] ${
-          tone === "warn" ? "text-warn" : strong ? "text-ink" : "text-ink-2"
-        }`}
-      >
-        {value}
-      </dd>
+    <div
+      className={`rounded-sm border bg-bg px-3 py-2.5 transition-colors ${
+        invalid ? "border-down/50" : "border-line focus-within:border-line-strong"
+      }`}
+    >
+      <div className="flex items-baseline justify-between">
+        <span className="label">{label}</span>
+        <span className="num text-[11px] text-ink-3">{secondary}</span>
+      </div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          inputMode="decimal"
+          placeholder="0"
+          disabled={disabled}
+          aria-label={`${label} in ${symbol}`}
+          className="num min-w-0 flex-1 bg-transparent text-[28px] leading-tight text-ink outline-none placeholder:text-ink-3 disabled:opacity-50"
+        />
+        <span className="num shrink-0 text-[13px] text-ink-2">{symbol}</span>
+      </div>
     </div>
   );
 }
+

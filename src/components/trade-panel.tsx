@@ -13,7 +13,15 @@ import { TradeToast, type TradeToastData } from "./trade-toast";
 
 type Side = "buy" | "sell";
 
-const PRESETS = [1, 2, 5, 10];
+/**
+ * Percentages, not dollar amounts.
+ *
+ * Fixed buttons only work if they happen to suit your balance: $1 is
+ * meaningless with $2,000 in the wallet and impossible with $0.50. A
+ * percentage is right at every size, and it is what someone actually
+ * means — "a quarter of my stack", not "five dollars".
+ */
+const PRESETS = [25, 50, 75];
 const SLIPPAGE_PRESETS = [0.5, 1, 3];
 
 /**
@@ -89,6 +97,21 @@ export function TradePanel({ coin }: { coin: Coin }) {
   );
 
   const value = Number(amount) || 0;
+
+  /**
+   * What a percentage button is a percentage *of*.
+   *
+   * Buying, that is the spendable balance — already net of the trade fee,
+   * gas, and the couple of cents held back so the position can be sold
+   * again. Selling, it is the value of what is held.
+   */
+  const spendable = isBuy ? maxSpendable : heldValue;
+
+  function portionOfMax(fraction: number): string {
+    // Floor rather than round: rounding up at 100% would put the total
+    // back over the balance, which is the bug Max used to have.
+    return (Math.floor(spendable * fraction * 10_000) / 10_000).toFixed(4);
+  }
 
   /** Typing USDC: the token side follows. */
   function setPayAmount(v: string) {
@@ -270,28 +293,20 @@ export function TradePanel({ coin }: { coin: Coin }) {
           />
 
           <div className="mt-2.5 flex gap-1.5">
-            {PRESETS.map((p) => (
+            {PRESETS.map((pct) => (
               <button
-                key={p}
-                onClick={() => setPayAmount(String(p))}
-                disabled={busy}
-                className="num flex-1 rounded-sm border border-line py-2 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                key={pct}
+                onClick={() => setPayAmount(portionOfMax(pct / 100))}
+                disabled={busy || spendable <= 0}
+                className="num flex-1 rounded-sm border border-line py-2 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
               >
-                ${p}
+                {pct}%
               </button>
             ))}
             <button
-              onClick={() =>
-                setPayAmount(
-                  isBuy
-                    ? // Floor rather than round, so rounding can never push
-                      // the total back over the balance.
-                      (Math.floor(maxSpendable * 10_000) / 10_000).toFixed(4)
-                    : heldValue.toFixed(4),
-                )
-              }
-              disabled={busy}
-              className="num flex-1 rounded-sm border border-line py-2 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+              onClick={() => setPayAmount(portionOfMax(1))}
+              disabled={busy || spendable <= 0}
+              className="num flex-1 rounded-sm border border-line py-2 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
             >
               Max
             </button>

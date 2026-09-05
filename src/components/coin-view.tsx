@@ -153,7 +153,7 @@ export function CoinView({ address }: { address: string }) {
 
           <div className="rounded-md border border-line bg-surface p-3.5">
             <GraduationBar
-              marketCapUsd={coin.marketCapUsd}
+              raisedUsd={coin.raisedUsd}
               graduated={coin.graduated}
               showLabel
             />

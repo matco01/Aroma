@@ -8,12 +8,7 @@ import { GraduationBar, Sparkline } from "./primitives";
 function progressOf(coin: Coin): number {
   return coin.graduated
     ? 100
-    : Math.min(
-        100,
-        ((coin.marketCapUsd - CURVE.startingMarketCapUsd) /
-          (CURVE.graduationMarketCapUsd - CURVE.startingMarketCapUsd)) *
-          100,
-      );
+    : Math.min(100, (coin.raisedUsd / CURVE.graduationTargetUsd) * 100);
 }
 
 /**
@@ -107,7 +102,7 @@ export function CoinCard({ coin }: { coin: Coin }) {
 
         <div className="mt-2.5 flex items-center gap-2">
           <GraduationBar
-            marketCapUsd={coin.marketCapUsd}
+            raisedUsd={coin.raisedUsd}
             graduated={coin.graduated}
           />
           <span
@@ -182,7 +177,7 @@ export function CoinRow({ coin }: { coin: Coin }) {
 
       <div className="hidden w-24 shrink-0 items-center gap-2 sm:flex">
         <GraduationBar
-          marketCapUsd={coin.marketCapUsd}
+          raisedUsd={coin.raisedUsd}
           graduated={coin.graduated}
         />
         <span

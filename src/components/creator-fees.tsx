@@ -79,11 +79,6 @@ export function CreatorFees({ coin }: { coin: Coin }) {
         </>
       )}
 
-      <p className="mt-3 text-[10.5px] leading-relaxed text-ink-3">
-        {isCreator
-          ? `You earn ${CURVE.creatorFeeShareBps / 100}% of every ${coin.ticker} trade fee, for as long as it trades. Fees accrue in the contract whether or not you claim — nobody can withhold them.`
-          : `The creator earns ${CURVE.creatorFeeShareBps / 100}% of every ${coin.ticker} trade fee. These figures come from the chain, not from us.`}
-      </p>
     </div>
   );
 }

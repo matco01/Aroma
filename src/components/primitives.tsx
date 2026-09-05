@@ -1,5 +1,5 @@
 import { CURVE } from "@/lib/arc";
-import { usd } from "@/lib/format";
+import { usd, usdExact } from "@/lib/format";
 
 /* ---------------------------------------------------------------------------
    Graduation progress.
@@ -8,34 +8,29 @@ import { usd } from "@/lib/format";
    so it gets a permanent slot on every card rather than living in a tooltip.
    --------------------------------------------------------------------------- */
 export function GraduationBar({
-  marketCapUsd,
+  raisedUsd,
   graduated,
   showLabel = false,
 }: {
-  marketCapUsd: number;
+  raisedUsd: number;
   graduated: boolean;
   showLabel?: boolean;
 }) {
-  // Progress measured in market cap, not the raise.
-  //
-  // The raise is the curve's internal number and the actual graduation
-  // trigger, but "$0.45 of $13.8K raised" means nothing to someone
-  // deciding whether to buy. Market cap is the number they already hold in
-  // their head, so both the label and the bar use it — a bar measuring one
-  // thing while its label reads another is worse than either alone.
-  //
-  // Consequence worth knowing: this bar is convex. Constant-product means
-  // price accelerates as supply sells, so market cap covers its first half
-  // slowly and its second half fast. Half the money in is about a third of
-  // the way up the bar. That is the real shape of the curve, not a
-  // distortion of it.
-  const span = CURVE.graduationMarketCapUsd - CURVE.startingMarketCapUsd;
+  /**
+   * Progress is the raise, because the raise is the trigger.
+   *
+   * This briefly measured market cap so the bar and its label agreed, but
+   * that made the bar wrong about the thing it exists to show: graduation
+   * fires when the curve has taken $13,800, not when a price is reached.
+   * Market cap moves non-linearly against that, so a market-cap bar reads
+   * 35% when the coin is genuinely half funded.
+   *
+   * The market cap is still where the story ends, and the panel beside
+   * this says so — but the bar tracks the countdown, not the outcome.
+   */
   const pctDone = graduated
     ? 100
-    : Math.max(
-        0,
-        Math.min(100, ((marketCapUsd - CURVE.startingMarketCapUsd) / span) * 100),
-      );
+    : Math.max(0, Math.min(100, (raisedUsd / CURVE.graduationTargetUsd) * 100));
 
   return (
     <div className="w-full">
@@ -45,10 +40,10 @@ export function GraduationBar({
             {graduated ? "Graduated" : "Bonding curve"}
           </span>
           <span className="num text-[11px] text-ink-2">
-            {usd(marketCapUsd)}
+            {usdExact(raisedUsd)}
             <span className="text-ink-3">
-              {" / "}
-              {usd(CURVE.graduationMarketCapUsd)} mcap
+              {" of "}
+              {usd(CURVE.graduationTargetUsd)} raised
             </span>
           </span>
         </div>

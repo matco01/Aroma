@@ -118,6 +118,13 @@ contract CurveManager is ReentrancyGuard, Ownable2Step {
     /// nothing before mainnet, and after mainnet this must not be movable.
     address public immutable graduationVault;
 
+    /// @notice How much native USDC graduation sent to the vault for each
+    /// token. The vault holds seed money for every graduated token at once,
+    /// so its own balance cannot tell one token's share from another's —
+    /// only the curve knows, and this is where it says so. Read by
+    /// LiquidityLocker to size the pool it seeds.
+    mapping(address token => uint256 usdc) public graduationSeedUsdc;
+
     /// @notice Protocol's 30% share of trade fees, collected but not yet
     /// withdrawn. Structurally separate from every token's realUsdcReserve
     /// — see withdrawFees for why that separation is the important safety
@@ -371,6 +378,7 @@ contract CurveManager is ReentrancyGuard, Ownable2Step {
         // all times, not just where a current code path happens to look.
         st.realUsdcReserve = 0;
         accumulatedFees += graduationFee;
+        graduationSeedUsdc[token] = usdcSeed;
 
         emit Graduated(token, usdcSeed, tokenSeed, graduationFee);
 

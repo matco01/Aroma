@@ -10,6 +10,7 @@ where USDC is the native gas token.
 ```bash
 forge install foundry-rs/forge-std --no-git --no-commit
 forge install OpenZeppelin/openzeppelin-contracts --no-git --no-commit
+forge install Uniswap/v4-core --no-git --no-commit
 forge build
 forge test
 ```
@@ -169,18 +170,29 @@ Accepted, by design:
 
 ## Known gaps before mainnet
 
-- **`graduate()` doesn't seed a real pool.** It sends the raise and LP
-  reserve to `graduationVault`. Uniswap v4 is confirmed for Arc *mainnet*
-  but is **not deployed on Arc testnet** — the official contract-address
-  list has no Uniswap entry — so this genuinely cannot be built and tested
-  yet. It can be written against mainnet v4 before Aroma's own launch.
-  Because the vault is now immutable, wiring it up means deploying a new
-  CurveManager, which is free to do pre-launch.
+- **Graduation seeds a real v4 pool — but only where v4 exists.**
+  `LiquidityLocker` is the `graduationVault` now. It creates the pool,
+  adds the graduation seed as full-range liquidity, and locks it: no
+  function on it can reduce a position or move one out. Seeding is a
+  separate call from `graduate()` on purpose — inlining it would mean any
+  revert inside Uniswap made graduation itself impossible, stranding a
+  fully-raised token. The locker takes the PoolManager address immutably
+  at construction, so testnet (no v4) and mainnet (v4) differ by one
+  constructor argument and nothing else.
+
+  Tested against v4-core's **real** `PoolManager`, not a mock — pool
+  creation, price, liquidity, permissionless seeding and the absence of an
+  escape hatch. It has **never run against the deployed Arc singleton**,
+  because Arc mainnet was not publicly reachable when this was written.
+  That is the remaining risk and it cannot be closed until mainnet is up.
 - **`depositGraduatedFees()` is open to any caller.** Safe (it can only
   credit value actually attached, never fabricate or redirect funds), but
-  should be locked to the token's real v4 hook once one exists.
-- **Post-graduation creator fees need that hook.** Ledger and claim path
-  work; nothing feeds them after graduation yet.
+  should be locked to `LiquidityLocker` once fee collection is exercised
+  against a live pool.
+- **Post-graduation creator fees flow through `LiquidityLocker.collectFees`,
+  which is untested against real swap fees.** The path is written and the
+  ledger and claim side already work; what has not happened is a real swap
+  generating real fees for it to harvest.
 - **`MAX_DEV_BUY_USDC` ($2,000) and `GRADUATION_FEE_USDC` ($10) are
   placeholders**, not researched numbers.
 - **Testnet only.** Deployed and exercised on Arc testnet (launch, dev-buy,

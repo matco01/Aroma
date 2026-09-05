@@ -5,7 +5,13 @@ libs = ["lib"]
 test = "test"
 script = "script"
 
-solc_version = "0.8.28"
+# Deliberately not pinned globally any more. Every contract in src/ pins
+# its own pragma to exactly 0.8.28, so their bytecode is unaffected (the
+# hash is asserted identical in the commit that made this change), while
+# v4-core pins =0.8.26 and cannot compile under a global 0.8.28 pin.
+# Letting forge resolve per file is what allows testing against Uniswap's
+# real PoolManager instead of a mock of it.
+# solc_version = "0.8.28"
 # Not pinning evm_version yet — Arc documents its EVM target as "Osaka
 # baseline" but that isn't yet a recognized --evm-version value in current
 # solc/forge tooling. Leaving this on the toolchain default (a recent,

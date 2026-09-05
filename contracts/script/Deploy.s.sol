@@ -4,36 +4,70 @@ pragma solidity 0.8.28;
 import {Script, console} from "forge-std/Script.sol";
 import {CurveManager} from "../src/CurveManager.sol";
 import {AromaFactory} from "../src/AromaFactory.sol";
+import {LiquidityLocker} from "../src/LiquidityLocker.sol";
 
-/// @notice Deploys the three-contract system and completes the one-time
-/// bootstrap wiring.
+/// @notice Deploys the whole system and completes the one-time bootstrap.
 ///
-/// Order matters and isn't arbitrary: AromaFactory's constructor needs
+/// Order matters and is not arbitrary. AromaFactory's constructor needs
 /// CurveManager's address, and CurveManager can only learn its factory
-/// afterwards — hence setFactory, which is callable exactly once.
+/// afterwards — hence setFactory, callable exactly once.
 ///
-/// `graduationVault` is immutable on CurveManager, so it must be right at
-/// deploy time. On testnet the deployer is a fine placeholder; on mainnet
-/// this must be the real Uniswap v4 pool seeder, and getting it wrong means
-/// redeploying rather than flipping a setting. That's deliberate — see the
-/// field's NatSpec.
+/// CurveManager and LiquidityLocker each need the other's address and both
+/// hold it immutably, which cannot be satisfied by deploying them in either
+/// order. The knot is cut by predicting the locker's address from the
+/// deployer's next nonce, handing that to the curve, and then deploying the
+/// locker into exactly that slot. The script asserts the prediction held
+/// before it wires anything else up; if it did not, the run reverts rather
+/// than leaving a curve pointing at an address that will never hold a
+/// contract.
+///
+/// The only difference between an Arc testnet and an Arc mainnet
+/// deployment is POOL_MANAGER:
+///
+///   Arc testnet (5042002) — leave it unset. Uniswap v4 is not deployed
+///     there (eth_getCode against the published singleton returns empty),
+///     the locker deploys with no manager, and graduation parks funds in
+///     it exactly as the product does today.
+///
+///   Arc mainnet (5042) — set it to the v4 PoolManager, published as
+///     0x8366a39cc670b4001a1121b8f6a443a643e40951. Verify that address has
+///     code on the network you are deploying to before relying on it; a
+///     locker pointed at an empty address will accept graduations and then
+///     fail to seed them.
 contract Deploy is Script {
     function run() external {
         uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(pk);
 
-        // Defaults to the deployer so a testnet run needs no extra config.
-        address graduationVault = vm.envOr("GRADUATION_VAULT", deployer);
         address owner = vm.envOr("PROTOCOL_OWNER", deployer);
+        address poolManager = vm.envOr("POOL_MANAGER", address(0));
 
         console.log("deployer:        ", deployer);
         console.log("owner:           ", owner);
-        console.log("graduationVault: ", graduationVault);
+        console.log("poolManager:     ", poolManager);
         console.log("balance (wei):   ", deployer.balance);
+
+        if (poolManager == address(0)) {
+            console.log("");
+            console.log("No POOL_MANAGER set: the locker will hold graduation");
+            console.log("funds without seeding a pool. Correct for Arc testnet.");
+        } else {
+            require(poolManager.code.length > 0, "POOL_MANAGER has no code on this chain");
+        }
+
+        // The locker is the second contract this account creates in the
+        // broadcast, so its address is the deployer's next-nonce CREATE
+        // address. Computed before broadcasting so the curve can be handed
+        // it as an immutable constructor argument.
+        uint64 nonce = vm.getNonce(deployer);
+        address predictedLocker = vm.computeCreateAddress(deployer, nonce + 1);
 
         vm.startBroadcast(pk);
 
-        CurveManager curve = new CurveManager(owner, graduationVault);
+        CurveManager curve = new CurveManager(owner, predictedLocker);
+        LiquidityLocker locker = new LiquidityLocker(poolManager, address(curve));
+        require(address(locker) == predictedLocker, "locker address prediction failed");
+
         AromaFactory factory = new AromaFactory(address(curve));
         curve.setFactory(address(factory));
 
@@ -41,10 +75,13 @@ contract Deploy is Script {
 
         console.log("");
         console.log("CurveManager:    ", address(curve));
-        console.log("AromaFactory:     ", address(factory));
+        console.log("LiquidityLocker: ", address(locker));
+        console.log("AromaFactory:    ", address(factory));
         console.log("");
         console.log("Verify wiring:");
         console.log("  factory set:   ", curve.factory() == address(factory));
-        console.log("  vault set:     ", curve.graduationVault() == graduationVault);
+        console.log("  vault is locker:", curve.graduationVault() == address(locker));
+        console.log("  locker -> curve:", address(locker.curve()) == address(curve));
+        console.log("  pool manager:  ", address(locker.poolManager()));
     }
 }

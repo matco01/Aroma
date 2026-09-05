@@ -145,9 +145,9 @@ contract SnipeGuardTest is Test {
     }
 
     /// The honeypot this design exists to make impossible: a tax that never
-    /// ends. Whatever a creator sets, thirty seconds later every buyer pays
+    /// ends. Whatever a creator sets, three seconds later every buyer pays
     /// the ordinary fee and nothing more.
-    function test_everyPossibleGuardHasExpiredWithinThirtySeconds() public {
+    function test_everyPossibleGuardHasExpiredWithinThreeSeconds() public {
         address token = _launch(curve.MAX_SNIPE_WINDOW(), curve.MAX_SNIPE_BPS(), _none());
         vm.warp(block.timestamp + curve.MAX_SNIPE_WINDOW());
         assertEq(curve.snipeTaxBps(token, sniper), 0, "no guard may outlive the cap");

@@ -107,10 +107,15 @@ contract CurveManager is ReentrancyGuard, Ownable2Step {
      * Both bounds are hard caps, not suggestions, and that is the whole
      * reason this is safe to expose to creators. Uncapped, a creator could
      * set 99% forever, exempt only themselves, and every buyer after them
-     * would be donating — a honeypot with a friendly name. A tax that must
-     * decay to nothing within half a minute cannot be that.
+     * would be donating — a honeypot with a friendly name.
+     *
+     * Three seconds, matching the reference implementations in the wild.
+     * An earlier draft allowed thirty, on no better reasoning than "leave
+     * room": at 0.5s blocks three seconds is already six blocks, which is
+     * all the protection a launch needs, and every second past that is one
+     * more second of real buyers being taxed for arriving on time.
      */
-    uint32 public constant MAX_SNIPE_WINDOW = 30 seconds;
+    uint32 public constant MAX_SNIPE_WINDOW = 3 seconds;
     uint16 public constant MAX_SNIPE_BPS = 9_900; // 99%
 
     struct SnipeGuard {

@@ -133,7 +133,17 @@ export function PriceChart({
   const first = points[0].m;
   const changePct = first > 0 ? ((shown.m - first) / first) * 100 : 0;
   const up = changePct >= 0;
-  const stroke = up ? "var(--color-up)" : "var(--color-down)";
+  /**
+   * The line is brand-coloured, not direction-coloured.
+   *
+   * Recolouring the whole series green or red means the chart changes
+   * identity every time the last point crosses the open — the same shape
+   * reads as two different things depending on where a window happens to
+   * start. Direction is already stated exactly once, in the percentage
+   * beside the value, which is where someone actually looks for it. Pons
+   * does the same with their lime.
+   */
+  const stroke = "var(--color-accent-2)";
 
   const marker = hover !== null ? xy[hover] : xy[xy.length - 1];
 

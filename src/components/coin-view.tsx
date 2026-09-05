@@ -80,10 +80,10 @@ export function CoinView({ address }: { address: string }) {
             <CoinArt seed={coin.seed} hue={coin.hue} size={52} radius={6} imageUrl={coin.imageUrl} alt={coin.name} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-[19px] font-semibold tracking-[-0.02em] text-ink">
+                <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ink">
                   {coin.name}
                 </h1>
-                <span className="num text-[13px] text-ink-2">${coin.ticker}</span>
+                <span className="num text-[14px] text-ink-2">${coin.ticker}</span>
                 {/* Only "graduated" earns a chip. "on curve · 0%" was noise
                     beside the name — the state is already obvious from the
                     curve panel, and a 0% badge on a fresh coin reads as a
@@ -109,7 +109,7 @@ export function CoinView({ address }: { address: string }) {
               </div>
             </div>
             <div className="text-right">
-              <div className="num text-[17px] text-ink">{price(coin.priceUsd)}</div>
+              <div className="num text-[20px] text-ink">{price(coin.priceUsd)}</div>
               <div className={`num text-[12px] ${up ? "text-up" : "text-down"}`}>
                 {pct(coin.change24hPct)} <span className="text-ink-3">all</span>
               </div>

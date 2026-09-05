@@ -203,9 +203,9 @@ export function TradePanel({ coin }: { coin: Coin }) {
               placeholder="0.00"
               disabled={busy}
               aria-label={isBuy ? "Amount to spend in USDC" : "Amount to sell in USDC"}
-              className="num h-11 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3 disabled:opacity-50"
+              className="num h-14 flex-1 bg-transparent text-[26px] text-ink outline-none placeholder:text-ink-3 disabled:opacity-50"
             />
-            <span className="num text-[12px] text-ink-2">USDC</span>
+            <span className="num text-[13px] text-ink-2">USDC</span>
           </div>
 
           <div className="mt-2.5 flex gap-1.5">
@@ -214,7 +214,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
                 key={p}
                 onClick={() => setAmount(String(p))}
                 disabled={busy}
-                className="num flex-1 rounded-sm border border-line py-1.5 text-[11px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                className="num flex-1 rounded-sm border border-line py-2 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
               >
                 ${p}
               </button>
@@ -230,7 +230,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
                 )
               }
               disabled={busy}
-              className="num flex-1 rounded-sm border border-line py-1.5 text-[11px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+              className="num flex-1 rounded-sm border border-line py-2 text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
             >
               Max
             </button>
@@ -321,7 +321,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
           <button
             onClick={submit}
             disabled={connected && !canSubmit}
-            className={`mt-3.5 h-10 w-full rounded-sm text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-3 ${
+            className={`mt-3.5 h-11 w-full rounded-sm text-[13.5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-3 ${
               !connected
                 ? "bg-accent text-white hover:bg-accent-hi"
                 : isBuy

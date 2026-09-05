@@ -120,7 +120,7 @@ export function Stat({
   return (
     <div className="min-w-0">
       <div className="label">{label}</div>
-      <div className={`num mt-0.5 truncate text-[13px] ${color}`}>{value}</div>
+      <div className={`num mt-1 truncate text-[17px] ${color}`}>{value}</div>
     </div>
   );
 }

@@ -56,8 +56,8 @@ export function SiteFooter() {
           </FooterCol>
 
           <FooterCol title="Legal">
-            <FooterLink href="/">Terms of use</FooterLink>
-            <FooterLink href="/">Privacy policy</FooterLink>
+            <FooterLink href="/terms">Terms of use</FooterLink>
+            <FooterLink href="/privacy">Privacy policy</FooterLink>
           </FooterCol>
         </div>
 

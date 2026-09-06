@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ARC_TESTNET, CURVE } from "@/lib/arc";
 import { ago, compact, pct, price, shortAddr, usd } from "@/lib/format";
 import { useToken } from "@/lib/use-chain";
+import type { Coin } from "@/lib/mock";
 import { IndexerStatus } from "./indexer-status";
 import { CoinArt } from "./coin-art";
 import { Chip, GraduationBar, Stat } from "./primitives";
@@ -129,6 +130,8 @@ export function CoinView({ address }: { address: string }) {
             </p>
           )}
 
+          <CoinLinks links={coin.links} />
+
           <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3.5 rounded-md border border-line bg-surface p-3.5 sm:grid-cols-4">
             <Stat label="Market cap" value={usd(coin.marketCapUsd)} />
             <Stat label="Volume" value={usd(coin.volume24hUsd)} />
@@ -197,6 +200,45 @@ export function CoinView({ address }: { address: string }) {
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Where a coin claims to live.
+ *
+ * Beside the description rather than tucked in a corner, because links are
+ * most of what a coin is judged on — a launch with no X account reads as a
+ * rug, and someone deciding that should not have to hunt for the absence.
+ *
+ * Every href here came from a stranger. The server already discarded
+ * anything that was not an http(s) URL, so a javascript: URL cannot reach
+ * this; rel="noreferrer nofollow" covers the rest. The label is ours, never
+ * the creator's text, so a link cannot pretend to be a different one.
+ */
+function CoinLinks({ links }: { links: Coin["links"] }) {
+  const items = [
+    { href: links.website, label: "Website" },
+    { href: links.x, label: "X" },
+    { href: links.telegram, label: "Telegram" },
+  ].filter((l) => l.href);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {items.map((l) => (
+        <a
+          key={l.label}
+          href={l.href}
+          target="_blank"
+          rel="noreferrer nofollow"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line px-3 text-[12.5px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+        >
+          {l.label}
+          <span className="text-ink-3">↗</span>
+        </a>
+      ))}
     </div>
   );
 }

@@ -156,11 +156,16 @@ function toTrade(t: RawTrade, now: number): TapeTrade {
   };
 }
 
+const NO_LINKS = { website: "", x: "", telegram: "" };
+
 export function toCoin(
   t: RawToken,
   now: number,
   history: number[] = [],
-  imageUrl = "",
+  meta: { image: string; links: { website: string; x: string; telegram: string } } = {
+    image: "",
+    links: NO_LINKS,
+  },
 ): Coin {
   const { hue, seed } = artFromAddress(t.id);
   const price = toNum(t.price);
@@ -171,7 +176,8 @@ export function toCoin(
     name: t.name || "Untitled",
     ticker: t.symbol || "???",
     description: t.description || "",
-    imageUrl,
+    imageUrl: meta.image,
+    links: meta.links,
     creatorFeesEarnedUsd: toNum(t.creatorFeesEarned),
     creatorFeesClaimedUsd: toNum(t.creatorFeesClaimed),
     creator: t.creator,
@@ -244,7 +250,7 @@ export async function fetchBoardPage(opts: {
   const images = await resolveImages(rows.map((t) => t.metadataUri));
 
   return {
-    tokens: rows.map((t) => toCoin(t, now, [], images.get(t.metadataUri) ?? "")),
+    tokens: rows.map((t) => toCoin(t, now, [], images.get(t.metadataUri) ?? { image: "", links: NO_LINKS })),
     stats: {
       tokenCount: p ? p.tokenCount : 0,
       tradeCount: p ? p.tradeCount : 0,
@@ -381,7 +387,7 @@ export async function fetchTokenDetail(address: string): Promise<{
   const images = await resolveImages([data.token.metadataUri]);
 
   return {
-    coin: toCoin(data.token, now, history, images.get(data.token.metadataUri) ?? ""),
+    coin: toCoin(data.token, now, history, images.get(data.token.metadataUri) ?? { image: "", links: NO_LINKS }),
     trades,
     series,
     meta,
@@ -451,7 +457,7 @@ export async function fetchPortfolio(account: string): Promise<{
     ...data.created.map((t) => t.metadataUri),
   ]);
   const holdings = data.balances.map((b) => {
-    const coin = toCoin(b.token, now, [], images.get(b.token.metadataUri) ?? "");
+    const coin = toCoin(b.token, now, [], images.get(b.token.metadataUri) ?? { image: "", links: NO_LINKS });
     const tokens = toNum(b.amount);
     const valueUsd = tokens * coin.priceUsd;
     const costUsd = toNum(b.costBasis);
@@ -470,7 +476,7 @@ export async function fetchPortfolio(account: string): Promise<{
   holdings.sort((a, b) => b.valueUsd - a.valueUsd);
 
   const created = data.created.map((t) =>
-    toCoin(t, now, [], images.get(t.metadataUri) ?? ""),
+    toCoin(t, now, [], images.get(t.metadataUri) ?? { image: "", links: NO_LINKS }),
   );
 
   return {

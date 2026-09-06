@@ -29,7 +29,7 @@ export function CreateForm() {
   // pinning takes a second or two and staring at an empty box in the
   // meantime makes the whole form feel broken.
   const [imagePreview, setImagePreview] = useState<string>("");
-  const [metadataUri, setMetadataUri] = useState<string>("");
+  const [imageUri, setImageUri] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -68,6 +68,34 @@ export function CreateForm() {
   async function submit() {
     if (!connected) return connect();
     if (!valid || insufficient) return;
+    // Written now rather than when the picture was chosen, so links typed
+    // afterwards actually make it in — and so a coin with no picture still
+    // gets a document to hold them.
+    let metadataUri = "";
+    if (imageUri || website.trim() || x.trim() || telegram.trim()) {
+      try {
+        const res = await fetch("/api/metadata", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            name: name.trim(),
+            symbol: ticker.trim(),
+            description: description.trim(),
+            image: imageUri,
+            website: website.trim(),
+            x: x.trim(),
+            telegram: telegram.trim(),
+          }),
+        });
+        const json = (await res.json()) as { metadataUri?: string };
+        if (res.ok && json.metadataUri) metadataUri = json.metadataUri;
+      } catch {
+        // A failed pin must not block the launch. The coin deploys with no
+        // metadata rather than not deploying at all — losing a link is
+        // recoverable, losing the transaction is not.
+      }
+    }
+
     await create(name.trim(), ticker.trim(), description.trim(), devBuy || "0", metadataUri, {
       enabled: snipeGuard,
       exemptWallets,
@@ -94,7 +122,7 @@ export function CreateForm() {
   async function onPickImage(file: File | undefined) {
     if (!file) return;
     setUploadError(null);
-    setMetadataUri("");
+    setImageUri("");
 
     const fileProblem = checkImageFile(file.type, file.size);
     if (fileProblem) {
@@ -123,11 +151,11 @@ export function CreateForm() {
       body.append("description", description.trim());
 
       const res = await fetch("/api/upload", { method: "POST", body });
-      const json = (await res.json()) as { metadataUri?: string; error?: string };
-      if (!res.ok || !json.metadataUri) {
+      const json = (await res.json()) as { image?: string; error?: string };
+      if (!res.ok || !json.image) {
         throw new Error(json.error ?? "Upload failed");
       }
-      setMetadataUri(json.metadataUri);
+      setImageUri(json.image);
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");
       // Keep the preview: the picture they chose is still the picture they
@@ -243,7 +271,7 @@ export function CreateForm() {
                   <span className="block text-[13px] text-ink-2">
                     {uploading
                       ? "Pinning to IPFS…"
-                      : metadataUri
+                      : imageUri
                         ? "Pinned to IPFS"
                         : "Choose image"}
                   </span>

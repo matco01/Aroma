@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { imageSize } from "image-size";
 import {
   pinImage,
-  pinMetadata,
   normalizeImage,
   hasPinata,
   gatewayUrl,
@@ -104,10 +103,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: dimensionProblem }, { status: 400 });
   }
 
-  const name = String(form.get("name") ?? "").slice(0, 64);
-  const symbol = String(form.get("symbol") ?? "").slice(0, 16);
-  const description = String(form.get("description") ?? "").slice(0, 500);
-
   try {
     // Resize before pinning, never after: IPFS is content-addressed, so a
     // pinned original would keep its own permanent CID whether or not
@@ -132,10 +127,13 @@ export async function POST(request: Request) {
         type: normalized.type,
       }),
     );
-    const metadataUri = await pinMetadata({ name, symbol, description, image });
 
+    // The metadata document is NOT written here. It used to be, which meant
+    // it captured whatever had been typed at the moment a picture was
+    // chosen — links added afterwards never reached it, and a coin launched
+    // without a picture had no metadata at all. /api/metadata writes it at
+    // submit instead, from the final values.
     return NextResponse.json({
-      metadataUri,
       image,
       // The gateway URL is for previewing right now; the ipfs:// URI is
       // what goes on-chain and outlives any particular gateway.

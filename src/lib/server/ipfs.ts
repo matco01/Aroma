@@ -81,11 +81,25 @@ export async function pinImage(file: File): Promise<string> {
   return `ipfs://${IpfsHash}`;
 }
 
+export type TokenLinks = {
+  website: string;
+  x: string;
+  telegram: string;
+};
+
 export type TokenMetadata = {
   name: string;
   symbol: string;
   description: string;
   image: string;
+  /**
+   * Where a coin claims to live. Stored alongside the image because it
+   * belongs to the same document — a launch with no X account reads as a
+   * rug, and a buyer deciding that should not have to leave the page to
+   * find out. Free text from a stranger, so everything that renders it
+   * treats it as untrusted.
+   */
+  links: TokenLinks;
 };
 
 /**
@@ -122,7 +136,11 @@ export async function pinMetadata(meta: TokenMetadata): Promise<string> {
  * the bytes behind one can never change. Re-fetching is pure waste, and
  * without the cache a board render would be one HTTP request per token.
  */
-const imageCache = new Map<string, string>();
+export type ResolvedMetadata = { image: string; links: TokenLinks };
+
+const EMPTY_LINKS: TokenLinks = { website: "", x: "", telegram: "" };
+
+const imageCache = new Map<string, ResolvedMetadata>();
 
 /** One entry per token ever launched, otherwise. Launching costs gas, so
  *  this grows slowly — but "slowly" is not "never", and this process is
@@ -159,14 +177,15 @@ async function readCapped(res: Response, limit: number): Promise<string | null> 
   return out + decoder.decode();
 }
 
-export async function resolveImage(metadataUri: string): Promise<string> {
-  if (!metadataUri) return "";
+export async function resolveMetadata(metadataUri: string): Promise<ResolvedMetadata> {
+  const empty: ResolvedMetadata = { image: "", links: EMPTY_LINKS };
+  if (!metadataUri) return empty;
 
   const cached = imageCache.get(metadataUri);
   if (cached !== undefined) return cached;
 
   const url = gatewayUrl(metadataUri);
-  if (!url) return "";
+  if (!url) return empty;
 
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(6_000) });
@@ -175,27 +194,51 @@ export async function resolveImage(metadataUri: string): Promise<string> {
     const body = await readCapped(res, MAX_METADATA_BYTES);
     if (body === null) throw new Error("metadata too large");
 
-    const meta = JSON.parse(body) as { image?: unknown };
+    const meta = JSON.parse(body) as { image?: unknown; links?: unknown };
     const image = typeof meta.image === "string" ? gatewayUrl(meta.image) : "";
+    const resolved: ResolvedMetadata = { image, links: readLinks(meta.links) };
 
     if (imageCache.size >= MAX_IMAGE_CACHE) {
       const oldest = imageCache.keys().next();
       if (!oldest.done) imageCache.delete(oldest.value);
     }
-    imageCache.set(metadataUri, image);
-    return image;
+    imageCache.set(metadataUri, resolved);
+    return resolved;
   } catch {
     // A gateway hiccup must not fail the board — cache the miss briefly by
     // not caching it at all, so the next render retries, and fall back to
     // generated art in the meantime.
-    return "";
+    return empty;
   }
 }
 
+/**
+ * Pulls links out of a document a stranger wrote.
+ *
+ * Only http and https survive. These render as anchors, and a javascript:
+ * or data: URL in an href is script execution on our own origin — the one
+ * place a token's metadata could reach into the page. Anything else becomes
+ * an empty string rather than inert text, because a half-rendered link is
+ * one somebody will try to copy.
+ */
+function readLinks(raw: unknown): TokenLinks {
+  const src = (raw ?? {}) as Record<string, unknown>;
+  const clean = (v: unknown): string => {
+    if (typeof v !== "string" || v.length === 0 || v.length > 200) return "";
+    try {
+      const u = new URL(v.trim());
+      return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : "";
+    } catch {
+      return "";
+    }
+  };
+  return { website: clean(src.website), x: clean(src.x), telegram: clean(src.telegram) };
+}
+
 /** Resolve many at once, bounded by the page size the caller already caps. */
-export async function resolveImages(uris: string[]): Promise<Map<string, string>> {
+export async function resolveImages(uris: string[]): Promise<Map<string, ResolvedMetadata>> {
   const unique = [...new Set(uris.filter(Boolean))];
-  const resolved = await Promise.all(unique.map((u) => resolveImage(u)));
+  const resolved = await Promise.all(unique.map((u) => resolveMetadata(u)));
   return new Map(unique.map((u, i) => [u, resolved[i]]));
 }
 

@@ -26,6 +26,12 @@ export type Coin = {
   description: string;
   /** Gateway URL for the creator's image, or "" to fall back to art. */
   imageUrl: string;
+  /**
+   * Where the coin claims to live. Empty strings when the creator gave
+   * none, or when what they gave was not an http(s) URL — the server
+   * discards anything else rather than passing it to an href.
+   */
+  links: { website: string; x: string; telegram: string };
   /** Lifetime creator fees this coin has generated — shown to everyone. */
   creatorFeesEarnedUsd: number;
   /** How much of that the creator has actually withdrawn. */
@@ -161,6 +167,7 @@ function buildCoin(index: number): Coin {
     ticker,
     description,
     imageUrl: "",
+    links: { website: "", x: "", telegram: "" },
     creatorFeesEarnedUsd: 0,
     creatorFeesClaimedUsd: 0,
     creator: addr(rnd),

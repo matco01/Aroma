@@ -38,6 +38,7 @@ export function SiteFooter() {
           <FooterCol title="Protocol">
             <FooterLink href="/">Board</FooterLink>
             <FooterLink href="/create">Launch a coin</FooterLink>
+            <FooterLink href="/docs">Docs</FooterLink>
             <FooterRow label="Trade fee" value={`${CURVE.tradeFeeBps / 100}%`} />
             <FooterRow
               label="To creator"

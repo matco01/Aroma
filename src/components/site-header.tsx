@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ARC_TESTNET } from "@/lib/arc";
 import { ConnectButton } from "./wallet";
 import { CommandMenu } from "./command-menu";
 
@@ -23,7 +22,25 @@ import { CommandMenu } from "./command-menu";
  */
 const NAV = [
   { href: "/", label: "Board" },
+  { href: "/docs", label: "Docs" },
 ] as const;
+
+/**
+ * "⌘K" or "Ctrl K", depending on the keyboard actually in front of someone.
+ *
+ * The shortcut has always accepted either modifier — it was only the label
+ * that assumed a Mac, which on Windows told most of the audience to press a
+ * key their keyboard does not have.
+ *
+ * Read during render rather than kept in state: it cannot change while the
+ * page is open. The server has no navigator so it renders the Mac form and
+ * the client corrects it on hydration, which is a one-character difference
+ * in a hint — cheaper than an effect and a re-render on every page.
+ */
+function shortcutLabel(): string {
+  if (typeof navigator === "undefined") return "⌘K";
+  return /Mac|iPhone|iPad/i.test(navigator.userAgent) ? "⌘K" : "Ctrl K";
+}
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -71,15 +88,6 @@ export function SiteHeader() {
                 </Link>
               );
             })}
-            <a
-              href={ARC_TESTNET.explorer}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-sm px-3 py-2 text-[16px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
-            >
-              Explorer
-              <span className="ml-0.5 text-ink-3">↗</span>
-            </a>
           </nav>
 
           <div className="flex-1" />
@@ -97,7 +105,7 @@ export function SiteHeader() {
               Search
             </span>
             <kbd className="num hidden rounded-xs border border-line px-1.5 py-0.5 text-[11.5px] sm:block">
-              ⌘K
+              {shortcutLabel()}
             </kbd>
           </button>
 

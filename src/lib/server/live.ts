@@ -41,11 +41,35 @@ type Listener = (event: LiveEvent) => void;
  * PER_CLIENT distinct addresses, and a single abusive address can only ever
  * take PER_CLIENT slots from everyone else.
  *
- * PER_CLIENT is 5 because a person with several tabs open is ordinary and
- * should not be refused; nobody legitimately needs six.
+ * The per-client cap moves with pressure rather than being fixed, because a
+ * fixed one has to be wrong in one direction or the other. Client identity
+ * here is an IP address, and an IP address is not a person: mobile carriers
+ * put thousands of subscribers behind one address. A cap tight enough to
+ * blunt an attack would refuse real visitors sharing a carrier NAT on an
+ * ordinary day, which trades a hypothetical outage for a real one.
+ *
+ * So while there is plenty of room, be generous and let a shared address
+ * hold many streams. Once the pool is filling, tighten to the number one
+ * person plausibly needs, so the remaining slots go to distinct visitors
+ * rather than to whoever opened connections fastest. Nothing is refused
+ * until refusing is the only way to keep the service up.
  */
 const MAX_LISTENERS = 1_000;
-const PER_CLIENT = 5;
+
+/** Beyond this share of the pool, start rationing per address. */
+const PRESSURE_AT = 0.6;
+
+/** Room to spare: a whole office or carrier NAT is welcome. */
+const PER_CLIENT_RELAXED = 25;
+
+/** Under pressure: a person with several tabs, and no more. */
+const PER_CLIENT_STRICT = 5;
+
+function perClientLimit(): number {
+  return listeners.size >= MAX_LISTENERS * PRESSURE_AT
+    ? PER_CLIENT_STRICT
+    : PER_CLIENT_RELAXED;
+}
 
 const listeners = new Set<Listener>();
 /** Open streams per client key, so one address cannot crowd out the rest. */
@@ -92,7 +116,7 @@ export function subscribe(listener: Listener, clientKey: string): (() => void) |
   if (listeners.size >= MAX_LISTENERS) return null;
 
   const held = perClient.get(clientKey) ?? 0;
-  if (held >= PER_CLIENT) return null;
+  if (held >= perClientLimit()) return null;
 
   listeners.add(listener);
   perClient.set(clientKey, held + 1);

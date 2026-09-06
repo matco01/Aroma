@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { subscribe } from "@/lib/server/live";
 import { hasSubgraph } from "@/lib/server/subgraph";
+import { clientKey } from "@/lib/server/rate-limit";
 
 /**
  * Server-sent events for the live tape.
@@ -24,6 +25,15 @@ export async function GET(request: NextRequest) {
 
   const encoder = new TextEncoder();
 
+  /**
+   * Whether subscribe() accepted us. ReadableStream calls start()
+   * synchronously while it is being constructed, so this is settled by the
+   * time the constructor returns and can still decide the status code. A
+   * refusal has to be a 503 that EventSource backs off from, not a 200 that
+   * closes immediately and gets retried in a tight loop.
+   */
+  let refused = false;
+
   const stream = new ReadableStream({
     start(controller) {
       let closed = false;
@@ -40,7 +50,18 @@ export async function GET(request: NextRequest) {
 
       const unsubscribe = subscribe((event) => {
         send(`event: update\ndata: ${JSON.stringify(event)}\n\n`);
-      });
+      }, clientKey(request));
+
+      if (!unsubscribe) {
+        refused = true;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          // Already closed by the runtime.
+        }
+        return;
+      }
 
       // Comment frames keep intermediaries from treating a quiet stream as
       // dead. A market with no trades for a minute is normal; a proxy
@@ -62,6 +83,13 @@ export async function GET(request: NextRequest) {
       request.signal.addEventListener("abort", cleanup);
     },
   });
+
+  if (refused) {
+    return new Response("Too many open streams. Try again shortly.", {
+      status: 503,
+      headers: { "retry-after": "30" },
+    });
+  }
 
   return new Response(stream, {
     headers: {

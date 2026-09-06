@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { fetchPortfolio } from "@/lib/server/board";
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { indexerLag } from "@/lib/server/lag";
+import { upstreamFailure } from "@/lib/server/upstream";
 
 /**
  * One wallet's holdings.
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       { headers: { "cache-control": "private, max-age=5" } },
     );
   } catch (e) {
-    const message = e instanceof Error ? e.message : "unknown error";
+    const message = upstreamFailure(e);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

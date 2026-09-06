@@ -26,7 +26,30 @@ export type LiveEvent = {
 
 type Listener = (event: LiveEvent) => void;
 
+/**
+ * Caps on who may listen.
+ *
+ * An SSE connection is cheap for the client to open and not free for us to
+ * hold — a measured 1000 concurrent streams cost this process ~246MB. The
+ * endpoint is unauthenticated, so without a bound one machine can hold
+ * enough streams open to exhaust the instance, which is a denial of service
+ * that costs the attacker almost nothing.
+ *
+ * Two limits rather than one, because a global cap on its own is a worse
+ * failure: an attacker fills it and every real visitor gets refused. The
+ * per-client cap means filling the global one requires MAX_LISTENERS /
+ * PER_CLIENT distinct addresses, and a single abusive address can only ever
+ * take PER_CLIENT slots from everyone else.
+ *
+ * PER_CLIENT is 5 because a person with several tabs open is ordinary and
+ * should not be refused; nobody legitimately needs six.
+ */
+const MAX_LISTENERS = 1_000;
+const PER_CLIENT = 5;
+
 const listeners = new Set<Listener>();
+/** Open streams per client key, so one address cannot crowd out the rest. */
+const perClient = new Map<string, number>();
 let timer: NodeJS.Timeout | null = null;
 let lastCursor = "";
 let lastEvent: LiveEvent | null = null;
@@ -59,8 +82,20 @@ async function poll(): Promise<void> {
   }
 }
 
-export function subscribe(listener: Listener): () => void {
+/**
+ * Returns an unsubscribe function, or null when a cap is already reached.
+ *
+ * Null rather than a throw: being over capacity is an expected condition
+ * with a correct HTTP answer (503 and a Retry-After), not an exception.
+ */
+export function subscribe(listener: Listener, clientKey: string): (() => void) | null {
+  if (listeners.size >= MAX_LISTENERS) return null;
+
+  const held = perClient.get(clientKey) ?? 0;
+  if (held >= PER_CLIENT) return null;
+
   listeners.add(listener);
+  perClient.set(clientKey, held + 1);
 
   // Hand a new subscriber the current state immediately rather than making
   // it wait up to a full interval for its first paint.
@@ -71,8 +106,21 @@ export function subscribe(listener: Listener): () => void {
     timer = setInterval(() => void poll(), POLL_MS);
   }
 
+  let released = false;
   return () => {
+    // Cleanup can fire more than once (client abort and stream cancel both
+    // run it). Counting a release twice would leak slots downward until the
+    // map wrongly reported free capacity, so make it idempotent.
+    if (released) return;
+    released = true;
+
     listeners.delete(listener);
+    const now = (perClient.get(clientKey) ?? 1) - 1;
+    // Delete at zero rather than storing it — otherwise the map grows one
+    // entry per address ever seen, which is the leak the cap was added for.
+    if (now <= 0) perClient.delete(clientKey);
+    else perClient.set(clientKey, now);
+
     if (listeners.size === 0 && timer !== null) {
       clearInterval(timer);
       timer = null;

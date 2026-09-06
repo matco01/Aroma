@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { fetchTokenDetail } from "@/lib/server/board";
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { indexerLag } from "@/lib/server/lag";
+import { upstreamFailure } from "@/lib/server/upstream";
 
 /**
  * One token, its trades and its price history — a single indexed read.
@@ -51,7 +52,7 @@ export async function GET(
       },
     );
   } catch (e) {
-    const message = e instanceof Error ? e.message : "unknown error";
+    const message = upstreamFailure(e);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

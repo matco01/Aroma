@@ -8,6 +8,7 @@ import {
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { indexerLag } from "@/lib/server/lag";
 import { fetchBoardData } from "@/lib/chain-data";
+import { upstreamFailure } from "@/lib/server/upstream";
 
 /**
  * The board, served once for everyone.
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
         hasMore: filtered.length > skip + limit,
       });
     } catch (e) {
-      const message = e instanceof Error ? e.message : "unknown error";
+      const message = upstreamFailure(e);
       return NextResponse.json({ error: message }, { status: 502 });
     }
   }
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (e) {
-    const message = e instanceof Error ? e.message : "unknown error";
+    const message = upstreamFailure(e);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

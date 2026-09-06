@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Web3Provider } from "@/components/web3-provider";
 import { WalletProvider } from "@/components/wallet";
+import { TestnetBanner } from "@/components/testnet-banner";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 
@@ -92,6 +93,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <Web3Provider>
           <WalletProvider>
+            <TestnetBanner />
             <SiteHeader />
             <main className="flex-1">{children}</main>
             <SiteFooter />

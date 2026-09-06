@@ -67,7 +67,21 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const address = mounted ? wagmiAddress : undefined;
   const isConnected = mounted && wagmiConnected;
 
-  const { data: balance, refetch } = useBalance({ address });
+  /**
+   * Polled every 15s, not wagmi's default ~4s.
+   *
+   * This is the single largest RPC cost the app has, and it is paid per
+   * connected user per block-ish rather than once: it was roughly two
+   * thirds of everything a connected wallet spends. A balance that updates
+   * in fifteen seconds instead of four is indistinguishable while using
+   * the app — and the moment it actually matters, after a trade, is not
+   * covered by polling at all. refreshBalance() is called explicitly then,
+   * which is both faster than any interval and free.
+   */
+  const { data: balance, refetch } = useBalance({
+    address,
+    query: { refetchInterval: 15_000 },
+  });
   const usdcBalance = mounted && balance ? Number(balance.value) / 1e18 : 0;
 
   const connect = useCallback(() => {

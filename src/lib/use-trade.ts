@@ -80,6 +80,18 @@ export function useTrade(tokenAddress: string | undefined) {
     const keys = [["board"], ["token"], ["portfolio"]];
     const sweep = () => {
       for (const queryKey of keys) queryClient.invalidateQueries({ queryKey });
+      // wagmi's own reads — the header balance and the coin-page token
+      // balance — are keyed internally, so they are refreshed by predicate
+      // rather than by name. Without this they only update on their poll,
+      // which is the moment a trader is most certain the number is wrong:
+      // they just spent the money and the header still shows the old
+      // figure. Doing it here is also what lets that poll be slow.
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const head = q.queryKey[0];
+          return typeof head === "string" && (head === "balance" || head === "readContract");
+        },
+      });
     };
     sweep();
     setTimeout(sweep, 3_500);

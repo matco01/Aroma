@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { events, RangeTooWide } from "@/lib/server/dex-adapter";
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { upstreamFailure } from "@/lib/server/upstream";
+import { dexRateLimit, EVENTS_PER_WINDOW } from "@/lib/server/dex-limit";
 
 /**
  * Every curve trade in a block range, oldest first.
@@ -22,6 +23,9 @@ import { upstreamFailure } from "@/lib/server/upstream";
 const MAX_SPAN = 100_000;
 
 export async function GET(request: NextRequest) {
+  const limited = dexRateLimit(request, "events", EVENTS_PER_WINDOW);
+  if (limited) return limited;
+
   if (!hasSubgraph) {
     return NextResponse.json({ error: "No indexer configured" }, { status: 503 });
   }

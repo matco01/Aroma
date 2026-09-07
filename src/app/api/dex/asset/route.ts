@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { asset, USDC_ASSET_ID } from "@/lib/server/dex-adapter";
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { upstreamFailure } from "@/lib/server/upstream";
+import { dexRateLimit, LOOKUPS_PER_WINDOW } from "@/lib/server/dex-limit";
 
 /**
  * What one of the two sides of a pair is.
@@ -15,6 +16,9 @@ import { upstreamFailure } from "@/lib/server/upstream";
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
 export async function GET(request: NextRequest) {
+  const limited = dexRateLimit(request, "asset", LOOKUPS_PER_WINDOW);
+  if (limited) return limited;
+
   const id = request.nextUrl.searchParams.get("id");
   if (!id || !ADDRESS.test(id)) {
     return NextResponse.json({ error: "An asset id is required" }, { status: 400 });

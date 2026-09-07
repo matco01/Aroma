@@ -265,6 +265,11 @@ export function DocsView() {
               virtual reserves the pricing math uses.
             </P>
             <P>
+              Rate limited per caller: 90 range queries and 240 lookups a minute,
+              which is well clear of what polling the head every second needs. A
+              429 carries a Retry-After. Get in touch if you need more.
+            </P>
+            <P>
               The feed covers the curve only. Once a coin graduates its pool is an
               ordinary Uniswap v4 pool with no hooks, which indexers pick up
               natively, and this stops rather than reporting it twice.

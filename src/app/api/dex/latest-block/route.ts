@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { latestBlock } from "@/lib/server/dex-adapter";
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { upstreamFailure } from "@/lib/server/upstream";
+import { dexRateLimit, LOOKUPS_PER_WINDOW } from "@/lib/server/dex-limit";
 
 /**
  * The most recent block this feed can answer for.
@@ -14,7 +15,10 @@ import { upstreamFailure } from "@/lib/server/upstream";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const limited = dexRateLimit(request, "latest-block", LOOKUPS_PER_WINDOW);
+  if (limited) return limited;
+
   if (!hasSubgraph) {
     return NextResponse.json({ error: "No indexer configured" }, { status: 503 });
   }

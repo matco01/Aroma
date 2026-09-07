@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { pair } from "@/lib/server/dex-adapter";
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { upstreamFailure } from "@/lib/server/upstream";
+import { dexRateLimit, LOOKUPS_PER_WINDOW } from "@/lib/server/dex-limit";
 
 /**
  * A pair, which here is a coin and its curve.
@@ -17,6 +18,9 @@ import { upstreamFailure } from "@/lib/server/upstream";
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
 export async function GET(request: NextRequest) {
+  const limited = dexRateLimit(request, "pair", LOOKUPS_PER_WINDOW);
+  if (limited) return limited;
+
   if (!hasSubgraph) {
     return NextResponse.json({ error: "No indexer configured" }, { status: 503 });
   }

@@ -20,6 +20,7 @@ const nav = [
   { id: "launch-tax", label: "Launch tax" },
   { id: "risks", label: "Risks" },
   { id: "contracts", label: "Contracts" },
+  { id: "data-api", label: "Data API" },
   { id: "network", label: "Network" },
 ];
 
@@ -241,6 +242,35 @@ export function DocsView() {
             </P>
           </Section>
 
+          <Section id="data-api" title="Data API">
+            <P>
+              Trading on the curve happens inside our own contract rather than on
+              an AMM, so no screener or terminal sees it the way it sees an
+              ordinary pool. This is a public, unauthenticated feed of it, shaped
+              the way DEX Screener&apos;s indexer expects, so anyone can index
+              Aroma without asking us for anything.
+            </P>
+            <Endpoints
+              rows={[
+                ["GET /api/dex/latest-block", "Newest block the feed can answer for"],
+                ["GET /api/dex/asset?id=", "A token, or the zero address for native USDC"],
+                ["GET /api/dex/pair?id=", "A coin and its curve, addressed by token"],
+                ["GET /api/dex/events?fromBlock=&toBlock=", "Every curve trade in a range, oldest first"],
+              ]}
+            />
+            <P>
+              Pairs are quoted token-first, so <B>priceNative</B> is USDC per token
+              — a dollar price, since USDC is the gas token here. Reserves are the
+              real ones: USDC actually held and tokens still left to sell, not the
+              virtual reserves the pricing math uses.
+            </P>
+            <P>
+              The feed covers the curve only. Once a coin graduates its pool is an
+              ordinary Uniswap v4 pool with no hooks, which indexers pick up
+              natively, and this stops rather than reporting it twice.
+            </P>
+          </Section>
+
           <Section id="network" title="Network">
             <Facts
               rows={[
@@ -338,6 +368,22 @@ function Facts({ rows }: { rows: [string, string][] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+function Endpoints({ rows }: { rows: [string, string][] }) {
+  return (
+    <ul className="rounded-md border border-line bg-surface">
+      {rows.map(([path, what], i) => (
+        <li
+          key={path}
+          className={`px-3.5 py-2.5 ${i > 0 ? "border-t border-line" : ""}`}
+        >
+          <code className="num block break-all text-[12.5px] text-ink">{path}</code>
+          <span className="mt-0.5 block text-[12.5px] text-ink-3">{what}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

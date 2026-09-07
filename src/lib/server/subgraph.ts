@@ -70,6 +70,14 @@ export async function query<T>(
   key: string,
   document: string,
   variables: Record<string, unknown> = {},
+  /**
+   * How long this key stays fresh. Defaults to the board's interval, which
+   * is right for anything a viewer is watching change. Callers with a
+   * different need pass their own: a chain-head read wants a shorter one, a
+   * query over a block range that is already history wants a longer one,
+   * since the answer cannot change once those blocks are behind the head.
+   */
+  ttlMs: number = TTL_MS,
 ): Promise<T> {
   if (!hasSubgraph) throw new SubgraphError("SUBGRAPH_URL is not configured");
 
@@ -99,7 +107,7 @@ export async function query<T>(
     if (!json.data) throw new SubgraphError("subgraph returned no data");
 
     evictIfFull();
-    cache.set(key, { value: json.data, expires: Date.now() + TTL_MS });
+    cache.set(key, { value: json.data, expires: Date.now() + ttlMs });
     return json.data;
   })();
 

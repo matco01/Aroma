@@ -18,8 +18,19 @@ import { hasSubgraph } from "@/lib/server/subgraph";
  * might plausibly search for.
  */
 
-/** Rebuilt this often; the board changes faster, but crawlers do not. */
-export const revalidate = 3600;
+/**
+ * Generated per request rather than cached by the framework.
+ *
+ * It was `revalidate = 3600`, which silently produced a sitemap with no coins
+ * in it: the subgraph client fetches with `cache: "no-store"`, which a route
+ * Next is trying to cache treats as an error, and the catch below turned that
+ * into the fixed-pages fallback. The page looked fine and the coins were
+ * simply missing — the failure mode this whole file exists to avoid.
+ *
+ * Cost is one indexed query per request, which the subgraph client's own
+ * cache already collapses, and crawlers ask for this rarely.
+ */
+export const dynamic = "force-dynamic";
 
 const COIN_LIMIT = 200;
 
@@ -56,9 +67,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       })),
     ];
-  } catch {
+  } catch (e) {
     // A sitemap missing its coins still beats a 500, which teaches a crawler
-    // to come back less often.
+    // to come back less often — but it is logged, because a silently
+    // coin-less sitemap is indistinguishable from a working one from outside
+    // and that is exactly how the last version of this stayed broken.
+    console.error("[sitemap] falling back to fixed pages:", e);
     return fixed;
   }
 }

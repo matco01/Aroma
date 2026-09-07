@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SITE_URL, SITE_DESCRIPTION } from "@/lib/site";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Web3Provider } from "@/components/web3-provider";
@@ -6,6 +7,7 @@ import { WalletProvider } from "@/components/wallet";
 import { TestnetBanner } from "@/components/testnet-banner";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { StructuredData } from "@/components/structured-data";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,24 +20,10 @@ const geistMono = Geist_Mono({
 });
 
 /**
- * The origin every relative metadata URL is resolved against.
- *
- * Without this Next falls back to http://localhost:3000, and og:image
- * resolves to a localhost URL — which is fine locally and useless in
- * production: Telegram, X and every other unfurler fetches that address,
- * gets nothing, and shows the link with no picture. The failure is
- * invisible from inside the app, because the page itself renders fine.
- *
- * RAILWAY_PUBLIC_DOMAIN is injected by the platform, so a Railway deploy
- * gets this right with no configuration. NEXT_PUBLIC_SITE_URL overrides it
- * for anywhere else — a custom domain, most obviously, which is what this
- * should point at once one exists.
+ * The origin every relative metadata URL is resolved against. See site.ts for
+ * why this is written down rather than read from the platform at runtime.
  */
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : "http://localhost:3000");
+const siteUrl = SITE_URL;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -43,8 +31,7 @@ export const metadata: Metadata = {
     default: "Aroma — launch coins on Arc",
     template: "%s · Aroma",
   },
-  description:
-    "Launch and trade fixed-supply tokens on Arc, where USDC is the native gas token and every price is already a dollar.",
+  description: SITE_DESCRIPTION,
 
   icons: {
     icon: [
@@ -91,6 +78,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
+        <StructuredData />
         <Web3Provider>
           <WalletProvider>
             <TestnetBanner />

@@ -21,6 +21,7 @@ const nav = [
   { id: "risks", label: "Risks" },
   { id: "contracts", label: "Contracts" },
   { id: "data-api", label: "Data API" },
+  { id: "trading", label: "Trading integration" },
   { id: "network", label: "Network" },
 ];
 
@@ -276,6 +277,59 @@ export function DocsView() {
             </P>
           </Section>
 
+          <Section id="trading" title="Trading integration">
+            <P>
+              The feed above is read-only. Trading a coin while it is on the curve
+              means calling CurveManager directly — there is no pool, so there is
+              nothing for a router to route through. Every coin lives on the one
+              address below, so a single log filter covers all of them and there is
+              no per-token contract to discover.
+            </P>
+            <Addresses
+              rows={[
+                ["CurveManager", ARC_TESTNET_CONTRACTS.curveManager, "Buy, sell, and quote every coin on the curve."],
+              ]}
+            />
+            <Endpoints
+              rows={[
+                ["buy(address token, address recipient, uint256 minTokensOut) payable", "USDC is the value sent, since it is the gas token. Tokens go to recipient, so you can buy straight into a user’s wallet."],
+                ["sell(address token, uint256 amount, uint256 minUsdcOut, uint256 deadline, uint8 v, bytes32 r, bytes32 s)", "One transaction. The EIP-2612 permit replaces a separate approve."],
+                ["quoteBuy(address token, uint256 usdcIn) view", "Returns (tokensOut, fee). Use it rather than reimplementing the curve."],
+                ["quoteSell(address token, uint256 amount) view", "Returns (usdcOut, fee)."],
+                ["snipeTaxBps(address token, address buyer) view", "The launch tax this buyer would pay right now, in bps. Zero once the window has passed."],
+              ]}
+            />
+            <Note>
+              <B>quoteBuy does not include the launch tax.</B> buy() takes the tax
+              off the value sent first and charges the {CURVE.tradeFeeBps / 100}% fee
+              on what is left, so during a launch window a direct quote is too high
+              and the buy reverts on slippage. Take the tax off first:
+            </Note>
+            <Code>{`taxBps    = snipeTaxBps(token, buyer)
+spendable = usdcIn * (10000 - taxBps) / 10000
+(out, _)  = quoteBuy(token, spendable)
+minOut    = out * (10000 - slippageBps) / 10000
+buy{value: usdcIn}(token, recipient, minOut)`}</Code>
+            <P>
+              Outside the window snipeTaxBps returns zero and this collapses to
+              quoting directly. The window is never longer than
+              {" "}{CURVE.snipeWindowSeconds} seconds, and the contract will not
+              accept a longer one.
+            </P>
+            <P>
+              Events worth decoding, all from that same address. topic0 is the
+              keccak256 of the signature, so nothing here has to be taken on trust:
+            </P>
+            <Endpoints
+              rows={[
+                ["Bought(address,address,address,uint256,uint256,uint256,uint256)", "token, recipient, payer, usdcIn, fee, creatorFee, tokensOut"],
+                ["Sold(address,address,uint256,uint256,uint256,uint256)", "token, seller, tokensIn, usdcOut, fee, creatorFee"],
+                ["TokenRegistered(address,address)", "token, creator — a new coin exists"],
+                ["Graduated(address,uint256,uint256,uint256)", "token, usdcSeed, tokenSeed, graduationFee — the curve is closed"],
+              ]}
+            />
+          </Section>
+
           <Section id="network" title="Network">
             <Facts
               rows={[
@@ -373,6 +427,14 @@ function Facts({ rows }: { rows: [string, string][] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+function Code({ children }: { children: React.ReactNode }) {
+  return (
+    <pre className="overflow-x-auto rounded-md border border-line bg-surface px-3.5 py-3">
+      <code className="num text-[12.5px] leading-[1.7] text-ink">{children}</code>
+    </pre>
   );
 }
 

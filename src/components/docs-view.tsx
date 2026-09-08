@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ARC_TESTNET, ARC_TESTNET_CONTRACTS, CURVE } from "@/lib/arc";
+import { SITE_REPO } from "@/lib/site";
 
 /**
  * The docs.
@@ -240,6 +241,13 @@ export function DocsView() {
               protocol fees, and set the factory address once at deployment.
               There is no pause, no upgrade, and no path from the owner to a
               curve reserve or a creator&apos;s fees.
+            </P>
+            <P>
+              The whole thing is public — contracts, indexer and this site — at
+              {" "}<A href={SITE_REPO}>github.com/matco01/Aroma</A>. Readable and
+              auditable, though not open source: it is under the Business Source
+              License, which converts to MIT in 2030 rather than permitting a
+              competing deployment today.
             </P>
           </Section>
 

@@ -33,3 +33,10 @@ export const SITE_TAGLINE = "Launch and trade coins on Arc";
  */
 export const SITE_DESCRIPTION =
   "Aroma is a bonding-curve launchpad on Arc, Circle's Layer 1 where USDC is the native gas token. Launch a fixed-supply coin in one transaction and trade it instantly — every price is already a dollar.";
+
+/**
+ * The source, which is public and readable but not open source — it is under
+ * the Business Source License, so it converts to MIT on a fixed date rather
+ * than granting production use today.
+ */
+export const SITE_REPO = "https://github.com/matco01/Aroma";

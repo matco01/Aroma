@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ARC_TESTNET, CURVE } from "@/lib/arc";
+import { SITE_REPO } from "@/lib/site";
 
 /**
  * Pons puts its trust model in plain language in the footer instead of a
@@ -58,6 +59,7 @@ export function SiteFooter() {
           <FooterCol title="Legal">
             <FooterLink href="/terms">Terms of use</FooterLink>
             <FooterLink href="/privacy">Privacy policy</FooterLink>
+            <FooterExternal href={SITE_REPO}>Source on GitHub</FooterExternal>
           </FooterCol>
         </div>
 

@@ -1,202 +1,70 @@
-# Aroma contracts
+# Contracts
 
-Bonding-curve launchpad contracts for [Arc](https://arc.io), Circle's L1
-where USDC is the native gas token.
+Foundry workspace. Solidity 0.8.28, pinned per-file rather than globally so
+that `v4-core`, which pins 0.8.26, can be compiled in the same project.
 
-## Setup
-
-`lib/` is gitignored, so dependencies need restoring after a fresh clone:
-
-```bash
-forge install foundry-rs/forge-std --no-git --no-commit
-forge install OpenZeppelin/openzeppelin-contracts --no-git --no-commit
-forge install Uniswap/v4-core --no-git --no-commit
-forge build
-forge test
-```
-
-## The contracts
-
-| Contract | Role |
-|---|---|
-| `AromaToken.sol` | The ERC-20 each launch deploys. Fixed 1B supply, no mint function, no owner. ERC20Permit so a sell is one signed transaction. |
-| `CurveManager.sol` | One shared contract holding every token's curve state, trading, fees, and graduation. Not one curve per token — cheaper at volume, one audit surface. |
-| `AromaFactory.sol` | Deploys a token, registers it, and optionally runs the creator's dev-buy, in a single transaction. |
-
-## Economics
-
-Every token launches with identical mechanics — that uniformity *is* the
-fairness pitch, so none of these are per-token configurable.
-
-| | |
-|---|---|
-| Total supply | 1,000,000,000 (fixed) |
-| Sold via curve | 800,000,000 |
-| Held for graduation LP | 200,000,000 |
-| Starts at | ~$4,312.50 market cap (price x full supply, before any buy) |
-| Graduates at | $13,800 raised / $69,000 market cap |
-| Launch -> graduation | 16.0x |
-| Creation fee | **Free** — pump.fun charges $0 to create, and taxing creation works against the volume that actually earns |
-| Trade fee | 1% on buys and sells (matches Pons) |
-| Fee split | 70% to the token's creator, 30% protocol (matches Pons) |
-| Graduation fee | $10 flat, skimmed from the raise |
-| Dev-buy cap | $2,000 — **placeholder, not a decided number** |
-
-## Curve math
-
-The curve is constant-product with virtual reserves, pump.fun-style. The
-virtual reserves are *derived* from the economics above, not chosen —
-`script/math/derive_curve.py` solves for them with exact rational
-arithmetic and verifies by simulation:
-
-```bash
-python script/math/derive_curve.py
-```
-
-If any target above changes, re-run that script and update the constants in
-`CurveManager.sol`. They are not independent, and
-`test_graduationLandsExactlyOnDerivedTargets` will fail if they drift apart.
-
-Rounding is protocol-favouring everywhere (`Math.ceilDiv` on the
-invariant-preserving leg), so integer dust always stays with the protocol
-rather than being extractable by a trader repeating a trade.
-`testFuzz_buyThenSellIsNeverProfitable` is the guard on that.
-
-### The raise target is not a free parameter
-
-At graduation the pool is seeded with the raise and the unsold tokens, so it
-opens at `raise / lpReserve`. Matching the price the curve just closed at
-forces:
-
-```
-lpReserve / totalSupply  ==  graduationRaise / graduationMarketCap
-```
-
-A 20% LP reserve against a $69,000 graduation therefore *requires* a
-$13,800 raise. The two constants are one decision.
-
-The original $24,000 got this wrong: the pool would have opened at a
-$119,950 market cap against a curve closing at $69,000, a **73.8% jump**
-handed to whoever held through migration and paid for by whoever bought into
-the new pool. It also flattened the curve badly — launch to graduation was
-only 5.3x, against pump.fun's ~15x.
-
-Fixed by moving the raise to $13,800, which leaves the 80/20 split untouched
-and lands the start at $4,312.50 for 16.0x. `derive_curve.py` now asserts
-continuity, and `test_graduationPoolOpensAtTheCurvesClosingPrice` fails on
-the old constants — verified by putting them back.
-
-## Deployed — Arc testnet (chain 5042002)
-
-| Contract | Address |
-|---|---|
-| CurveManager | `0x1a5ae846E6d9944d9190553bb8085bE3C0251285` |
-| AromaFactory | `0xedc289C837b01F6B893275E22CbcfF56040cDf51` |
-
-Redeployed 2026-09-04 with the retuned curve (see below). Earlier pairs at
-`0x4697…1a5D`/`0x371F…1b44` and `0xfc63…5540`/`0xaBa7…589B` are superseded
-and carry the old $24,000 raise.
-
-Full lifecycle exercised on-chain on 2026-09-03 — launch, dev-buy, public
-buy, permit sell, creator-fee claim. Measured costs at ~24 gwei effective:
-
-| Action | Gas | Cost |
-|---|---|---|
-| Deploy CurveManager | 2,581,360 | 0.0663 USDC |
-| Deploy AromaFactory | 1,829,601 | 0.0470 USDC |
-| `createToken` (with dev-buy) | 1,222,414 | 0.0296 USDC |
-| `buy` | 70,096 | 0.0017 USDC |
-| `sell` (incl. permit) | 110,423 | 0.0027 USDC |
-| `claimCreatorFees` | 37,905 | 0.0009 USDC |
-
-Verified against live chain state rather than docs:
-
-- Chain ID 5042002, base fee exactly 20 gwei — the documented floor is real.
-- **Native USDC is 18 decimals, the ERC-20 view is 6** — same balance, ratio
-  exactly 1e12, confirmed by reading both for one account. This is the
-  assumption the whole contract's accounting rests on.
-- Fee split landed at exactly 70/30 on-chain.
-- Solvency held to the wei: curve balance `1498335918240201555` equalled
-  reserve + protocol pot exactly.
+| Contract | What it does |
+| --- | --- |
+| `AromaToken` | Fixed-supply ERC-20 with `ERC20Permit`. No mint function, no owner. |
+| `AromaFactory` | Deploys a token and registers it with the curve in one transaction. |
+| `CurveManager` | Every curve, in one contract. Buying, selling, fees, graduation. |
+| `LiquidityLocker` | Receives a graduated coin's raise and seeds a Uniswap v4 pool it cannot unwind. |
 
 ## Testing
 
 ```bash
-forge test                                   # everything
-forge test --match-contract Invariants       # stateful fuzzing only
+forge test
 ```
 
-40 unit and fuzz tests, plus 4 stateful invariants exercised over ~128,000
-randomly-sequenced calls. The invariants are the ones that matter most,
-because they hold against call sequences nobody thought to write:
+61 tests. The suite includes an invariant run that exercises
+buy/sell/create/graduate/withdraw across 128,000 calls, asserting the curve
+stays solvent, never oversells, and that graduation is irreversible.
 
-| Invariant | Why it matters |
-|---|---|
-| `contractIsAlwaysSolvent` | Native balance always covers every curve reserve + unclaimed creator fee + protocol pot. If this breaks, someone's funds are unbacked. |
-| `curveNeverOversells` | Sold supply never exceeds `CURVE_SUPPLY`, so graduation always has its LP reserve intact. |
-| `unsoldTokensAreStillHeld` | The contract still holds what it hasn't sold. |
-| `graduationIsIrreversible` | A graduated token can't return to trading against supply it no longer holds. |
+The graduation tests deploy Uniswap's **real** `PoolManager` through
+`vm.deployCode` rather than a mock — a mock written against our own
+assumptions would agree with our own mistakes. `test/v4/CompileV4.sol` exists
+only to force that artifact to be compiled; nothing imports it.
 
-## Security review notes
+## Dependencies
 
-No third-party audit. What follows is a self-review, which is not the same
-thing — it catches what the author thought to look for.
+`lib/` is not committed, is not a submodule, and has no lockfile, so a fresh
+clone cannot build until it is restored.
 
-Findings that were **found and fixed**:
+```bash
+forge install foundry-rs/forge-std@v1.16.2
+forge install OpenZeppelin/openzeppelin-contracts@v5.7.0
+```
 
-- **`MAX_DEV_BUY_USDC` was never enforced.** Declared as a constant and
-  documented as enforced; nothing checked it. A creator could have taken
-  most of the curve at its cheapest prices before anyone else knew the
-  token existed. Now enforced in `AromaFactory.createToken`, with a
-  regression test.
-- **`graduate()` left `realUsdcReserve` populated** after the USDC had
-  physically left the contract, claiming backing that wasn't there. Now
-  zeroed; the solvency invariant covers it.
-- **`graduationVault` was owner-settable**, meaning the owner key could
-  redirect every graduating token's entire raise. Now `immutable`.
-- Dust trades that rounded to zero output still charged a fee.
-- Ownership was single-step (`Ownable`), so one mistyped transfer would
-  permanently lose pause and fee control. Now `Ownable2Step`.
-- Emergency pause didn't cover creator fee claims, so it wouldn't have
-  contained an active drain.
+**`v4-core` cannot currently be restored this way.** The vendored copy reports
+npm version 1.0.2, but that is not a git tag — the repository has only ever
+tagged `v4.0.0`, whose `PoolManager.sol` is 393 lines to our 395 with a
+different hash, and no commit in the recent history of that file matches ours
+either. What `LiquidityLocker` compiles against therefore cannot be identified
+from anything published, and `forge install Uniswap/v4-core` would fetch
+something else.
 
-Accepted, by design:
+That is a correctness problem rather than an inconvenience: a different
+`v4-core` is different graduation bytecode from the one the tests and the
+testnet deployment exercised. Until it is pinned properly — vendored into git,
+or a submodule at an identified commit — copy `lib/v4-core/` from a machine
+that already has it, and treat resolving it as a prerequisite for deploying to
+mainnet.
 
-- **Sandwich/front-running on the curve.** Inherent to a public
-  deterministic curve; mitigated by on-chain slippage bounds (enforced,
-  not merely displayed) and Arc's sub-second finality.
-- **Rounding dust favours the protocol.** Deliberate and fuzz-guarded —
-  the alternative is a trader-extractable edge.
+## Deploying
 
-## Known gaps before mainnet
+Copy `.env.example` to `.env` and fill it in. Then:
 
-- **Graduation seeds a real v4 pool — but only where v4 exists.**
-  `LiquidityLocker` is the `graduationVault` now. It creates the pool,
-  adds the graduation seed as full-range liquidity, and locks it: no
-  function on it can reduce a position or move one out. Seeding is a
-  separate call from `graduate()` on purpose — inlining it would mean any
-  revert inside Uniswap made graduation itself impossible, stranding a
-  fully-raised token. The locker takes the PoolManager address immutably
-  at construction, so testnet (no v4) and mainnet (v4) differ by one
-  constructor argument and nothing else.
+```bash
+forge script script/Deploy.s.sol --rpc-url arc_testnet --broadcast --verify
+```
 
-  Tested against v4-core's **real** `PoolManager`, not a mock — pool
-  creation, price, liquidity, permissionless seeding and the absence of an
-  escape hatch. It has **never run against the deployed Arc singleton**,
-  because Arc mainnet was not publicly reachable when this was written.
-  That is the remaining risk and it cannot be closed until mainnet is up.
-- **`depositGraduatedFees()` is open to any caller.** Safe (it can only
-  credit value actually attached, never fabricate or redirect funds), but
-  should be locked to `LiquidityLocker` once fee collection is exercised
-  against a live pool.
-- **Post-graduation creator fees flow through `LiquidityLocker.collectFees`,
-  which is untested against real swap fees.** The path is written and the
-  ledger and claim side already work; what has not happened is a real swap
-  generating real fees for it to harvest.
-- **`MAX_DEV_BUY_USDC` ($2,000) and `GRADUATION_FEE_USDC` ($10) are
-  placeholders**, not researched numbers.
-- **Testnet only.** Deployed and exercised on Arc testnet (launch, dev-buy,
-  buy, permit sell, creator-fee claim, all confirmed on-chain, including a
-  buy driven through the browser UI). Mainnet is untouched, and graduation
-  has never run against real liquidity because reaching it needs $24,000
-  and the faucet gives 20 USDC per two hours.
+`POOL_MANAGER` is the variable that matters. It is immutable once
+`LiquidityLocker` is constructed, and the locker has no withdraw function of
+any kind — so deploying with it unset or wrong means every coin that graduates
+sends its USDC and tokens somewhere nothing can retrieve them from.
+`Deploy.s.sol` refuses an address with no code on the target chain. Do not
+route around that check.
+
+On Arc testnet, leave it unset: Uniswap v4 is not deployed there, and the
+locker handles a zero address by holding graduation funds without seeding a
+pool.

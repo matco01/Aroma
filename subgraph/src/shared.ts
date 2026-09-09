@@ -10,6 +10,8 @@ import {
   ZERO,
   PROTOCOL_ID,
   CANDLE_INTERVALS,
+  VENUE_CURVE,
+  Q192,
 } from "./constants";
 
 /**
@@ -70,6 +72,12 @@ export function getOrCreateToken(
   token.createdAt = timestamp;
   token.createdAtBlock = block;
   token.createdTx = tx;
+  // Defaults to the curve, because this path only runs when a *trade*
+  // arrived before its announcement, and only CurveManager can do that —
+  // a pool cannot be swapped against before PoolFactory has created it.
+  // The pool mapping sets both fields explicitly on launch.
+  token.venue = VENUE_CURVE;
+  token.poolId = null;
   token.reserve = ZERO;
   token.tokensSold = ZERO;
   token.price = spotPrice(ZERO, ZERO);
@@ -175,4 +183,24 @@ export function updateCandles(
 
 export function tradeId(event: ethereum.Event): string {
   return event.transaction.hash.toHexString() + "-" + event.logIndex.toString();
+}
+
+/**
+ * Spot price in USDC per token, 18-decimal, from a v4 pool's sqrtPriceX96.
+ *
+ * The pool's own price is currency1 per currency0 — tokens per USDC, since
+ * native USDC sorts first as address zero. What the UI wants is the
+ * reciprocal, and because both currencies carry 18 decimals on Arc there is
+ * no decimal correction to apply:
+ *
+ *     price = WAD / (sqrtPriceX96 / 2^96)^2
+ *           = WAD * 2^192 / sqrtPriceX96^2
+ *
+ * The 6-vs-18-decimal duality that makes Arc's native USDC hazardous does
+ * not reach here: the pool is built on the 18-decimal native view, and the
+ * ERC-20 view is a display concern the frontend handles.
+ */
+export function priceFromSqrtX96(sqrtPriceX96: BigInt): BigInt {
+  if (sqrtPriceX96.equals(ZERO)) return ZERO;
+  return WAD.times(Q192).div(sqrtPriceX96.times(sqrtPriceX96));
 }

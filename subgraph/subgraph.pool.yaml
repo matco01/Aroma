@@ -1,0 +1,105 @@
+specVersion: 1.0.0
+description: >
+  Aroma — pool launches on Arc. Same schema and the same entities as the
+  curve subgraph, so the board, the API and the DEX Screener adapter work
+  across both venues unchanged; only the mappings differ.
+repository: https://github.com/matco01/Aroma
+schema:
+  file: ./schema.graphql
+
+# The network slug is `arc`, not `arc-mainnet` - that is The Graph's
+# identifier for Arc mainnet (eip155:5042). The testnet manifest's
+# `arc-testnet` is a different network entirely, which is the point.
+#
+# A separate manifest rather than more dataSources in subgraph.yaml, because
+# every dataSource in one subgraph must share a network and these do not: the
+# curve system is deployed on Arc testnet, and the pool system cannot be —
+# Uniswap is not deployed there at any version, so there is nothing for it to
+# build a pool on. They are two deployments of one schema.
+
+dataSources:
+  # Launches. One event per token, ever.
+  - kind: ethereum
+    name: PoolFactory
+    network: arc
+    source:
+      # FIXME: fill in from the DeployPool.s.sol output. Not a placeholder
+      # that can be guessed — PoolFactory is deployed fresh, and the vault it
+      # points at has a mined address.
+      address: "0x0000000000000000000000000000000000000000"
+      abi: PoolFactory
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/pool.ts
+      entities: [Token, Account, Protocol, PoolRef]
+      abis:
+        - name: PoolFactory
+          file: ./abis/PoolFactory.json
+      eventHandlers:
+        - event: TokenCreated(indexed address,indexed address,indexed bytes32,string,string,string,string,uint256)
+          handler: handleTokenCreated
+
+  # All trading.
+  #
+  # This is the hot path, and it is hotter than the curve equivalent for a
+  # structural reason: v4 is a singleton, so this handler is called for every
+  # swap in every v4 pool on the chain, not only ours. handleSwap discards
+  # the rest on its first line via a PoolRef lookup.
+  #
+  # startBlock matters more than usual here. Left at the PoolManager's own
+  # deployment it would replay every unrelated v4 swap since Arc's launch
+  # before reaching anything of ours — set it to the block PoolVault was
+  # deployed in.
+  - kind: ethereum
+    name: PoolManager
+    network: arc
+    source:
+      # Uniswap v4 on Arc mainnet, from Uniswap's sdk-core address table and
+      # their UniswapX chain playbook, which agree. Not ours, and not
+      # something the deploy fills in.
+      address: "0x8366a39cc670b4001a1121b8f6a443a643e40951"
+      abi: PoolManager
+      # FIXME: the block PoolVault was deployed in.
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/pool.ts
+      entities: [Token, Trade, Balance, Account, Candle, Protocol, PoolRef]
+      abis:
+        - name: PoolManager
+          file: ./abis/PoolManager.json
+      eventHandlers:
+        - event: Swap(indexed bytes32,indexed address,int128,int128,uint160,uint128,int24,uint24)
+          handler: handleSwap
+
+  # Fees. The hook's own events, which are the authority on what was charged
+  # — the amounts in a Swap event are net of the fee on a buy and gross of it
+  # on a sell, so they cannot settle the fee ledger on their own.
+  - kind: ethereum
+    name: PoolVault
+    network: arc
+    source:
+      # FIXME: fill in from the DeployPool.s.sol output. This address is
+      # mined, so it is neither guessable nor stable across redeploys.
+      address: "0x0000000000000000000000000000000000000000"
+      abi: PoolVault
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/pool.ts
+      entities: [Token, Protocol]
+      abis:
+        - name: PoolVault
+          file: ./abis/PoolVault.json
+      eventHandlers:
+        - event: FeeTaken(indexed address,uint256)
+          handler: handleFeeTaken
+        - event: CreatorFeesClaimed(indexed address,indexed address,uint256)
+          handler: handleCreatorFeesClaimed

@@ -24,6 +24,19 @@ type Token @entity(immutable: false) {
   createdAtBlock: BigInt!
   createdTx: Bytes!
 
+  """
+  Which mechanism launched this token: "curve" for CurveManager, "pool" for
+  a Uniswap v4 pool.
+
+  Both write the same entities on purpose, so every board and API query
+  already works across both without knowing which is which. This field
+  exists so the UI can label them, and so "only the indexed ones" is a
+  query rather than a join.
+  """
+  venue: String!
+  """The v4 PoolId. Null for curve launches, which have no pool."""
+  poolId: Bytes
+
   # --- live curve state, updated on every trade ---
   "Net USDC held by the curve, 18-decimal."
   reserve: BigInt!
@@ -142,4 +155,18 @@ type Protocol @entity(immutable: false) {
   graduatedCount: Int!
   totalVolume: BigInt!
   totalFees: BigInt!
+}
+
+"""
+poolId -> token, so a PoolManager swap can be resolved to the launch it
+belongs to.
+
+v4 is a singleton: every swap on the whole chain arrives at one handler,
+identified only by PoolId. Without this lookup the mapping has no way to
+tell an Aroma pool from any other v4 pool on Arc, and the handler would
+have to load-and-discard on every unrelated swap.
+"""
+type PoolRef @entity(immutable: true) {
+  id: ID!                      # poolId, hex
+  token: Token!
 }

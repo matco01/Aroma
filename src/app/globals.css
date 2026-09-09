@@ -413,3 +413,51 @@ select:focus-visible {
     animation: none;
   }
 }
+
+/* =========================================================================
+   Phone legibility
+
+   Desktop is deliberately untouched — it reads correctly and these values
+   were tuned for it. What changes on a small screen is the viewing
+   distance and the physical size of a hairline, not the palette: the same
+   ramp that separates cleanly at arm's length on a 27" panel collapses
+   into one sheet on a phone held at 30cm, and the page stops looking like
+   objects and starts looking like text scattered on a background.
+
+   So this lifts the two things that carry separation — the tertiary text
+   that most of the small type uses, and the edges that make a panel a
+   panel — and leaves everything else alone. No sizes change, because a
+   layout that has been checked at these sizes should not be re-flowed
+   sight-unseen.
+
+   Targeting the generated utility names rather than the theme variables is
+   deliberate: `@theme inline` resolves the variables into the utilities at
+   build time, so overriding `--color-ink-3` here would change nothing.
+   These rules sit outside any cascade layer and therefore beat Tailwind's
+   layered utilities without needing !important.
+   ========================================================================= */
+@media (max-width: 640px) {
+  /* ink-3 carries the labels, addresses and ages — most of what someone
+     has to squint at. ink-2 moves with it so the two stay a step apart
+     rather than collapsing together. */
+  .text-ink-3 {
+    color: #b3aba1;
+  }
+  .text-ink-2 {
+    color: #d6cfc6;
+  }
+
+  /* A 1px hairline at 1.2:1 is a rumour on a phone. */
+  .border-line {
+    border-color: #4a4e57;
+  }
+  .border-line-strong {
+    border-color: #5b606a;
+  }
+
+  /* Small caps at 11.5px is under the practical floor for uppercase with
+     letter-spacing on a phone. */
+  .label {
+    font-size: 12px;
+  }
+}

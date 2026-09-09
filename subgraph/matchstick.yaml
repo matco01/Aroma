@@ -1,0 +1,5 @@
+# Matchstick points at the pool manifest, not the default subgraph.yaml:
+# the unit tests here cover src/pool.ts, and the two manifests cannot be one
+# subgraph because their data sources are on different networks.
+testsFolder: ./tests
+manifestPath: ./subgraph.pool.yaml

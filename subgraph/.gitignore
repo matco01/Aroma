@@ -1,3 +1,10 @@
 node_modules/
 generated/
 build/
+# The pool manifest builds to its own directory so the two manifests do
+# not overwrite each other's output.
+build-pool/
+# Matchstick binary, fetched per-platform. 27MB and not source.
+.bin/
+# Matchstick writes the version it last ran into the tests folder.
+tests/.latest.json

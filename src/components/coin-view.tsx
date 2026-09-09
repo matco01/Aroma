@@ -75,13 +75,15 @@ export function CoinView({ address }: { address: string }) {
         <IndexerStatus health={data?.indexer} />
       </div>
 
-      {/* Three items, not two, so the phone can put the trade panel between
-          the chart and the trades table. Stacked in DOM order a two-column
-          layout buries the buy box under the whole activity table, which on
-          a phone is most of a screen of scrolling to reach the one control
-          the page exists for. Explicit placement at lg keeps the desktop
-          layout exactly as it was: chart and table in column one, panel
-          spanning both rows in column two. */}
+      {/* Four items, so a phone gets identity, then the trade panel, then
+          the chart, then the table — in that order.
+
+          The panel sits above the chart rather than below it because the
+          page exists to be traded on. A chart is what you look at once you
+          have decided to care; the buy box is what you came for, and on a
+          phone anything below the fold may as well not be there. Desktop is
+          untouched: explicit placement at lg keeps column one as identity,
+          chart, table with the panel spanning all three rows beside it. */}
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <div className="flex items-start gap-3">
@@ -117,7 +119,7 @@ export function CoinView({ address }: { address: string }) {
               </div>
             </div>
             <div className="text-right">
-              <div className="num text-[20px] text-ink">{price(coin.priceUsd)}</div>
+              <div className="num text-[24px] text-ink sm:text-[20px]">{price(coin.priceUsd)}</div>
               <div className={`num text-[12px] ${up ? "text-up" : "text-down"}`}>
                 {pct(coin.change24hPct)} <span className="text-ink-3">all</span>
               </div>
@@ -143,18 +145,31 @@ export function CoinView({ address }: { address: string }) {
             />
           </div>
 
-          <div className="mt-4.5">
-<PriceChart series={data?.series ?? []} />
-          </div>
         </div>
 
         {/* min-w-0 is load-bearing. A grid item defaults to min-width:auto,
             so without it the trade panel's min-content width sets the track
             for the whole single-column mobile layout — and drags the left
             column out with it, scrolling the entire page sideways. */}
-        <aside className="min-w-0 space-y-4.5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-[calc(var(--header-h)+16px)] lg:self-start">
+        <aside className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-[calc(var(--header-h)+16px)] lg:self-start">
           <TradePanel coin={coin} />
+        </aside>
 
+        {/* Carded on a phone, bare on desktop. Stacked single-column the
+            chart sits between two bordered panels with nothing of its own,
+            so it reads as a gap rather than a section. On desktop it has a
+            whole column to itself and needs no help. */}
+        <div className="min-w-0 rounded-lg border border-line bg-surface p-3 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:col-start-1 lg:row-start-2">
+          <PriceChart series={data?.series ?? []} />
+        </div>
+
+        {/* Everything that is context rather than action. Split out of the
+            sidebar so that on a phone the chart lands directly under the
+            swap box: creator fees and graduation progress are things you
+            read once, and three cards between the buy button and the price
+            is three cards of scrolling to check the price before buying.
+            On desktop they sit under the panel exactly as before. */}
+        <div className="min-w-0 space-y-4.5 lg:col-start-2 lg:row-start-3">
           <CreatorFees coin={coin} />
 
           <div className="rounded-md border border-line bg-surface p-3.5">
@@ -188,11 +203,9 @@ export function CoinView({ address }: { address: string }) {
           >
             View on Arcscan ↗
           </a>
-        </aside>
+        </div>
 
-        {/* Last in DOM, so on a phone it lands below the trade panel; back
-            under the chart in column one on desktop. */}
-        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-3">
           <CoinActivity
             trades={trades ?? []}
             holders={holders}

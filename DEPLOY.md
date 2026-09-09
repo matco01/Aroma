@@ -3,6 +3,10 @@
 One long-lived container. Not serverless, and not replicated — see
 "Why one process" below before changing either.
 
+This covers the app. For bringing the **pool system** up on Arc mainnet —
+contracts, subgraph, the frontend work it needs, and the order to do it in
+— see [LAUNCH.md](LAUNCH.md).
+
 ## Railway
 
 1. New project → Deploy from GitHub repo. Railway detects the `Dockerfile`

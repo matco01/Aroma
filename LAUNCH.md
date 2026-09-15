@@ -47,13 +47,10 @@ Uniswap has published no Universal Router for Arc, so the system ships its
 own: `src/pool/AromaRouter.sol`. It also keeps sells to a single signature
 (§5.1). Nothing to do here.
 
-### 0.4 Decide: replace the curve, or run both
+### 0.4 ~~Decide: replace the curve, or run both~~ — decided
 
-The subgraph writes identical entities for both venues, so the board, the API
-and the DEX Screener adapter work either way. Running both means the trade
-panel branches on `Token.venue`; replacing means it does not. **Running both
-is the smaller change and the safer launch** — the curve keeps working while
-the pool path proves itself.
+Pool system only. The curve stays on testnet and nothing the app ships reads
+it. The frontend is built for that (§5).
 
 ### 0.5 Get the contracts reviewed
 
@@ -64,9 +61,7 @@ accounting, and a bug in the mint/settle path fails closed. **The exposed
 surface is the hook's fee accounting** — `beforeSwap`/`afterSwap`, roughly
 120 lines — because fees can be withdrawn. Get at least that reviewed.
 
-### 0.6 Frontend — see §5. It is the long pole.
-
----
+### 0.6 ~~Frontend~~ — done, and rehearsed on a fork. See §5.
 
 ## 1. Deploy the contracts
 
@@ -74,9 +69,20 @@ surface is the hook's fee accounting** — `beforeSwap`/`afterSwap`, roughly
 cd contracts
 # .env needs: DEPLOYER_PRIVATE_KEY, PROTOCOL_OWNER, POOL_MANAGER,
 #             ARC_MAINNET_RPC_URL
+forge clean && forge build      # NOT optional — see below
 forge test                      # 100 tests must pass (61 curve + 39 pool)
 python script/math/derive_pool.py   # must exit 0
 ```
+
+**`forge clean` is mandatory, and so is §1.2.** On 2026-09-15 a rehearsal on a
+fork deployed an `AromaRouter` and `PoolFactory` from *before* the
+partial-fill fix, with every test green. `new AromaRouter(...)` embeds the
+router's bytecode inside the deploy script's own artifact; a
+`forge test --match-path` run had recompiled the router and marked it current
+in the shared cache without rebuilding the script, so `forge script` said
+"No files changed, compilation skipped" and shipped the stale copy. On mainnet
+that is a loss-of-funds bug, live. A clean build prevents it and §1.2 proves
+it did not happen.
 
 `POOL_MANAGER` is `0x8366a39cc670b4001a1121b8f6a443a643e40951` on Arc
 mainnet. **Verify it has code before broadcasting** — the script refuses an
@@ -128,7 +134,20 @@ cast call <PoolVault> "owner()(address)" --rpc-url arc_mainnet
 cast call <PoolVault> "pendingOwner()(address)" --rpc-url arc_mainnet  # 0x0
 ```
 
-### 1.2 Verify on Arcscan
+### 1.2 Confirm the bytecode is this repository's — before anything else
+
+```bash
+node script/verify-bytecode.mjs "$ARC_MAINNET_RPC_URL" \
+  PoolVault=<vault> PoolFactory=<factory> AromaRouter=<router>
+```
+
+Compares the runtime code at each address with a fresh build, immutables and
+metadata masked. **All three must say PASS.** A FAIL means the chain has a
+different contract than the one tested: do not publish the addresses, `forge
+clean && forge build`, and redeploy. It was run against the stale fork deploy
+above and failed it, and against a clean one and passed it.
+
+### 1.3 Verify on Arcscan
 
 `contracts/foundry.toml` notes that Arcscan's verification API is unconfirmed
 and may not be Etherscan-compatible. Check against Arcscan's own docs rather
@@ -138,30 +157,32 @@ than assuming `forge verify-contract` works.
 
 ## 2. Wire the addresses in
 
-### 2.1 `src/lib/arc.ts`
+### 2.1 `src/lib/arc.ts` — the only file that changes
 
-Add an `ARC_MAINNET` chain entry (id **5042**) and an
-`ARC_MAINNET_CONTRACTS` block with `poolVault`, `poolFactory`, `aromaRouter`,
-`poolManager` and `deployBlock`. Contract addresses are deliberately code,
-not environment variables — see [DEPLOY.md](DEPLOY.md) for why.
+The mainnet network, pool constants and contract slots already exist. Fill in
+`ARC_MAINNET_CONTRACTS`:
 
-`src/lib/wagmi.ts` needs the mainnet chain too; it currently hardcodes the
-testnet RPC.
+| Field | From |
+|---|---|
+| `poolFactory`, `poolVault`, `aromaRouter` | §1 output, after §1.2 passes |
+| `deployBlock` | block the vault was deployed in, as a bigint (`123n`) |
 
-### 2.2 `src/lib/abis.ts`
+and, in `ARC_MAINNET`, the `explorer` URL once Circle publishes one — empty
+hides every explorer link rather than pointing at a dead domain.
 
-Add `PoolFactory`, `PoolVault` and `AromaRouter` to the `WANT` list in
-`scripts/gen-abis.py`, then:
+While the addresses are empty `poolsDeployed` is false and the site shows
+"Launching on Arc mainnet soon" with every launch and trade button disabled.
+That is a safe state to deploy the app in before the contracts exist.
 
-```bash
-cd contracts && forge build && cd .. && npm run abis
-```
+`src/lib/abis.ts` and `src/lib/chain.ts` need nothing: the pool ABIs are
+generated, and the chain reads its RPC from the environment (§4).
 
-Minimum names: `createToken`, `TokenCreated`, `MAX_DEV_BUY_USDC`,
-`claimCreatorFees`, `launches`, `poolKey`, `TICK_GRADUATION`, `creatorOf`,
-and the router's `buy` and `sell`.
+Once Arc mainnet is confirmed to have multicall3 at
+`0xcA11bde05977b3631167028862bE2a173976CA11`, it can be declared in
+`src/lib/chain.ts` to batch reads. Left undeclared, wagmi makes individual
+calls instead — slower, still correct.
 
-### 2.3 `subgraph/subgraph.pool.yaml`
+### 2.2 `subgraph/subgraph.pool.yaml`
 
 Three `FIXME`s: `PoolFactory` address, `PoolVault` address, and `startBlock`
 on all three data sources.
@@ -170,8 +191,6 @@ on all three data sources.
 is called for *every swap in every v4 pool on Arc*. Left at 0 it will replay
 the entire chain's v4 history before reaching anything of yours. Set it to
 the deployment block.
-
----
 
 ## 3. Deploy the subgraph
 
@@ -210,7 +229,7 @@ Per [DEPLOY.md](DEPLOY.md) — one container, no replicas. Set/confirm:
 
 | Variable | |
 |---|---|
-| `SUBGRAPH_URL` | the new pool subgraph, once synced |
+| `SUBGRAPH_URL` | the pool subgraph once synced — **or unset** (below) |
 | `NEXT_PUBLIC_ARC_RPC_URL` | Arc **mainnet**, two endpoints for failover |
 | `NEXT_PUBLIC_REOWN_PROJECT_ID` | unchanged |
 | `PINATA_JWT`, `NEXT_PUBLIC_PINATA_GATEWAY` | unchanged |
@@ -218,77 +237,83 @@ Per [DEPLOY.md](DEPLOY.md) — one container, no replicas. Set/confirm:
 The three `NEXT_PUBLIC_*` ones must be set as **build args** as well, or the
 browser bundle ships whatever was baked in at image build.
 
----
+**Both of the first two currently hold testnet values**, locally and very
+likely on Railway: `NEXT_PUBLIC_ARC_RPC_URL` is `rpc.testnet.arc.io` and
+`SUBGRAPH_URL` is the testnet curve subgraph. Deploying without changing them
+builds a mainnet site that tells every wallet Arc lives at a testnet RPC and
+shows testnet curve coins on its board. If `NEXT_PUBLIC_ARC_RPC_URL` is unset
+it falls back to `https://rpc.mainnet.arc.io`.
 
-## 5. The frontend
+**Without a subgraph** (unset `SUBGRAPH_URL`), the board and coin pages read
+the chain directly — `src/lib/chain-data.ts`, rehearsed on the fork. It is a
+contingency, not a mode to stay in: search returns nothing, portfolios and the
+live stream answer 503, and every page load scans logs from `deployBlock`.
+Fine for launch day while Goldsky syncs; point `SUBGRAPH_URL` at the pool
+subgraph as soon as it has.
 
-**This is the largest remaining piece and none of it is done.** 26 files
-reference the curve. The ones that must change:
-
-### 5.1 The trade path — `src/lib/use-trade.ts`
-
-Smaller than it looks, because `AromaRouter` was written to mirror
-`CurveManager`'s call shapes.
-
-- **Buys**: `CurveManager.buy(token, recipient, minTokensOut)` becomes
-  `AromaRouter.buy{value}(token, minTokensOut)`. Native USDC in, so still no
-  approval.
-- **Sells**: `AromaRouter.sell(token, tokenAmount, minUsdcOut,
-  permitDeadline, v, r, s)` — **the same signature CurveManager.sell has.**
-  The existing EIP-2612 flow (read `nonces`, `signTypedData`, submit) is
-  unchanged apart from the spender address. No Permit2, no second approval
-  system, still one signed transaction.
-- **Quotes** are the only real change. `quoteBuy`/`quoteSell` are view calls
-  on CurveManager; the pool equivalent is Uniswap's v4 Quoter
-  (`0x8dc178ef…`), which is a *simulated* call — quote with `eth_call`, not
-  `useReadContract`, and expect it to revert-and-return rather than behave
-  like a view.
-
-### 5.2 Launching — `src/components/create-form.tsx`
-
-`AromaFactory.createToken(name, symbol, description, uri, devBuyUsdc,
-minDevTokensOut, guard)` becomes `PoolFactory.createToken(name, symbol,
-description, uri, devBuyUsdc, minTokensOut)`. The `LaunchGuard` struct is
-gone — there is no snipe protection on the pool path. Remove those inputs or
-hide them for pool launches.
-
-The dev-buy still exists and is still capped at `MAX_DEV_BUY_USDC`, so that
-part of the form is unchanged.
-
-### 5.3 Creator fees — `use-creator-fees.ts`, `use-creator-fees-batch.ts`
-
-`CurveManager.creatorFeesAccrued(token)` becomes
-`PoolVault.launches(token).creatorUsdc`. Claiming is
-`PoolVault.claimCreatorFees(token)`, which pays **native USDC** rather than
-transferring — the receiving wallet must accept a plain value transfer.
-
-### 5.4 Reads that assume curve state
-
-`board.ts`, `coin-view.tsx`, `trade-panel.tsx`, `coin-card.tsx`,
-`portfolio-view.tsx`, `chain-data.ts` all read `reserve`/`tokensSold`/
-`progressBps`. The subgraph populates those for pool tokens too, so
-**anything reading from the subgraph keeps working**. Only the paths that
-call the chain directly need changing.
-
-### 5.5 `src/lib/server/dex-adapter.ts`
-
-Its own header says it covers "exactly the window nothing else can see" and
-stops at graduation. For pool tokens that window does not exist — they are
-indexed from block zero. Decide whether it serves both venues or curve
-tokens only, and say so in the header.
-
-### 5.6 Copy
-
-`docs-view.tsx`, `terms/page.tsx`, `llms.txt`, `structured-data.tsx` and
-`site-footer.tsx` all describe a bonding curve and a graduation event. Pool
-coins have neither in the same sense — the curve is the pool, and graduation
-is a price level rather than an event.
+`NEXT_PUBLIC_AROMA_NETWORK` must be **unset** in production. `local` points
+the app at a fork on 127.0.0.1.
 
 ---
+
+## 5. The frontend — done
+
+Built on this branch against the pool system only.
+
+| Piece | Where |
+|---|---|
+| Network, pool constants, contract slots | `src/lib/arc.ts`, `src/lib/chain.ts` |
+| Buys, sells, launches, fee claims | `src/lib/pool-trade.ts` (plain functions), hooks in `use-trade.ts`, `use-creator-fees*.ts` |
+| Live previews and "can this fill" | `src/lib/pool-math.ts` |
+| Chain-read fallback for board and coin pages | `src/lib/chain-data.ts` |
+
+Worth knowing:
+
+- **Quotes are simulations of the exact router call**, not the Quoter and not
+  client maths, so the slippage floor is what the chain would produce. Sells
+  sign the permit first, simulate with it, then send.
+- **The wallet is switched to Arc before every transaction**, and asked to add
+  the network if it has never seen it. Nothing did this before; most wallets
+  arrive on another chain.
+- **A reverted transaction is reported as a failure.** The curve flow reported
+  any mined transaction as success.
+- **Graduation no longer disables trading** — in a pool it is a price level.
+- **The trade fee is inside the amount sent, not on top.** The curve panel
+  overstated every buy by 1%.
+- **Oversized trades are blocked in the panel** ("Too large for the pool")
+  before a wallet prompt, matching the router's refusal.
+- **`/api/dex/*` serves curve coins only.** Its reserve maths is the curve's
+  and would publish false depth for a pool; pool coins are indexed as ordinary
+  v4 pools (docs §Indexing).
+- Gas figures in the UI are measured on the fork (buy 138,866, sell 166,960,
+  launch with first buy 1,594,140) but priced at testnet's ~24 gwei. Adjust
+  once mainnet shows its gas price.
+
+### 5.1 Rehearsing on a fork
+
+What was run on 2026-09-15, and what to re-run after any change:
+
+```bash
+anvil --fork-url https://eth.drpc.org --fork-block-number 25900000 \
+  --chain-id 31337 --mnemonic "<fresh mnemonic>" --balance 100000
+# deploy with POOL_MANAGER=0x000000000004444c5dc75cB358380D2e3dE08A90
+NEXT_PUBLIC_AROMA_NETWORK=local \
+NEXT_PUBLIC_LOCAL_POOL_FACTORY=<factory> NEXT_PUBLIC_LOCAL_POOL_VAULT=<vault> \
+NEXT_PUBLIC_LOCAL_AROMA_ROUTER=<router> NEXT_PUBLIC_LOCAL_DEPLOY_BLOCK=25900000 \
+NEXT_PUBLIC_ARC_RPC_URL=http://127.0.0.1:8545 SUBGRAPH_URL= npm run build
+```
+
+Results: `pool-trade.ts` driven directly — launch, buy, permit sell, claim,
+the cap, a mined revert — 22/22, with tokens and USDC received equal to the
+simulated quote to the wei and pool-math previews within 0.00000%. The site
+itself in a browser with a wallet starting on chain 1 — launch through the
+form, auto-switch, buy, sell, oversized buy blocked, no sideways scroll on
+four pages at 390px — 17/17, plus 503s from the endpoints that need an index.
 
 ## 6. Smoke test, in this order
 
-Do all of it with a real but small dev-buy before announcing anything.
+Do all of it with a real but small dev-buy before announcing anything, and
+only after §1.2 has passed.
 
 1. **Launch a throwaway coin** with a ~$5 dev-buy. Confirm one transaction
    creates the token, the pool, both positions, and delivers tokens to the

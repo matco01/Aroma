@@ -5,7 +5,7 @@ import { CreateForm } from "@/components/create-form";
 export const metadata: Metadata = {
   title: "Launch a coin",
   description:
-    "Deploy a fixed-supply token on Arc in one transaction, priced in USDC from the first block.",
+    "Launch a fixed-supply coin on Arc in one transaction, trading in its own Uniswap v4 pool from the first block.",
 };
 
 /**
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
  *
  * The mechanics that mattered are still stated, next to the field they
  * actually affect: the cost panel says what launching costs and what a
- * creator earns, and the curve panel says where it graduates.
+ * creator earns, and the preview says what the coin opens at.
  */
 export default function CreatePage() {
   return (

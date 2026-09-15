@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CURVE } from "@/lib/arc";
+import { POOL } from "@/lib/arc";
 import { compact, pct, price, usd, usdExact } from "@/lib/format";
 import { usePortfolio, type Holding } from "@/lib/use-portfolio";
 import { IndexerStatus } from "./indexer-status";
@@ -50,7 +50,7 @@ export function PortfolioView() {
         <IndexerStatus health={data?.indexer} />
         <EmptyState
           title="No holdings yet"
-          body="Buy into a token on the curve and it shows up here."
+          body="Buy a coin and it shows up here."
           action={
             <Link
               href="/"
@@ -96,7 +96,7 @@ export function PortfolioView() {
           <span className="label w-24 shrink-0 text-right">Avg cost</span>
           <span className="label w-24 shrink-0 text-right">Value</span>
           <span className="label w-28 shrink-0 text-right">P&L</span>
-          <span className="label hidden w-24 shrink-0 md:block">Curve</span>
+          <span className="label hidden w-24 shrink-0 md:block">Graduation</span>
         </div>
 
         {rows.map((h) => (
@@ -119,7 +119,7 @@ function PositionRow({ holding }: { holding: Holding }) {
   const up = pnlUsd >= 0;
   const progress = coin.graduated
     ? 100
-    : Math.min(100, (coin.raisedUsd / CURVE.graduationTargetUsd) * 100);
+    : Math.min(100, (coin.raisedUsd / POOL.graduationRaiseUsd) * 100);
 
   return (
     <Link

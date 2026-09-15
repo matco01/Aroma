@@ -1,7 +1,7 @@
 "use client";
 
 import { usdPrecise } from "@/lib/format";
-import { CURVE } from "@/lib/arc";
+import { POOL } from "@/lib/arc";
 import { shortAddr } from "@/lib/format";
 import { useCreatorFees } from "@/lib/use-creator-fees";
 import type { Coin } from "@/lib/mock";
@@ -39,7 +39,7 @@ export function CreatorFees({ coin }: { coin: Coin }) {
       <div className="flex items-baseline justify-between">
         <span className="label">Creator fees</span>
         <span className="num text-[11px] text-ink-3">
-          {CURVE.creatorFeeShareBps / 100}% of each fee
+          {POOL.creatorFeeShareBps / 100}% of each fee
         </span>
       </div>
 

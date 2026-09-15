@@ -3,6 +3,7 @@ import { fetchTokenDetail } from "@/lib/server/board";
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { indexerLag } from "@/lib/server/lag";
 import { upstreamFailure } from "@/lib/server/upstream";
+import { fetchTokenFromChain } from "@/lib/chain-data";
 
 /**
  * One token, its trades and its price history — a single indexed read.
@@ -18,16 +19,39 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ address: string }> },
 ) {
-  if (!hasSubgraph) {
-    return NextResponse.json(
-      { error: "No subgraph configured. Set SUBGRAPH_URL." },
-      { status: 503 },
-    );
-  }
-
   const { address } = await params;
   if (!ADDRESS.test(address)) {
     return NextResponse.json({ error: "Not a contract address" }, { status: 400 });
+  }
+
+  if (!hasSubgraph) {
+    // No indexer — read the chain directly. This used to be a 503, which
+    // meant every coin page went dark with the indexer. It is the path the
+    // site falls back to if Arc mainnet cannot be indexed yet; see
+    // chain-data.ts.
+    try {
+      const detail = await fetchTokenFromChain(address);
+      if (!detail) {
+        return NextResponse.json({ error: "Token not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        ...detail,
+        indexer: {
+          indexedBlock: 0,
+          headBlock: null,
+          blocksBehind: null,
+          secondsBehind: null,
+          // Read from the chain itself a few seconds ago, so there is no
+          // index to be behind. "unknown" put a can't-reach-the-chain
+          // warning on every page served this way, which is the opposite
+          // of true.
+          status: "live" as const,
+          hasIndexingErrors: false,
+        },
+      });
+    } catch (e) {
+      return NextResponse.json({ error: upstreamFailure(e) }, { status: 502 });
+    }
   }
 
   try {

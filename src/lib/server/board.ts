@@ -1,7 +1,7 @@
 import "server-only";
 import { query, type SubgraphMeta } from "./subgraph";
 import { resolveImages } from "./ipfs";
-import { CURVE } from "../arc";
+import { POOL } from "../arc";
 import type { Coin } from "../mock";
 import type { Trade } from "../mock";
 
@@ -367,22 +367,22 @@ export async function fetchTokenDetail(address: string): Promise<{
   // bounded however much a token trades.
   const series: SeriesPoint[] = [...data.series]
     .reverse()
-    .map((p) => ({ t: Number(p.timestamp), m: toNum(p.priceAfter) * CURVE.totalSupply }));
+    .map((p) => ({ t: Number(p.timestamp), m: toNum(p.priceAfter) * POOL.totalSupply }));
 
   // Always end on the live price so the line's last point matches the
   // number printed beside it.
-  series.push({ t: now, m: livePrice * CURVE.totalSupply });
+  series.push({ t: now, m: livePrice * POOL.totalSupply });
 
   // A token with no trades still has a price — the curve's opening one —
   // so give the line something flat to draw rather than nothing.
   if (series.length < 2) {
     series.unshift({
       t: Number(data.token.createdAt),
-      m: livePrice * CURVE.totalSupply,
+      m: livePrice * POOL.totalSupply,
     });
   }
 
-  const history = series.map((p) => p.m / CURVE.totalSupply);
+  const history = series.map((p) => p.m / POOL.totalSupply);
   const trades = data.trades.map((t) => toTrade(t, now));
   const images = await resolveImages([data.token.metadataUri]);
 

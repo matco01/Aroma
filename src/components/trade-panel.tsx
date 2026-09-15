@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { formatUnits, type Address } from "viem";
 import type { Coin } from "@/lib/mock";
-import { CURVE } from "@/lib/arc";
+import { POOL, poolsDeployed } from "@/lib/arc";
+import { previewBuy, previewSell } from "@/lib/pool-math";
 import { compact, usd, usdExact } from "@/lib/format";
 import { aromaTokenAbi } from "@/lib/abis";
 import { useTrade } from "@/lib/use-trade";
@@ -31,10 +32,11 @@ const SLIPPAGE_PRESETS = [0.5, 1, 3];
  * both USDC, so the panel shows one honest total. On any other chain that
  * line needs a gas-token price feed and a disclaimer.
  *
- * Amounts are quoted against the live curve immediately before submission
- * and the resulting minimum is enforced on-chain, so a trade that moves
- * against the user between quote and inclusion reverts rather than filling
- * worse than shown.
+ * Amounts are quoted by simulating the exact router call immediately before
+ * submission, and the resulting minimum is enforced on-chain, so a trade that
+ * moves against the user between quote and inclusion reverts rather than
+ * filling worse than shown. While typing, the panel previews against the
+ * pool's own maths instead — see pool-math.ts.
  */
 export function TradePanel({ coin }: { coin: Coin }) {
   const { connected, usdcBalance, connect } = useWallet();
@@ -76,13 +78,21 @@ export function TradePanel({ coin }: { coin: Coin }) {
   const heldValue = held * coin.priceUsd;
 
   /**
+   * Network fees. Gas is measured — a router buy used 138,866 and a permit
+   * sell 166,960 against Uniswap's deployed PoolManager on a fork — but the
+   * price is Arc testnet's ~24 gwei until mainnet shows its own. A v4 swap
+   * through a hook costs about twice the curve's 70k/110k.
+   */
+  const BUY_GAS_USD = 0.0034;
+  const SELL_GAS_USD = 0.0041;
+
+  /**
    * What Max can safely spend.
    *
-   * Naively `balance - a bit` overshoots every time, because the amount
-   * typed is not the amount that leaves: total = value + value*fee + gas.
-   * Solving it properly:
-   *
-   *     value * (1 + feeRate) + buyGas + sellReserve <= balance
+   * The trade fee is not on top of the amount: the hook takes its 1% out of
+   * the USDC sent, so what leaves the wallet is the amount plus gas. The
+   * curve panel added the fee on top, which overstated every buy's cost by
+   * 1% and set Max 1% short.
    *
    * The sell reserve is the part people get bitten by. Spending to the last
    * cent leaves a position that cannot be sold, because selling costs gas
@@ -91,10 +101,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
    * a balance and a balance you can act on.
    */
   const SELL_RESERVE = 0.02;
-  const maxSpendable = Math.max(
-    0,
-    (usdcBalance - 0.0017 - SELL_RESERVE) / (1 + CURVE.tradeFeeBps / 10_000),
-  );
+  const maxSpendable = Math.max(0, usdcBalance - BUY_GAS_USD - SELL_RESERVE);
 
   const value = Number(amount) || 0;
 
@@ -118,16 +125,18 @@ export function TradePanel({ coin }: { coin: Coin }) {
     if (!/^\d*\.?\d*$/.test(v)) return;
     setAmount(v);
     const n = Number(v) || 0;
-    setTokenAmountText(
-      n > 0 && coin.priceUsd > 0 ? String(Math.round(n / coin.priceUsd)) : "",
-    );
+    // Buying, the pool's own maths says what this USDC gets, fee and price
+    // movement included. Selling, the figure is the holding's value at spot,
+    // which is what decides the portion being sold.
+    const got = isBuy ? previewBuy(coin.priceUsd, n).out : n / coin.priceUsd;
+    setTokenAmountText(n > 0 && coin.priceUsd > 0 ? String(Math.round(got)) : "");
     if (phase === "error") reset();
   }
 
   /**
    * Typing tokens: the USDC side follows.
    *
-   * Converted at spot, which is deliberately an estimate — the curve moves
+   * Converted at spot, which is deliberately an estimate — the price moves
    * as the trade fills, so the true cost is only known at execution. The
    * quote that actually binds is taken on submit and enforced on-chain,
    * so this is a preview, not a promise.
@@ -139,22 +148,33 @@ export function TradePanel({ coin }: { coin: Coin }) {
     setAmount(n > 0 && coin.priceUsd > 0 ? (n * coin.priceUsd).toFixed(6) : "");
     if (phase === "error") reset();
   }
-  const tradeFee = value * (CURVE.tradeFeeBps / 10_000);
-  // Measured on Arc testnet: a buy costs ~70k gas and a sell ~110k (permit
-  // verification is the difference), at roughly 24 gwei effective.
-  const networkFee = isBuy ? 0.0017 : 0.0027;
-  const total = isBuy ? value + tradeFee + networkFee : value - tradeFee - networkFee;
-  const tokens = coin.priceUsd > 0 ? value / coin.priceUsd : 0;
-
-  const remaining = Math.max(1, CURVE.graduationTargetUsd - coin.raisedUsd);
-  const impact = coin.graduated
-    ? (value / (coin.marketCapUsd * 0.12)) * 100
-    : (value / remaining) * 12;
+  const networkFee = isBuy ? BUY_GAS_USD : SELL_GAS_USD;
+  // Selling, `value` is the USDC worth of the tokens at spot; the portion of
+  // the holding it represents is what actually gets sold.
+  const tokens = isBuy
+    ? previewBuy(coin.priceUsd, value).out
+    : coin.priceUsd > 0
+      ? value / coin.priceUsd
+      : 0;
+  const preview = isBuy
+    ? previewBuy(coin.priceUsd, value)
+    : previewSell(coin.priceUsd, tokens);
+  const total = isBuy ? value + networkFee : preview.out - networkFee;
+  const impact = preview.impactPct;
 
   const insufficientUsdc = isBuy && connected && total > usdcBalance;
   const insufficientTokens = !isBuy && connected && tokens > held;
-  const blocked = insufficientUsdc || insufficientTokens;
-  const canSubmit = connected && value > 0 && !blocked && !busy && !coin.graduated;
+  /**
+   * The router refuses a trade the pool cannot fill in full, rather than
+   * filling part of it — a partial fill used to strand the remainder. Saying
+   * so here, before a wallet prompt, beats a revert after one.
+   */
+  const unfillable = value > 0 && !preview.fillable;
+  const blocked = insufficientUsdc || insufficientTokens || unfillable;
+  // Graduation is deliberately absent. On the curve it closed trading; in a
+  // pool it is a price level and the pool carries on, so blocking on it
+  // would lock every coin that succeeds.
+  const canSubmit = poolsDeployed && connected && value > 0 && !blocked && !busy;
 
 
   function commitCustomSlippage() {
@@ -169,7 +189,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
 
     // Capture what the confirmation should say before state resets.
     const confirmedTokens = compact(Math.round(tokens));
-    const confirmedUsd = usd(Math.max(0, total));
+    const confirmedUsd = usd(Math.max(0, isBuy ? value : total));
 
     let ok = false;
     if (isBuy) {
@@ -202,13 +222,14 @@ export function TradePanel({ coin }: { coin: Coin }) {
   }
 
   function buttonLabel() {
+    if (!poolsDeployed) return "Trading opens at launch";
     if (!connected) return "Connect wallet to trade";
-    if (coin.graduated) return "Graduated — trades on the DEX";
     if (phase === "quoting") return "Quoting…";
     if (phase === "signing") return "Confirm in wallet…";
     if (phase === "pending") return "Submitting…";
     if (insufficientUsdc) return "Insufficient USDC";
     if (insufficientTokens) return `Not enough ${coin.ticker}`;
+    if (unfillable) return "Too large for the pool";
     if (value === 0) return "Enter an amount";
     return `${isBuy ? "Buy" : "Sell"} ${coin.ticker}`;
   }
@@ -242,7 +263,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
         <div className="p-3.5">
           {/* Two boxes, either one editable.
               
-              A bonding curve is a swap, so it should behave like one:
+              A swap should behave like one:
               somebody deciding "I want 100k of this" should not have to
               work out the USDC themselves. Typing in either box fills the
               other. */}
@@ -288,7 +309,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
             symbol={isBuy ? coin.ticker : "USDC"}
             value={isBuy ? tokenAmountText : amount}
             onChange={(v) => (isBuy ? setTokenAmountText_(v) : setPayAmount(v))}
-            secondary={isBuy ? `≈ ${usd(value)}` : `≈ ${usd(value)}`}
+            secondary={isBuy ? `≈ ${usd(value)}` : `≈ ${usd(Math.max(0, preview.out))} after fee`}
             disabled={busy}
           />
 
@@ -320,7 +341,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
               make. Price impact stays because on a curve it is real, and
               it moves into the same line rather than above it. */}
           <p className="mt-3 text-[11px] text-ink-3">
-            Routed through the bonding curve
+            Routed through Uniswap v4
             {value > 0 && (
               <>
                 {" · "}
@@ -328,7 +349,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
                   {impact.toFixed(2)}% impact
                 </span>
                 {" · "}
-                {CURVE.tradeFeeBps / 100}% fee
+                {POOL.tradeFeeBps / 100}% fee
               </>
             )}
           </p>
@@ -393,7 +414,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
 
           <button
             onClick={submit}
-            disabled={connected && !canSubmit}
+            disabled={!poolsDeployed || (connected && !canSubmit)}
             className={`mt-3.5 h-11 w-full rounded-sm text-[13.5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-3 ${
               !connected
                 ? "bg-accent text-white hover:bg-accent-hi"

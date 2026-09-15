@@ -10,6 +10,148 @@
  * Same balance, two views. Mixing them up is the classic Arc bug.
  */
 
+// ---------------------------------------------------------------------------
+// Arc mainnet and the pool system — what Aroma launches on.
+// ---------------------------------------------------------------------------
+
+/**
+ * Arc mainnet, chain 5042.
+ *
+ * The explorer is deliberately empty. As of 2026-09-15 Circle has published
+ * no mainnet explorer — arcscan.app has no address record, and testnet's is
+ * a Blockscout deployment on its own subdomain — so any URL here would be a
+ * guess. explorerUrl() returns null while this is empty and every explorer
+ * link hides itself, which is better than sending people to a domain that
+ * does not answer. Fill it in on launch day.
+ */
+export const ARC_MAINNET = {
+  id: 5042,
+  name: "Arc",
+  /**
+   * Circle's own mainnet endpoint. It resolves and answers 403 today, gated
+   * until the public launch. Used only as the default when
+   * NEXT_PUBLIC_ARC_RPC_URL is unset — production should set two providers
+   * there, per wagmi.ts.
+   */
+  rpc: "https://rpc.mainnet.arc.io",
+  explorer: "" as string,
+  currency: { name: "USDC", symbol: "USDC", decimals: 18 },
+} as const;
+
+/**
+ * The pool system's contracts on Arc mainnet.
+ *
+ * Empty until DeployPool.s.sol runs — see LAUNCH.md §1. While they are empty
+ * `poolsDeployed` is false and the app says launches are coming rather than
+ * offering buttons that would send transactions to the zero address.
+ *
+ * Addresses are code rather than environment variables on purpose: a wrong
+ * address is a loss of funds, and a value that can differ between a build
+ * and a deploy is a value nobody reviewed.
+ */
+export const ARC_MAINNET_CONTRACTS = {
+  poolFactory: "",
+  poolVault: "",
+  aromaRouter: "",
+  /** Uniswap v4's singleton, per Uniswap's sdk-core address table. */
+  poolManager: "0x8366a39cc670b4001a1121b8f6a443a643e40951",
+  /** Block PoolVault was deployed in. Log scans start here. */
+  deployBlock: 0n,
+} as const;
+
+/**
+ * A local fork, for exercising the whole app before mainnet exists.
+ *
+ * Enabled with NEXT_PUBLIC_AROMA_NETWORK=local and never in production. The
+ * fork is Ethereum mainnet under anvil, because Uniswap v4 is not deployed on
+ * Arc testnet at any version; the substitution is exact for everything the
+ * pool system touches — native currency at 18 decimals is all it asks of
+ * currency0, and on Ethereum that is ETH where on Arc it is USDC.
+ *
+ * Addresses come from the environment here and only here, because they come
+ * from whatever the local deploy printed.
+ */
+const LOCAL = process.env.NEXT_PUBLIC_AROMA_NETWORK === "local";
+
+const LOCAL_NETWORK = {
+  id: 31337,
+  name: "Local fork",
+  rpc: "http://127.0.0.1:8545",
+  explorer: "" as string,
+  currency: { name: "USDC", symbol: "USDC", decimals: 18 },
+} as const;
+
+export const NETWORK = LOCAL ? LOCAL_NETWORK : ARC_MAINNET;
+
+export const POOL_CONTRACTS = LOCAL
+  ? {
+      poolFactory: process.env.NEXT_PUBLIC_LOCAL_POOL_FACTORY ?? "",
+      poolVault: process.env.NEXT_PUBLIC_LOCAL_POOL_VAULT ?? "",
+      aromaRouter: process.env.NEXT_PUBLIC_LOCAL_AROMA_ROUTER ?? "",
+      poolManager: "0x000000000004444c5dc75cB358380D2e3dE08A90",
+      deployBlock: BigInt(process.env.NEXT_PUBLIC_LOCAL_DEPLOY_BLOCK ?? "0"),
+    }
+  : ARC_MAINNET_CONTRACTS;
+
+/** True once all three contracts have addresses. */
+export const poolsDeployed = Boolean(
+  POOL_CONTRACTS.poolFactory && POOL_CONTRACTS.poolVault && POOL_CONTRACTS.aromaRouter,
+);
+
+/** A link into the explorer, or null while there is no explorer to link to. */
+export function explorerUrl(path: string): string | null {
+  return NETWORK.explorer ? `${NETWORK.explorer}${path}` : null;
+}
+
+/**
+ * Pool-system economics, mirroring PoolVault.sol and PoolFactory.sol.
+ *
+ * Every number here is a consequence of the tick choices, not an independent
+ * knob — contracts/script/math/derive_pool.py derives them and fails if the
+ * contract has drifted. The market caps are what that script prints, which
+ * is why they are not round: tick spacing 2 lands within 0.01% of the curve
+ * system's $4,312.50 / $69,000 / $13,800, and the difference is stated rather
+ * than rounded away.
+ */
+export const POOL = {
+  totalSupply: 1_000_000_000,
+  /** Sold across the 16x from the opening price to graduation. */
+  saleSupply: 800_000_000,
+  /** A second position continuing above graduation, never migrated. */
+  reserveSupply: 200_000_000,
+
+  openingMarketCapUsd: 4_312.55,
+  graduationMarketCapUsd: 69_005.73,
+  /** USDC the sale position holds once its range is fully bought. */
+  graduationRaiseUsd: 13_800.65,
+  /** Where the reserve position runs out, and with it all liquidity. */
+  topMarketCapUsd: 1_104_172,
+  /** USDC it takes to buy the whole supply from launch — no buy can fill past this. */
+  totalRaiseUsd: 69_007,
+
+  /** 1%, charged by the hook, always in USDC. */
+  tradeFeeBps: 100,
+  /** The creator's share of that fee. */
+  creatorFeeShareBps: 7_000,
+  /** PoolFactory.MAX_DEV_BUY_USDC. */
+  maxDevBuyUsd: 2_000,
+
+  tickSpacing: 2,
+  tickInit: 123_546,
+  tickGraduation: 95_818,
+  tickReserveFloor: 68_090,
+  saleLiquidity: "2215084467296721841999892",
+  reserveLiquidity: "2215164928381102038775570",
+} as const;
+
+// ---------------------------------------------------------------------------
+// Arc testnet and the bonding curve — parked.
+//
+// The curve system is not launching on mainnet. Its contracts stay deployed
+// on testnet and everything below stays accurate for them, but nothing the
+// app ships reads it any more.
+// ---------------------------------------------------------------------------
+
 export const ARC_TESTNET = {
   id: 5042002,
   name: "Arc Testnet",

@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createAppKit, useAppKit } from "@reown/appkit/react";
-import { arcTestnet } from "@reown/appkit/networks";
+import { activeChain } from "@/lib/chain";
 import {
   wagmiAdapter,
   wagmiConfig,
@@ -25,13 +25,13 @@ import { LiveProvider } from "./live-provider";
 if (hasReownProject) {
   createAppKit({
     adapters: [wagmiAdapter],
-    networks: [arcTestnet],
-    defaultNetwork: arcTestnet,
+    networks: [activeChain],
+    defaultNetwork: activeChain,
     projectId: REOWN_PROJECT_ID,
     metadata: {
       name: "Aroma",
       description: "Launch and trade fixed-supply tokens on Arc.",
-      url: "https://Aroma.fun",
+      url: "https://aroma.money",
       icons: [],
     },
     features: {

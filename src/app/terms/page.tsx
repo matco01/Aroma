@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage, Clause, T, List, Item, S } from "@/components/legal";
-import { ARC_TESTNET, CURVE } from "@/lib/arc";
+import { NETWORK, POOL } from "@/lib/arc";
 
 export const metadata: Metadata = {
   title: "Terms of use",
@@ -9,13 +9,13 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of use" updated="6 September 2026">
+    <LegalPage title="Terms of use" updated="16 September 2026">
       <Clause title="What Aroma is">
         <T>
-          Aroma is an interface to a set of smart contracts on {ARC_TESTNET.name}.
-          The contracts let anyone create a token and trade it against a bonding
-          curve. We wrote the contracts and we run this website. That is the
-          whole of what we do.
+          Aroma is an interface to a set of smart contracts on {NETWORK.name}.
+          The contracts let anyone create a token, place its whole supply in a
+          Uniswap v4 pool, and trade it there. We wrote the contracts and we run
+          this website. That is the whole of what we do.
         </T>
         <T>
           Using this site means you accept these terms. If you do not, do not
@@ -88,12 +88,11 @@ export default function TermsPage() {
 
       <Clause title="Fees">
         <T>
-          A {CURVE.tradeFeeBps / 100}% fee applies to every buy and sell.{" "}
-          {CURVE.creatorFeeShareBps / 100}% of that goes to the token&apos;s
-          creator and the rest to us. Launching is free. Creators may also
-          enable a launch-window tax on early buys, which is disclosed on the
-          token&apos;s page. Fees are enforced by the contracts and are the same
-          for everyone.
+          A {POOL.tradeFeeBps / 100}% fee applies to every buy and sell of a
+          token launched through Aroma, whichever app or router the trade goes
+          through. {POOL.creatorFeeShareBps / 100}% of that goes to the
+          token&apos;s creator and the rest to us. Launching is free. Fees are
+          enforced by the contracts and are the same for everyone.
         </T>
       </Clause>
 
@@ -138,12 +137,17 @@ export default function TermsPage() {
         </T>
       </Clause>
 
-      <Clause title="This is a test network">
+      <Clause title="Real funds, unaudited contracts">
         <T>
-          Aroma currently runs against {ARC_TESTNET.name}. Balances there are
-          test funds with no monetary value, obtained free from a faucet.
-          Anything you buy is worth nothing, and test networks can be reset or
-          discontinued without notice, which would destroy everything on them.
+          Aroma runs on {NETWORK.name} mainnet. The USDC you spend is real, and
+          so is anything you lose.
+        </T>
+        <T>
+          The contracts have not been audited by an independent party. They are
+          tested and public, but a flaw in them could lose you everything you put
+          in, and liquidity placed in a pool can never be withdrawn by anyone —
+          including us, including to fix a mistake. Only use money you can
+          afford to lose entirely.
         </T>
       </Clause>
 

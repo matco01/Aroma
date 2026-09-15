@@ -3,7 +3,7 @@ import { CoinView } from "@/components/coin-view";
 import { fetchTokenDetail } from "@/lib/server/board";
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { SITE_NAME } from "@/lib/site";
-import { CURVE } from "@/lib/arc";
+import { POOL } from "@/lib/arc";
 
 /**
  * Token pages are dynamic now that they render real chain state — prices
@@ -36,7 +36,7 @@ export async function generateMetadata({
 
   const fallback: Metadata = {
     title: "Coin",
-    description: `A coin on ${SITE_NAME}, the bonding-curve launchpad on Arc.`,
+    description: `A coin on ${SITE_NAME}, the launchpad on Arc.`,
   };
 
   if (!ADDRESS.test(id) || !hasSubgraph) return fallback;
@@ -48,9 +48,9 @@ export async function generateMetadata({
     if (!coin) return fallback;
 
     const title = `${coin.name} (${coin.ticker})`;
-    const pct = Math.min(100, (coin.raisedUsd / CURVE.graduationTargetUsd) * 100);
+    const pct = Math.min(100, (coin.raisedUsd / POOL.graduationRaiseUsd) * 100);
     const graduated = coin.graduated
-      ? "Graduated to a locked Uniswap v4 pool."
+      ? "Graduated, and still trading in its locked Uniswap v4 pool."
       : `${pct.toFixed(1)}% of the way to graduation.`;
 
     // The creator's own words first when there are any — they describe the
@@ -59,7 +59,7 @@ export async function generateMetadata({
     const said = coin.description.trim().slice(0, 140);
     const description = said
       ? `${said} — ${title} on ${SITE_NAME}, priced in USDC on Arc. ${graduated}`
-      : `${title} on ${SITE_NAME}, the bonding-curve launchpad on Arc. Priced in USDC, tradeable instantly. ${graduated}`;
+      : `${title} on ${SITE_NAME}, the launchpad on Arc. Trading in its own Uniswap v4 pool, priced in USDC. ${graduated}`;
 
     return {
       title,

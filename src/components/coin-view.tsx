@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ARC_TESTNET, CURVE } from "@/lib/arc";
+import { NETWORK, POOL, explorerUrl } from "@/lib/arc";
 import { ago, compact, pct, price, shortAddr, usd } from "@/lib/format";
 import { useToken } from "@/lib/use-chain";
 import type { Coin } from "@/lib/mock";
@@ -37,7 +37,7 @@ export function CoinView({ address }: { address: string }) {
           <p className="mt-1 text-[12px] text-ink-2">
             Nothing at{" "}
             <span className="num">{shortAddr(address)}</span> on{" "}
-            {ARC_TESTNET.name}.
+            {NETWORK.name}.
           </p>
         </div>
       </div>
@@ -45,7 +45,8 @@ export function CoinView({ address }: { address: string }) {
   }
 
   const up = coin.change24hPct >= 0;
-  const remaining = Math.max(0, CURVE.graduationTargetUsd - coin.raisedUsd);
+  const remaining = Math.max(0, POOL.graduationRaiseUsd - coin.raisedUsd);
+  const tokenUrl = explorerUrl(`/token/${coin.contract}`);
 
   // Holders come from trade history rather than a balance index — good
   // enough to show, but it counts buyers, not current holders. A real
@@ -55,7 +56,7 @@ export function CoinView({ address }: { address: string }) {
     .filter((t) => t.side === "buy")
     .reduce<HolderRow[]>((acc, t) => {
       const existing = acc.find((h) => h.account === t.account);
-      const share = (t.tokens / CURVE.totalSupply) * 100;
+      const share = (t.tokens / POOL.totalSupply) * 100;
       if (existing) existing.pctOwned += share;
       else acc.push({ account: t.account, pctOwned: share });
       return acc;
@@ -107,15 +108,22 @@ export function CoinView({ address }: { address: string }) {
                 <span>·</span>
                 <span>{ago(coin.createdAgoSeconds)} old</span>
                 <span>·</span>
-                <a
-                  href={`${ARC_TESTNET.explorer}/token/${coin.contract}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="-my-1.5 inline-block py-1.5 transition-colors hover:text-ink-2"
-                  title={coin.contract}
-                >
-                  contract {shortAddr(coin.contract)} ↗
-                </a>
+                {/* A link only once there is an explorer to link to — see
+                    explorerUrl. Until then the address is still shown, since
+                    it is the one thing someone checking the coin needs. */}
+                {tokenUrl ? (
+                  <a
+                    href={tokenUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="-my-1.5 inline-block py-1.5 transition-colors hover:text-ink-2"
+                    title={coin.contract}
+                  >
+                    contract {shortAddr(coin.contract)} ↗
+                  </a>
+                ) : (
+                  <span title={coin.contract}>contract {shortAddr(coin.contract)}</span>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -179,30 +187,37 @@ export function CoinView({ address }: { address: string }) {
               showLabel
             />
             <p className="mt-3 text-[12px] leading-relaxed text-ink-2">
+              {/* Graduation here is a price level, not a move. The coin has
+                  traded in its own Uniswap v4 pool since the block it was
+                  created, so there is nothing to migrate and nothing that
+                  stops — only a milestone passed. */}
               {coin.graduated ? (
                 <>
-                  This token graduated. Its liquidity moved into a permanently
-                  locked pool.
+                  {coin.ticker} graduated: its first 800M tokens have been
+                  bought. Trading carries on in the same pool, into a further
+                  200M above graduation, and the liquidity stays locked for good.
                 </>
               ) : (
                 <>
-                  {usd(remaining)} more into the curve and {coin.ticker}{" "}
-                  graduates: liquidity migrates to a permanently locked pool at
-                  a {usd(CURVE.graduationMarketCapUsd)} market cap. Until then
-                  every buy and sell runs against the curve.
+                  {usd(remaining)} more and {coin.ticker} graduates at a{" "}
+                  {usd(POOL.graduationMarketCapUsd)} market cap. Nothing migrates
+                  when it does — it already trades in its own Uniswap v4 pool,
+                  with liquidity nobody can withdraw.
                 </>
               )}
             </p>
           </div>
 
-          <a
-            href={`${ARC_TESTNET.explorer}/token/${coin.contract}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex h-9 items-center justify-center rounded-md border border-line text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
-          >
-            View on Arcscan ↗
-          </a>
+          {tokenUrl && (
+            <a
+              href={tokenUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-9 items-center justify-center rounded-md border border-line text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+            >
+              View on Arcscan ↗
+            </a>
+          )}
         </div>
 
         <div className="min-w-0 lg:col-start-1 lg:row-start-3">

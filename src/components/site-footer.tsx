@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ARC_TESTNET, CURVE } from "@/lib/arc";
+import { NETWORK, POOL } from "@/lib/arc";
 import { SITE_REPO } from "@/lib/site";
 
 /**
@@ -40,20 +40,22 @@ export function SiteFooter() {
             <FooterLink href="/">Board</FooterLink>
             <FooterLink href="/create">Launch a coin</FooterLink>
             <FooterLink href="/docs">Docs</FooterLink>
-            <FooterRow label="Trade fee" value={`${CURVE.tradeFeeBps / 100}%`} />
+            <FooterRow label="Trade fee" value={`${POOL.tradeFeeBps / 100}%`} />
             <FooterRow
               label="To creator"
-              value={`${CURVE.creatorFeeShareBps / 100}% of fees`}
+              value={`${POOL.creatorFeeShareBps / 100}% of fees`}
             />
             <FooterRow label="Creation fee" value="Free" />
           </FooterCol>
 
           <FooterCol title="Network">
-            <FooterRow label="Chain" value={ARC_TESTNET.name} />
-            <FooterRow label="Chain ID" value={String(ARC_TESTNET.id)} />
+            <FooterRow label="Chain" value={NETWORK.name} />
+            <FooterRow label="Chain ID" value={String(NETWORK.id)} />
             <FooterRow label="Gas token" value="USDC" />
-            <FooterExternal href={ARC_TESTNET.explorer}>Arcscan</FooterExternal>
-            <FooterExternal href={ARC_TESTNET.faucet}>Testnet faucet</FooterExternal>
+            <FooterRow label="Liquidity" value="Uniswap v4" />
+            {NETWORK.explorer && (
+              <FooterExternal href={NETWORK.explorer}>Arcscan</FooterExternal>
+            )}
           </FooterCol>
 
           <FooterCol title="Legal">
@@ -67,8 +69,8 @@ export function SiteFooter() {
           Transactions are submitted through your wallet and are irreversible
           once final. Tokens launched here are created by anonymous third
           parties, carry no rights or claims, and can lose all value. Nothing on
-          this site is investment advice. Currently running against{" "}
-          {ARC_TESTNET.name} — balances are test funds with no monetary value.
+          this site is investment advice. Most coins launched on any launchpad
+          go to zero.
         </p>
       </div>
     </footer>

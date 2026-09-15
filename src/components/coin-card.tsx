@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Coin } from "@/lib/mock";
-import { CURVE } from "@/lib/arc";
+import { POOL } from "@/lib/arc";
 import { ago, compact, pct, shortAddr, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
 import { GraduationBar } from "./primitives";
@@ -11,7 +11,7 @@ import { useValueFlash } from "@/lib/use-value-flash";
 function progressOf(coin: Coin): number {
   return coin.graduated
     ? 100
-    : Math.min(100, (coin.raisedUsd / CURVE.graduationTargetUsd) * 100);
+    : Math.min(100, (coin.raisedUsd / POOL.graduationRaiseUsd) * 100);
 }
 
 /**

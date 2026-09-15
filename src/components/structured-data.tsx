@@ -1,5 +1,5 @@
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
-import { ARC_TESTNET, CURVE } from "@/lib/arc";
+import { NETWORK, POOL } from "@/lib/arc";
 
 /**
  * Machine-readable description of what this site is.
@@ -13,13 +13,20 @@ import { ARC_TESTNET, CURVE } from "@/lib/arc";
  *
  * The FAQ entries are the ones people actually ask before using a launchpad,
  * phrased as questions rather than headings, because that is the shape a
- * retrieval system matches against. Every number comes from CURVE, so the
- * answers cannot drift from the contract the way hand-written copy would.
+ * retrieval system matches against. Every number comes from POOL, so the
+ * answers cannot drift from the contracts the way hand-written copy would.
  *
  * Only claims that are true and checkable. Structured data that oversells is
  * how a domain earns a manual penalty, and an assistant that repeats an
- * inflated claim does more damage than one that never mentions us.
+ * inflated claim does more damage than one that never mentions us. That
+ * includes the unflattering ones: there is no launch tax, and the contracts
+ * are unaudited.
  */
+
+const n = (v: number) => v.toLocaleString("en-US");
+const d = (v: number) =>
+  `$${v.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })}`;
+
 export function StructuredData() {
   const graph = {
     "@context": "https://schema.org",
@@ -53,12 +60,12 @@ export function StructuredData() {
         // Launching is free to attempt; the protocol earns from trade fees.
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         featureList: [
-          "Bonding-curve token launches",
-          "Fixed 1,000,000,000 supply, no mint function",
+          "One-transaction token launches",
+          `Fixed ${n(POOL.totalSupply)} supply, no mint function`,
+          "Every coin trades in its own Uniswap v4 pool from the first block",
+          "Liquidity locked permanently",
           "USDC-denominated pricing with USDC as native gas",
-          "Automatic graduation to a locked Uniswap v4 pool",
-          "Creator fee share on every trade",
-          "Optional launch-window tax against snipers",
+          "Creator fee share on every trade, paid in USDC",
         ],
       },
       {
@@ -67,19 +74,19 @@ export function StructuredData() {
         mainEntity: [
           faq(
             `What is ${SITE_NAME}?`,
-            `${SITE_NAME} is a bonding-curve launchpad on Arc, Circle's Layer 1 blockchain. Anyone can launch a fixed-supply coin in one transaction and trade it immediately against a bonding curve, with no liquidity to provide and no pool to seed.`,
+            `${SITE_NAME} is a launchpad on Arc, Circle's Layer 1 blockchain. Anyone can launch a fixed-supply coin in one transaction. The whole supply goes straight into the coin's own Uniswap v4 pool, so it is tradeable immediately and visible to anything that reads Uniswap.`,
           ),
           faq(
             "How does launching a coin on Arc work?",
-            `A launch mints a fixed supply of ${CURVE.totalSupply.toLocaleString("en-US")} tokens with no mint function, and ${CURVE.curveSupply.toLocaleString("en-US")} of them are sold through a bonding curve. The price rises as people buy. Deployment is irreversible and there is no admin key over a coin once it exists.`,
+            `A launch mints ${n(POOL.totalSupply)} tokens with no mint function and deposits all of them as single-sided liquidity in a Uniswap v4 pool, so nobody has to provide USDC to start trading. The price rises as people buy. Deployment is irreversible and there is no admin key over a coin once it exists.`,
           ),
           faq(
             "What does graduation mean?",
-            `When a coin has raised $${CURVE.graduationTargetUsd.toLocaleString("en-US")} on the curve — a market cap of $${CURVE.graduationMarketCapUsd.toLocaleString("en-US")} — curve trading stops and the raise plus the remaining ${CURVE.lpReserveSupply.toLocaleString("en-US")} tokens seed a Uniswap v4 pool. That liquidity is locked permanently; the contract holding it has no function that can withdraw it.`,
+            `A coin graduates when its first ${n(POOL.saleSupply)} tokens have been bought — once ${d(POOL.graduationRaiseUsd)} has come in, at a market cap of ${d(POOL.graduationMarketCapUsd)}. Nothing migrates: the coin already trades in its own pool, and trading carries on into a further ${n(POOL.reserveSupply)} tokens above that price.`,
           ),
           faq(
             `What are the fees on ${SITE_NAME}?`,
-            `${CURVE.tradeFeeBps / 100}% on every buy and sell. ${CURVE.creatorFeeShareBps / 100}% of that fee goes to the coin's creator and the rest to the protocol. There is a $${CURVE.graduationFeeUsd} fee taken from the raise at graduation.`,
+            `${POOL.tradeFeeBps / 100}% on every buy and sell, paid in USDC. ${POOL.creatorFeeShareBps / 100}% of that fee goes to the coin's creator and the rest to the protocol. Launching is free apart from network gas.`,
           ),
           faq(
             "Why are prices in dollars rather than a volatile token?",
@@ -87,15 +94,15 @@ export function StructuredData() {
           ),
           faq(
             "Can a creator rug a coin?",
-            "They cannot pull liquidity, because there is none to pull: the USDC sits in the curve contract while a coin is on the curve, and moves into a permanently locked pool at graduation. A creator can still sell their own holdings, which is visible on the coin's page along with the fees they have earned.",
+            "They cannot pull liquidity. The whole supply is deposited in a Uniswap v4 position owned by a contract with no function that removes liquidity, so nobody — the creator or the protocol — can withdraw it. A creator can still sell their own holdings, which is visible on the coin's page along with the fees they have earned.",
           ),
           faq(
-            "What is the launch tax?",
-            `An optional tax a creator can switch on for the first seconds of a coin's life, to make sniping the launch unprofitable. It starts at up to ${CURVE.snipeStartBps / 100}% and decays to zero across at most ${CURVE.snipeWindowSeconds} seconds. The contract rejects anything longer or higher, and creators can exempt named wallets.`,
+            "Is there protection against snipers?",
+            `There is no launch tax. A creator's own first buy, up to ${d(POOL.maxDevBuyUsd)}, runs inside the launch transaction so it cannot be front-run, but anyone buying in the first seconds after a launch is competing with bots.`,
           ),
           faq(
             `Which network does ${SITE_NAME} run on?`,
-            `Arc. It is live on ${ARC_TESTNET.name} today, with contracts verified on the public explorer.`,
+            `Arc (chain ${NETWORK.id}), with liquidity on Uniswap v4. The contracts are public and have not been independently audited.`,
           ),
         ],
       },

@@ -175,6 +175,16 @@ contract AromaRouter is IUnlockCallback, ReentrancyGuard {
         if (zeroForOne) {
             int128 owed0 = delta.amount0();
             require(owed0 <= 0, "unexpected USDC credit");
+            // All or nothing. An exact-input swap consumes its whole input
+            // unless it runs out of liquidity, and a buy big enough to drain
+            // the pool — past the top of the reserve range, ~$69k in from
+            // launch — would otherwise settle only part of msg.value. The rest
+            // would stay in this contract, which has no way to return it: a
+            // 500,000 USDC buy on a fork left 425,992 of it here for good. The
+            // hook also charges its fee on the amount *specified*, not the
+            // amount filled, so a partial fill overcharges as well. Refusing
+            // the trade avoids both, and the buyer can size down and retry.
+            require(uint256(uint128(-owed0)) == o.amountIn, "insufficient liquidity");
             // Settling native currency needs no sync; the value carries it.
             poolManager.settle{value: uint256(uint128(-owed0))}();
 
@@ -189,6 +199,9 @@ contract AromaRouter is IUnlockCallback, ReentrancyGuard {
             int128 owed1 = delta.amount1();
             require(owed1 <= 0, "unexpected token credit");
             uint256 owed = uint256(uint128(-owed1));
+            // Same rule as the buy side. The seller's tokens are already in
+            // this contract, so an unfilled remainder would be stranded here.
+            require(owed == o.amountIn, "insufficient liquidity");
             poolManager.sync(key.currency1);
             IERC20(o.token).safeTransfer(address(poolManager), owed);
             poolManager.settle();

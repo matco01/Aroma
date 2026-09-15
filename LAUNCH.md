@@ -74,7 +74,7 @@ surface is the hook's fee accounting** — `beforeSwap`/`afterSwap`, roughly
 cd contracts
 # .env needs: DEPLOYER_PRIVATE_KEY, PROTOCOL_OWNER, POOL_MANAGER,
 #             ARC_MAINNET_RPC_URL
-forge test                      # 84 tests must pass
+forge test                      # 100 tests must pass (61 curve + 39 pool)
 python script/math/derive_pool.py   # must exit 0
 ```
 
@@ -344,6 +344,13 @@ Accepted, but say them out loud rather than discovering them:
 - **`AromaRouter` is ours, not Uniswap's.** Aggregators route through
   their own contracts and are unaffected, but anything that expects a
   Universal Router on Arc will not find one.
+- **A router trade that cannot fill completely reverts.** A buy past the
+  top of the pool's liquidity (~$69k in from launch) or a sell of more than
+  ever left the pool is refused with "insufficient liquidity" rather than
+  partly filled. Before this check a 500,000 USDC buy on a fork settled
+  ~$69k and left 425,992 USDC in the router with no way out. Third-party
+  routers that allow partial fills still pay the hook's fee on the amount
+  *specified*, not the amount filled.
 - **`Swap.sender` is the router, not the trader**, so the subgraph credits
   `transaction.from`. Correct for EOAs, wrong for smart-contract wallets and
   bundlers.

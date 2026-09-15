@@ -37,7 +37,11 @@ fs_permissions = [{ access = "read", path = "./" }]
 remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/",
     "forge-std/=lib/forge-std/src/",
-    # Restored at a real tag - v4.0.0, commit e50237c43811bd9b526eff40f26772152a42daba.
+    # Pinned to commit 46c6834698c48bc4a463a86d8420f4eb1d7f3b75, not a tag.
+    # v4.0.0 (e50237c4) does not compile this project: it predates
+    # src/types/PoolOperation.sol, which LiquidityLocker and all three pool
+    # contracts import. foundry.lock previously named v4.0.0, so a fresh
+    # install from the lockfile failed to build.
     #
     # The README documents an earlier vendored copy that matched no published
     # tag, which is why lib/ could not be restored from anything public. That

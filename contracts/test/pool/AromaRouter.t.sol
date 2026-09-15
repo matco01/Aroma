@@ -227,6 +227,49 @@ contract AromaRouterTest is Test {
         assertEq(IERC20(token).balanceOf(address(router)), 0, "router kept tokens");
     }
 
+    // ---------------------------------------------------------------
+    // Partial fills
+    //
+    // The test above only ever fills completely. Before the all-or-nothing
+    // check, a buy that drained the pool settled part of msg.value and left
+    // the rest in the router for good — 425,992 of a 500,000 USDC buy.
+    // ---------------------------------------------------------------
+
+    function test_buy_thatWouldDrainThePoolRevertsInsteadOfStrandingUsdc() public {
+        uint256 before = trader.balance;
+
+        vm.prank(trader);
+        vm.expectRevert("insufficient liquidity");
+        router.buy{value: 500_000 ether}(token, 0);
+
+        assertEq(trader.balance, before, "a refused buy cost the trader USDC");
+        assertEq(address(router).balance, 0, "router kept USDC");
+    }
+
+    function test_buy_largeButFillableStillSucceeds() public {
+        // Well above any ordinary trade and below the ~$69k the pool can take
+        // from launch, so the check refuses only what cannot fill.
+        uint256 out = _buy(60_000 ether);
+        assertGt(out, 0, "a fillable buy was refused");
+        assertEq(address(router).balance, 0, "router kept USDC");
+    }
+
+    function test_sell_thatWouldDrainThePoolRevertsInsteadOfStrandingTokens() public {
+        _buy(1_000 ether);
+        // More tokens than ever left the pool, so selling them needs more USDC
+        // than the pool holds.
+        uint256 amount = 500_000_000e18;
+        deal(token, trader, amount);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signPermit(amount, deadline);
+
+        vm.prank(trader);
+        vm.expectRevert("insufficient liquidity");
+        router.sell(token, amount, 0, deadline, v, r, s);
+
+        assertEq(IERC20(token).balanceOf(address(router)), 0, "router kept tokens");
+    }
+
     function test_unlockCallback_rejectsCallsThatAreNotFromThePoolManager() public {
         vm.expectRevert("not pool manager");
         router.unlockCallback("");

@@ -172,6 +172,11 @@ contract PoolFactory is IUnlockCallback, ReentrancyGuard {
         // the hook charged, so settling the whole debt pays both.
         int128 owed0 = delta.amount0();
         require(owed0 <= 0, "unexpected USDC credit");
+        // createToken refunds msg.value - devBuyUsdc, which is only right if
+        // the dev-buy spent all of devBuyUsdc. The cap keeps it far below the
+        // pool's liquidity so it always does, but that is an argument; this
+        // makes it a check, so a partial fill cannot strand the remainder here.
+        require(uint256(uint128(-owed0)) == d.usdc, "dev buy did not fill");
         poolManager.settle{value: uint256(uint128(-owed0))}();
 
         int128 out1 = delta.amount1();

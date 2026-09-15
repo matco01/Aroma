@@ -62,7 +62,7 @@ export function SiteHeader() {
     <>
       {/* Solid background, not a blurred translucent one. Blur over a scrolling
           data table is noise, and it is the most over-used generated-UI effect. */}
-      <header className="sticky top-0 z-40 border-b border-line bg-bg">
+      <header className="sticky top-0 z-40 border-b border-line bg-bg/70 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] max-w-[1400px] items-center gap-2 px-3 sm:h-(--header-h) sm:gap-4 sm:px-5">
           <Link href="/" className="mr-2 flex items-center gap-2.5">
             <Wordmark />

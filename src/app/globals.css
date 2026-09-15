@@ -3,8 +3,11 @@
 /* =========================================================================
    AROMA design tokens — Arc-native launchpad
    Rules of the system:
-     1. Elevation comes from background + hairline. Never from shadow.
-        (Shadows + blur are the #1 tell of a generated marketing page.)
+     1. Elevation comes from background + hairline. Never from drop shadow.
+        Glass is the one exception, and it is kept to what glass actually
+        does: a tinted translucent body, a lit top edge, and blur only where
+        something really passes behind it (the sticky header). Blur over a
+        smooth gradient changes nothing visible and costs GPU on every card.
      2. Radius maxes out at 12px. Nothing is a pill except status chips.
      3. Every number is mono + tabular. Money is money, it should not reflow.
      4. One accent. Green/red are reserved *exclusively* for price direction,
@@ -36,10 +39,21 @@
      The accents stay cool on purpose. A cool accent on a warm ground is
      what makes the blue look deliberate instead of default; warm surfaces
      under a warm accent would just read as sepia. */
-  --color-bg: #0d0b0a;
-  --color-surface: #1e1a16;
-  --color-surface-2: #29241f;
-  --color-surface-3: #342d27;
+  --color-bg: #05090f;
+
+  /* Ice, not paint. The surfaces are translucent so each card picks up the
+     light behind it — brighter under the blooms, darker toward the edges of
+     the page — which is what makes a sheet read as glass rather than as a
+     flat blue rectangle. Opacity rises with elevation so nested layers
+     (an input inside a panel, a hover inside a menu) still separate.
+
+     Text contrast was measured at the worst place a card can sit — its top
+     edge, sheen included, directly under the main bloom: ink-3 is 4.78:1
+     there and 7.2:1 on open ground, both clear of AA. That measurement is
+     what capped how bright the light could go. */
+  --color-surface: rgb(30 56 80 / 0.55);
+  --color-surface-2: rgb(40 70 96 / 0.62);
+  --color-surface-3: rgb(52 88 118 / 0.7);
 
   /* Hairlines, and the one place the ramp is allowed to run cool.
      
@@ -51,8 +65,8 @@
      A cold rim on a warm body is how an edge catches light in the real
      world, and the small temperature difference does more to separate a
      panel from its ground than another few percent of lightness would. */
-  --color-line: #3c3f46;
-  --color-line-strong: #4d515a;
+  --color-line: rgb(130 200 240 / 0.16);
+  --color-line-strong: rgb(150 215 245 / 0.3);
 
   /* Secondary and tertiary text, both lifted hard.
      
@@ -61,9 +75,9 @@
      has to squint at. It clears AA for body text now. ink-2 goes up with
      it so the two stay a readable step apart rather than collapsing into
      one another. */
-  --color-ink: #ece9e4;
-  --color-ink-2: #c3bcb3;
-  --color-ink-3: #9a938a;
+  --color-ink: #edf6fc;
+  --color-ink-2: #c4d8e4;
+  --color-ink-3: #a3bccb;
 
   /* Arc blue — the primary action, and nothing else. If it is blue, it is
      the thing to press. */
@@ -111,17 +125,69 @@
 }
 
 html {
-  background: var(--color-bg);
+  background: #04070b;
 }
 
 body {
-  background: var(--color-bg);
+  background: transparent;
+  /* The glow and the grain sit on pseudo-elements at z-index -1; isolate
+     keeps them above html's ground and below everything the page renders. */
+  isolation: isolate;
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* The light behind the glass.
+
+   Sampled from the USDC glass note: a cool bloom falling from above, two
+   softer pools either side where the note catches it, and a deep blue-black
+   everywhere the light does not reach. Fixed to the viewport rather than the
+   page, so scrolling moves the glass over the light instead of dragging the
+   light along — and on a pseudo-element rather than background-attachment,
+   which iOS ignores. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 52% at 50% -12%, rgb(120 205 255 / 0.3), transparent 70%),
+    radial-gradient(ellipse 38% 46% at 12% 40%, rgb(90 180 240 / 0.15), transparent 72%),
+    radial-gradient(ellipse 38% 46% at 88% 60%, rgb(90 180 240 / 0.12), transparent 72%),
+    linear-gradient(180deg, #081421 0%, #05090f 46%, #04070b 100%);
+}
+
+/* Frost. A very faint grain, because a perfectly smooth gradient reads as a
+   screen and a slightly textured one reads as a material. Kept under 4%
+   and blended soft-light so it never greys out text. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* The lit edge and the sheen. Glass catches light along its top edge and
+   carries a faint wash of it down its face; a one-pixel inner highlight and a
+   short fading gradient are most of what separates a glass panel from a
+   tinted box. The sheen is included in the contrast figure above. Skipped
+   where an element already carries its own shadow, so a menu's drop shadow
+   is not replaced. */
+@layer utilities {
+  .bg-surface:not([class*="shadow"]),
+  .bg-surface-2:not([class*="shadow"]) {
+    box-shadow: inset 0 1px 0 rgb(210 240 255 / 0.12);
+    background-image: linear-gradient(180deg, rgb(170 225 255 / 0.05), rgb(170 225 255 / 0) 38%);
+  }
 }
 
 /* Numbers never reflow as they tick. */

@@ -50,13 +50,13 @@ export const ARC_MAINNET = {
  * and a deploy is a value nobody reviewed.
  */
 export const ARC_MAINNET_CONTRACTS = {
-  poolFactory: "",
-  poolVault: "",
-  aromaRouter: "",
+  poolFactory: "0x1503ccF70A0E63DAfb47C35076D9408089DF0829",
+  poolVault: "0xbD86C2F1bD9EB780d7B59Fa1F4feE04f62d260Cc",
+  aromaRouter: "0x1c2c40ab442C48bDd9f00Dc344fF44d5B90CbA9e",
   /** Uniswap v4's singleton, per Uniswap's sdk-core address table. */
   poolManager: "0x8366a39cc670b4001a1121b8f6a443a643e40951",
   /** Block PoolVault was deployed in. Log scans start here. */
-  deployBlock: 0n,
+  deployBlock: 21108966n,
 } as const;
 
 /**

@@ -26,9 +26,9 @@ dataSources:
       # FIXME: fill in from the DeployPool.s.sol output. Not a placeholder
       # that can be guessed — PoolFactory is deployed fresh, and the vault it
       # points at has a mined address.
-      address: "0x0000000000000000000000000000000000000000"
+      address: "0x1503ccF70A0E63DAfb47C35076D9408089DF0829"
       abi: PoolFactory
-      startBlock: 0
+      startBlock: 21108966
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -63,7 +63,7 @@ dataSources:
       address: "0x8366a39cc670b4001a1121b8f6a443a643e40951"
       abi: PoolManager
       # FIXME: the block PoolVault was deployed in.
-      startBlock: 0
+      startBlock: 21108966
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -86,9 +86,9 @@ dataSources:
     source:
       # FIXME: fill in from the DeployPool.s.sol output. This address is
       # mined, so it is neither guessable nor stable across redeploys.
-      address: "0x0000000000000000000000000000000000000000"
+      address: "0xbD86C2F1bD9EB780d7B59Fa1F4feE04f62d260Cc"
       abi: PoolVault
-      startBlock: 0
+      startBlock: 21108966
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

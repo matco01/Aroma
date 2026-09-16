@@ -16,13 +16,25 @@ import { privateKeyToAccount } from "viem/accounts";
 const BASE = process.env.BASE || "http://localhost:3111";
 const OUT = process.env.OUT || ".";
 const RPC = process.env.ARC_RPC || "https://rpc.testnet.arc.io";
+/**
+ * Which coin to buy, and on which chain.
+ *
+ * All three used to be constants naming one testnet coin, which made this
+ * runnable in exactly one place. They are env-driven now so the same harness
+ * can drive a buy against a fork of Arc mainnet — where the contracts are the
+ * ones actually being launched, against Uniswap's real PoolManager — rather
+ * than only against the testnet curve deployment.
+ */
+const COIN_NAME = process.env.COIN_NAME || "Gas Is Free";
+const COIN_TICKER = process.env.COIN_TICKER || "GASFREE";
+const BUY_USDC = process.env.BUY_USDC || "0.5";
 const PK = process.env.DEPLOYER_PRIVATE_KEY;
 if (!PK) throw new Error("DEPLOYER_PRIVATE_KEY required");
 
 fs.mkdirSync(OUT, { recursive: true });
 
 const account = privateKeyToAccount(PK);
-const CHAIN_ID_HEX = "0x4cef52";
+const CHAIN_ID_HEX = process.env.CHAIN_ID_HEX || "0x4cef52";
 
 const errors = [];
 const browser = await chromium.launch({ args: ["--no-sandbox"] });
@@ -133,7 +145,7 @@ async function dismissModal() {
 
 // --- board ---
 await page.goto(BASE, { waitUntil: "networkidle", timeout: 60000 });
-await page.getByText("GASFREE").first().waitFor({ timeout: 30000 });
+await page.getByText(COIN_TICKER).first().waitFor({ timeout: 30000 });
 await dismissModal();
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${OUT}/01-board.png` });
@@ -141,21 +153,23 @@ console.log("shot 01-board (real tokens rendered)");
 
 // --- open a token ---
 await dismissModal();
-await page.getByText("Gas Is Free").first().click();
-await page.getByRole("button", { name: /Buy GASFREE|Enter an amount/ }).waitFor({ timeout: 30000 });
+await page.getByText(COIN_NAME).first().click();
+await page.getByRole("button", { name: new RegExp(`Buy ${COIN_TICKER}|Enter an amount`) }).waitFor({ timeout: 30000 });
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${OUT}/02-coin.png` });
 console.log("shot 02-coin");
 
 // --- real buy ---
 const before = await publicClient.getBalance({ address: account.address });
-await page.getByPlaceholder("0.00").first().fill("0.5");
+// The pool trade panel's amount field is placeholder="0"; the curve UI this
+// harness was first written against used "0.00".
+await page.getByPlaceholder("0", { exact: true }).first().fill(BUY_USDC);
 await page.waitForTimeout(400);
 await page.screenshot({ path: `${OUT}/03-quote.png` });
 
 await dismissModal();
 console.log("clicking Buy…");
-await page.getByRole("button", { name: /^Buy GASFREE$/ }).click();
+await page.getByRole("button", { name: new RegExp(`^Buy ${COIN_TICKER}$`) }).click();
 
 // Toast only appears after the receipt lands.
 await page.getByText(/^Bought/).waitFor({ timeout: 90000 });

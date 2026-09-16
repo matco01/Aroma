@@ -5,14 +5,7 @@ import type { Coin } from "@/lib/mock";
 import { POOL } from "@/lib/arc";
 import { ago, compact, pct, shortAddr, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
-import { GraduationBar } from "./primitives";
 import { useValueFlash } from "@/lib/use-value-flash";
-
-function progressOf(coin: Coin): number {
-  return coin.graduated
-    ? 100
-    : Math.min(100, (coin.raisedUsd / POOL.graduationRaiseUsd) * 100);
-}
 
 /**
  * Grid card, led by the art.
@@ -47,7 +40,6 @@ const FRESH_SECONDS = 3600;
 
 export function CoinCard({ coin }: { coin: Coin }) {
   const up = coin.change24hPct >= 0;
-  const progress = progressOf(coin);
   const fresh = coin.createdAgoSeconds < FRESH_SECONDS;
 
   const mcFlash = useValueFlash(coin.marketCapUsd);
@@ -72,12 +64,6 @@ export function CoinCard({ coin }: { coin: Coin }) {
           alt={coin.name}
           className="h-full w-full object-cover"
         />
-
-        {coin.graduated && (
-          <span className="absolute left-2 top-2 rounded-xs bg-bg/80 px-2 py-1 text-[11px] font-medium text-up backdrop-blur-sm">
-            graduated
-          </span>
-        )}
 
         <span
           className={`num absolute right-2 top-2 rounded-xs bg-bg/80 px-2 py-1 text-[11.5px] backdrop-blur-sm ${
@@ -116,20 +102,6 @@ export function CoinCard({ coin }: { coin: Coin }) {
           <span className="num text-[11px] text-ink-3">MC</span>
         </div>
 
-        <div className="mt-2.5 flex items-center gap-2">
-          <GraduationBar raisedUsd={coin.raisedUsd} graduated={coin.graduated} />
-          {/* Two decimals, like the reference. "0%" and "0.4%" are very
-              different states for a coin that just launched, and rounding
-              them together hides the only movement it has. */}
-          <span
-            className={`num shrink-0 text-[11px] ${
-              coin.graduated ? "text-up" : "text-ink-2"
-            }`}
-          >
-            {progress < 10 ? progress.toFixed(2) : progress.toFixed(0)}%
-          </span>
-        </div>
-
         {/* Contract and age. The address is what someone pastes into a
             wallet or explorer, and it is the one identifier that cannot be
             faked by a copycat using the same name and picture. */}
@@ -147,7 +119,6 @@ export function CoinCard({ coin }: { coin: Coin }) {
 /* Dense list row — same data, roughly a third of the height. */
 export function CoinRow({ coin }: { coin: Coin }) {
   const up = coin.change24hPct >= 0;
-  const progress = progressOf(coin);
 
   return (
     <Link
@@ -191,19 +162,6 @@ export function CoinRow({ coin }: { coin: Coin }) {
         {pct(coin.change24hPct)}
       </div>
 
-      <div className="hidden w-24 shrink-0 items-center gap-2 sm:flex">
-        <GraduationBar
-          raisedUsd={coin.raisedUsd}
-          graduated={coin.graduated}
-        />
-        <span
-          className={`num shrink-0 text-[10.5px] ${
-            coin.graduated ? "text-up" : "text-ink-3"
-          }`}
-        >
-          {progress.toFixed(0)}%
-        </span>
-      </div>
     </Link>
   );
 }

@@ -6,7 +6,6 @@ import {
   type BoardFilter,
   type BoardSort,
 } from "@/lib/use-chain";
-import { POOL } from "@/lib/arc";
 import { usd } from "@/lib/format";
 import { CoinCard, CoinRow } from "./coin-card";
 import { IndexerStatus } from "./indexer-status";
@@ -17,7 +16,6 @@ type View = "grid" | "list";
 const FILTERS: { id: BoardFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "climbing", label: "Climbing" },
-  { id: "graduated", label: "Graduated" },
 ];
 
 const SORTS: { id: BoardSort; label: string }[] = [
@@ -52,7 +50,7 @@ export function Board() {
   });
 
   // Changing what you're looking at returns you to the first page — page 3
-  // of "Graduated" is meaningless after switching to "Newest". Done in the
+  // of a filter is meaningless after switching to "Newest". Done in the
   // handlers rather than an effect so there's no render with a stale page
   // against fresh criteria.
   function changeFilter(next: BoardFilter) {
@@ -116,17 +114,6 @@ export function Board() {
               <span>
                 <FlashingValue value={stats.totalVolumeUsd} /> vol
               </span>
-              <span className="hidden text-line-strong sm:inline">/</span>
-              <span className="hidden sm:inline">
-                <span className="text-ink-2">{stats.graduatedCount}</span> graduated
-              </span>
-              <span className="hidden text-line-strong lg:inline">/</span>
-              <span className="hidden lg:inline">
-                graduates at{" "}
-                <span className="text-ink-2">
-                  {usd(POOL.graduationMarketCapUsd)}
-                </span>
-              </span>
             </>
           )}
         </div>
@@ -167,12 +154,10 @@ export function Board() {
       {!isLoading && !error && coins.length === 0 && (
         <div className="mt-6 rounded-md border border-line bg-surface px-6 py-16 text-center">
           <p className="text-[13px] text-ink">
-            {filter === "graduated" ? "Nothing has graduated yet" : "Nothing launched yet"}
+            Nothing launched yet
           </p>
           <p className="mt-1 text-[12px] text-ink-2">
-            {filter === "graduated"
-              ? "Coins appear here once they reach their graduation price."
-              : "Be the first — launching is free, you only pay gas."}
+            Be the first — launching is free, you only pay gas.
           </p>
         </div>
       )}
@@ -312,7 +297,6 @@ function ListHeader() {
       <span className="label hidden w-20 shrink-0 text-right sm:block">Volume</span>
       <span className="label hidden w-14 shrink-0 text-right md:block">Holders</span>
       <span className="label w-16 shrink-0 text-right">Change</span>
-      <span className="label hidden w-24 shrink-0 sm:block">Graduation</span>
     </div>
   );
 }

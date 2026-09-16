@@ -12,7 +12,7 @@ export const metadata: Metadata = {
  * The form, and a way back to the board.
  *
  * There used to be a headline, a paragraph, and three numbered cards
- * explaining deploy / trade / graduate. All of it was written for someone
+ * explaining deploy / trade. All of it was written for someone
  * deciding whether to use a launchpad — but you only reach this page by
  * pressing Create, so that decision is already made. It pushed the first
  * field most of a screen down and made a two-minute task look like

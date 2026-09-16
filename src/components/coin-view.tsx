@@ -7,7 +7,8 @@ import { useToken } from "@/lib/use-chain";
 import type { Coin } from "@/lib/mock";
 import { IndexerStatus } from "./indexer-status";
 import { CoinArt } from "./coin-art";
-import { Chip, GraduationBar, Stat } from "./primitives";
+import { CopyAddress } from "./copy-address";
+import { Stat } from "./primitives";
 import { PriceChart } from "./price-chart";
 import { TradePanel } from "./trade-panel";
 import { CreatorFees } from "./creator-fees";
@@ -45,7 +46,6 @@ export function CoinView({ address }: { address: string }) {
   }
 
   const up = coin.change24hPct >= 0;
-  const remaining = Math.max(0, POOL.graduationRaiseUsd - coin.raisedUsd);
   const tokenUrl = explorerUrl(`/token/${coin.contract}`);
 
   // Holders come from trade history rather than a balance index — good
@@ -95,11 +95,6 @@ export function CoinView({ address }: { address: string }) {
                   {coin.name}
                 </h1>
                 <span className="num text-[14px] text-ink-2">${coin.ticker}</span>
-                {/* Only "graduated" earns a chip. "on curve · 0%" was noise
-                    beside the name — the state is already obvious from the
-                    curve panel, and a 0% badge on a fresh coin reads as a
-                    failure rather than a starting point. */}
-                {coin.graduated && <Chip tone="up">graduated</Chip>}
               </div>
               <div className="num mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-3">
                 <span>
@@ -107,23 +102,30 @@ export function CoinView({ address }: { address: string }) {
                 </span>
                 <span>·</span>
                 <span>{ago(coin.createdAgoSeconds)} old</span>
-                <span>·</span>
-                {/* A link only once there is an explorer to link to — see
-                    explorerUrl. Until then the address is still shown, since
-                    it is the one thing someone checking the coin needs. */}
-                {tokenUrl ? (
-                  <a
-                    href={tokenUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="-my-1.5 inline-block py-1.5 transition-colors hover:text-ink-2"
-                    title={coin.contract}
-                  >
-                    contract {shortAddr(coin.contract)} ↗
-                  </a>
-                ) : (
-                  <span title={coin.contract}>contract {shortAddr(coin.contract)}</span>
-                )}
+                {/* Copyable always; linked only once there is an explorer to
+                    link to — see explorerUrl. Copying is the part that matters:
+                    the address is what anyone sharing or checking a coin needs,
+                    and Arc has no public explorer yet, so a link on its own
+                    would leave phones with no way to get it at all.
+
+                    The separator rides with the address rather than sitting as
+                    its own flex item, because at phone width the line wraps
+                    here and a lone "·" was landing on the row above. */}
+                <span className="inline-flex items-center gap-x-2">
+                  <span>·</span>
+                  <CopyAddress address={coin.contract} />
+                  {tokenUrl && (
+                    <a
+                      href={tokenUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="-my-1.5 inline-block py-1.5 transition-colors hover:text-ink-2"
+                      title="View on the explorer"
+                    >
+                      ↗
+                    </a>
+                  )}
+                </span>
               </div>
             </div>
             <div className="text-right">
@@ -173,38 +175,28 @@ export function CoinView({ address }: { address: string }) {
 
         {/* Everything that is context rather than action. Split out of the
             sidebar so that on a phone the chart lands directly under the
-            swap box: creator fees and graduation progress are things you
+            swap box: creator fees and pool details are things you
             read once, and three cards between the buy button and the price
             is three cards of scrolling to check the price before buying.
             On desktop they sit under the panel exactly as before. */}
         <div className="min-w-0 space-y-4.5 lg:col-start-2 lg:row-start-3">
           <CreatorFees coin={coin} />
 
+          {/* What replaced the graduation bar.
+
+              The bar measured how far a coin was from selling its first 800M
+              tokens, and called that "graduation" — a word that on every other
+              launchpad means migrating off a curve onto a real DEX. Here there
+              is no curve and nothing to migrate, so the milestone described a
+              move that had already happened at launch, which was worse than
+              saying nothing. What a buyer actually needs to know about this
+              pool is what remains. */}
           <div className="rounded-md border border-line bg-surface p-3.5">
-            <GraduationBar
-              raisedUsd={coin.raisedUsd}
-              graduated={coin.graduated}
-              showLabel
-            />
-            <p className="mt-3 text-[12px] leading-relaxed text-ink-2">
-              {/* Graduation here is a price level, not a move. The coin has
-                  traded in its own Uniswap v4 pool since the block it was
-                  created, so there is nothing to migrate and nothing that
-                  stops — only a milestone passed. */}
-              {coin.graduated ? (
-                <>
-                  {coin.ticker} graduated: its first 800M tokens have been
-                  bought. Trading carries on in the same pool, into a further
-                  200M above graduation, and the liquidity stays locked for good.
-                </>
-              ) : (
-                <>
-                  {usd(remaining)} more and {coin.ticker} graduates at a{" "}
-                  {usd(POOL.graduationMarketCapUsd)} market cap. Nothing migrates
-                  when it does — it already trades in its own Uniswap v4 pool,
-                  with liquidity nobody can withdraw.
-                </>
-              )}
+            <span className="label">Liquidity</span>
+            <p className="mt-2 text-[12px] leading-relaxed text-ink-2">
+              {coin.ticker} has traded in its own Uniswap v4 pool since the block
+              it was created. The liquidity was put there at launch and nobody
+              can withdraw it — not the creator, not Aroma.
             </p>
           </div>
 

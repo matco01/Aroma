@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { POOL } from "@/lib/arc";
 import { compact, pct, price, usd, usdExact } from "@/lib/format";
 import { usePortfolio, type Holding } from "@/lib/use-portfolio";
 import { IndexerStatus } from "./indexer-status";
 import { CreatedCoins } from "./created-coins";
 import { CoinArt } from "./coin-art";
-import { GraduationBar } from "./primitives";
 import { useWallet } from "./wallet";
 
 export function PortfolioView() {
@@ -96,7 +94,6 @@ export function PortfolioView() {
           <span className="label w-24 shrink-0 text-right">Avg cost</span>
           <span className="label w-24 shrink-0 text-right">Value</span>
           <span className="label w-28 shrink-0 text-right">P&L</span>
-          <span className="label hidden w-24 shrink-0 md:block">Graduation</span>
         </div>
 
         {rows.map((h) => (
@@ -117,9 +114,6 @@ export function PortfolioView() {
 function PositionRow({ holding }: { holding: Holding }) {
   const { coin, tokens, valueUsd, costUsd, pnlUsd, pnlPct } = holding;
   const up = pnlUsd >= 0;
-  const progress = coin.graduated
-    ? 100
-    : Math.min(100, (coin.raisedUsd / POOL.graduationRaiseUsd) * 100);
 
   return (
     <Link
@@ -159,16 +153,6 @@ function PositionRow({ holding }: { holding: Holding }) {
         </span>
       </div>
 
-      <div className="hidden w-24 shrink-0 items-center gap-2 md:flex">
-        <GraduationBar raisedUsd={coin.raisedUsd} graduated={coin.graduated} />
-        <span
-          className={`num shrink-0 text-[10.5px] ${
-            coin.graduated ? "text-up" : "text-ink-3"
-          }`}
-        >
-          {progress.toFixed(0)}%
-        </span>
-      </div>
     </Link>
   );
 }

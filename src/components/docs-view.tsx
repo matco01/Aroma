@@ -22,7 +22,7 @@ const nav = [
   { id: "launches", label: "Launches" },
   { id: "pricing", label: "Pricing" },
   { id: "fees", label: "Fees" },
-  { id: "graduation", label: "Graduation" },
+  { id: "depth", label: "Sale and reserve" },
   { id: "first-block", label: "The first block" },
   { id: "risks", label: "Risks" },
   { id: "contracts", label: "Contracts" },
@@ -126,10 +126,10 @@ export function DocsView() {
             <Facts
               rows={[
                 ["Total supply", compact(POOL.totalSupply)],
-                ["Sold up to graduation", compact(POOL.saleSupply)],
-                ["Available above graduation", compact(POOL.reserveSupply)],
+                ["In the sale range", compact(POOL.saleSupply)],
+                ["In the reserve range", compact(POOL.reserveSupply)],
                 ["Opening market cap", dollars(POOL.openingMarketCapUsd)],
-                ["Graduation market cap", dollars(POOL.graduationMarketCapUsd)],
+                ["Where the sale range ends", dollars(POOL.graduationMarketCapUsd)],
                 ["Where liquidity ends", dollars(POOL.topMarketCapUsd)],
               ]}
             />
@@ -167,23 +167,24 @@ export function DocsView() {
             </P>
           </Section>
 
-          <Section id="graduation" title="Graduation">
+          <Section id="depth" title="Sale and reserve">
             <P>
-              A coin graduates when its first {compact(POOL.saleSupply)} tokens
-              have been bought — once {dollars(POOL.graduationRaiseUsd)} has come
-              in, at a market cap of {dollars(POOL.graduationMarketCapUsd)}.
+              The supply is split across two price ranges in the same pool. The
+              first {compact(POOL.saleSupply)} tokens — the sale — are spread
+              from the opening price up to {dollars(POOL.graduationMarketCapUsd)}
+              of market cap. The remaining {compact(POOL.reserveSupply)} sit
+              above that, continuing the same pool to{" "}
+              {dollars(POOL.topMarketCapUsd)}.
             </P>
             <P>
-              Nothing moves when it does. The coin has traded in its own pool
-              since the block it launched, so there is no migration, no new pool,
-              and no pause. Trading simply carries on into the next{" "}
-              {compact(POOL.reserveSupply)} tokens, which sit in the same pool
-              above the graduation price.
-            </P>
-            <P>
-              Graduation is a milestone, and on the board it stays earned: a coin
-              that graduated and then dipped below the line is still marked as
-              having made it.
+              Nothing happens at the boundary. There is no migration, no new
+              pool, no pause and no milestone — trading simply moves from one
+              range into the next, and the only thing that changes is how deep
+              the book is at that price. Other launchpads call this point
+              graduation because on a bonding curve it is where the coin finally
+              reaches a real exchange. Here it reached one in the block it was
+              created, so the word would describe something that already
+              happened.
             </P>
           </Section>
 
@@ -334,8 +335,8 @@ export function DocsView() {
             </P>
             <P>
               The price is tokens per USDC in the pool, so a coin getting more
-              expensive moves the tick down, and graduation is reached at tick{" "}
-              {POOL.tickGraduation.toLocaleString("en-US")} or below.
+              expensive moves the tick down, and the sale range ends at tick{" "}
+              {POOL.tickGraduation.toLocaleString("en-US")}.
             </P>
           </Section>
 

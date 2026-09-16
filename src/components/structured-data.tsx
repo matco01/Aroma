@@ -81,8 +81,8 @@ export function StructuredData() {
             `A launch mints ${n(POOL.totalSupply)} tokens with no mint function and deposits all of them as single-sided liquidity in a Uniswap v4 pool, so nobody has to provide USDC to start trading. The price rises as people buy. Deployment is irreversible and there is no admin key over a coin once it exists.`,
           ),
           faq(
-            "What does graduation mean?",
-            `A coin graduates when its first ${n(POOL.saleSupply)} tokens have been bought — once ${d(POOL.graduationRaiseUsd)} has come in, at a market cap of ${d(POOL.graduationMarketCapUsd)}. Nothing migrates: the coin already trades in its own pool, and trading carries on into a further ${n(POOL.reserveSupply)} tokens above that price.`,
+            "Can a coin's liquidity be pulled?",
+            `No. A launch deposits all ${n(POOL.totalSupply)} tokens into the pool as single-sided liquidity and nobody can withdraw it — not the creator, not ${SITE_NAME}. The coin trades in its own Uniswap v4 pool from the block it is created, so there is no migration step and no point at which trading stops.`,
           ),
           faq(
             `What are the fees on ${SITE_NAME}?`,

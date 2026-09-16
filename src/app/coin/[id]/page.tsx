@@ -3,7 +3,6 @@ import { CoinView } from "@/components/coin-view";
 import { fetchTokenDetail } from "@/lib/server/board";
 import { hasSubgraph } from "@/lib/server/subgraph";
 import { SITE_NAME } from "@/lib/site";
-import { POOL } from "@/lib/arc";
 
 /**
  * Token pages are dynamic now that they render real chain state — prices
@@ -48,18 +47,14 @@ export async function generateMetadata({
     if (!coin) return fallback;
 
     const title = `${coin.name} (${coin.ticker})`;
-    const pct = Math.min(100, (coin.raisedUsd / POOL.graduationRaiseUsd) * 100);
-    const graduated = coin.graduated
-      ? "Graduated, and still trading in its locked Uniswap v4 pool."
-      : `${pct.toFixed(1)}% of the way to graduation.`;
 
     // The creator's own words first when there are any — they describe the
     // coin better than generated text, and a stranger searching the ticker
     // wants to know what it claims to be.
     const said = coin.description.trim().slice(0, 140);
     const description = said
-      ? `${said} — ${title} on ${SITE_NAME}, priced in USDC on Arc. ${graduated}`
-      : `${title} on ${SITE_NAME}, the launchpad on Arc. Trading in its own Uniswap v4 pool, priced in USDC. ${graduated}`;
+      ? `${said} — ${title} on ${SITE_NAME}, priced in USDC on Arc.`
+      : `${title} on ${SITE_NAME}, the launchpad on Arc. Trading in its own Uniswap v4 pool, priced in USDC.`;
 
     return {
       title,

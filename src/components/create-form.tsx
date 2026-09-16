@@ -8,7 +8,6 @@ import { POOL, poolsDeployed } from "@/lib/arc";
 import { marketCapAfterDevBuy } from "@/lib/pool-math";
 import { compact, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
-import { GraduationBar } from "./primitives";
 import { useWallet } from "./wallet";
 
 export function CreateForm() {
@@ -217,7 +216,6 @@ export function CreateForm() {
           <Summary label="Supply" value={`${compact(POOL.totalSupply)} fixed`} />
           <Summary label="Paid" value={usd(total)} />
           <Summary label="Your allocation" value={devBuyValue > 0 ? usd(devBuyValue) : "None"} />
-          <Summary label="Graduates at" value={`${usd(POOL.graduationMarketCapUsd)} mcap`} />
         </dl>
         <p className="mt-4 text-[11.5px] leading-relaxed text-ink-3">
           It is trading in its own Uniswap v4 pool, with the liquidity locked for
@@ -411,13 +409,6 @@ export function CreateForm() {
           <p className="mt-2.5 line-clamp-2 min-h-[2.6em] text-[11.5px] leading-relaxed text-ink-2">
             {description || "No description yet."}
           </p>
-          <div className="mt-3">
-            <GraduationBar
-              raisedUsd={Math.min(devBuyValue, POOL.maxDevBuyUsd) * (1 - POOL.tradeFeeBps / 10_000)}
-              graduated={false}
-              showLabel
-            />
-          </div>
           <div className="mt-2.5 flex items-baseline justify-between">
             <span className="text-[11px] text-ink-3">Opens at</span>
             <span className="num text-[11.5px] text-ink-2">{usd(openingCap)} mcap</span>

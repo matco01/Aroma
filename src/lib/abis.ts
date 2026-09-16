@@ -1010,6 +1010,30 @@ export const poolVaultAbi = [
     "stateMutability": "view"
   },
   {
+    "type": "function",
+    "name": "withdrawProtocolFees",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "usdc",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
     "type": "event",
     "name": "CreatorFeesClaimed",
     "inputs": [
@@ -1074,6 +1098,31 @@ export const poolVaultAbi = [
         "type": "bytes32",
         "indexed": false,
         "internalType": "PoolId"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ProtocolFeesWithdrawn",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "usdc",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false

@@ -37,6 +37,9 @@ WANT = {
         # wallets will send value but will not call a function, so the
         # nominated owner needs a page with a button.
         "owner", "pendingOwner", "acceptOwnership",
+        # Owner-only, and the reason /owner exists at all: fees are stored
+        # per coin, so collecting them is one call each.
+        "withdrawProtocolFees", "ProtocolFeesWithdrawn",
     },
     "AromaRouter": {"buy", "sell", "Bought", "Sold"},
     # Uniswap's own singleton. Only its Swap event is needed, and only by the

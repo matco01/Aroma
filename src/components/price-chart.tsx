@@ -72,20 +72,25 @@ export function PriceChart({
 
   const points = useMemo(() => {
     if (series.length === 0) return [];
-    if (win.seconds === Infinity) return series;
 
-    const newest = series[series.length - 1].t;
-    const cutoff = newest - win.seconds;
-    const inWindow = series.filter((p) => p.t >= cutoff);
+    const windowed = (() => {
+      if (win.seconds === Infinity) return series;
 
-    // A window with one point inside it can't draw a line. Reach back for
-    // the previous point so the line enters from the left edge instead of
-    // the panel going blank on a quiet token.
-    if (inWindow.length < 2) {
-      const idx = series.findIndex((p) => p.t >= cutoff);
-      return series.slice(Math.max(0, idx - 1));
-    }
-    return inWindow;
+      const newest = series[series.length - 1].t;
+      const cutoff = newest - win.seconds;
+      const inWindow = series.filter((p) => p.t >= cutoff);
+
+      // A window with one point inside it can't draw a line. Reach back for
+      // the previous point so the line enters from the left edge instead of
+      // the panel going blank on a quiet token.
+      if (inWindow.length < 2) {
+        const idx = series.findIndex((p) => p.t >= cutoff);
+        return series.slice(Math.max(0, idx - 1));
+      }
+      return inWindow;
+    })();
+
+    return dedupeByTime(windowed);
   }, [series, win]);
 
   if (points.length === 0) {
@@ -332,6 +337,41 @@ export function PriceChart({
  * interpolation is constrained never to invent a high or low the data
  * doesn't contain — the curve stays smooth without lying.
  */
+/**
+ * One point per second, keeping the last price at each.
+ *
+ * The series is one point per trade, and several trades routinely land in the
+ * same second — the same block, even. Those points share an x, and smoothPath
+ * divides by the gap between neighbouring x values, falling back to 1e-6 when
+ * there isn't one. A burst of trades in one second therefore drew as a slope
+ * of roughly a million: the vertical spike that shot out of the line and came
+ * straight back down, with a curl on top where the spline tried to round a
+ * corner that had no width. Nothing had moved that far — the chart was
+ * dividing by nothing.
+ *
+ * Keeping the last trade of each second is the whole fix. That price is the
+ * one that stood at the end of the second, which is what any later point is
+ * measured against, and the line between two real trades is drawn the way it
+ * always was.
+ *
+ * A fixed time grid was the other candidate and is what candles do. It looks
+ * worse here: carrying a price forward across quiet stretches turns a
+ * thinly-traded coin into a square wave of flat plateaus and sheer walls,
+ * which is accurate and reads like a digital signal rather than a price.
+ */
+function dedupeByTime(pts: SeriesPoint[]): SeriesPoint[] {
+  if (pts.length < 3) return pts;
+
+  const out: SeriesPoint[] = [];
+  for (const p of pts) {
+    const prev = out[out.length - 1];
+    // Same second, so the earlier one never had a width to be drawn in.
+    if (prev && prev.t === p.t) out[out.length - 1] = p;
+    else out.push(p);
+  }
+  return out;
+}
+
 function smoothPath(pts: { x: number; y: number }[]): string {
   if (pts.length === 0) return "";
   if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;

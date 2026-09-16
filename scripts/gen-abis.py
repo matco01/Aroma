@@ -32,6 +32,11 @@ WANT = {
     "PoolVault": {
         "launches", "creatorOf", "claimCreatorFees", "poolKey", "TICK_GRADUATION",
         "Launched", "FeeTaken", "CreatorFeesClaimed",
+        # Ownable2Step, for /owner. acceptOwnership takes no arguments,
+        # which is exactly what makes it awkward from a phone: most mobile
+        # wallets will send value but will not call a function, so the
+        # nominated owner needs a page with a button.
+        "owner", "pendingOwner", "acceptOwnership",
     },
     "AromaRouter": {"buy", "sell", "Bought", "Sold"},
     # Uniswap's own singleton. Only its Swap event is needed, and only by the

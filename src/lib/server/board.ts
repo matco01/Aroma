@@ -35,6 +35,9 @@ const TOKEN_FIELDS = `
   reserve price marketCap progressBps graduated
   volume tradeCount buyerCount lastTradeAt metadataUri
   creatorFeesEarned creatorFeesClaimed
+  firstTrade: trades(first: 1, orderBy: timestamp, orderDirection: asc) {
+    priceAfter
+  }
 `;
 
 const TRADE_FIELDS = `
@@ -95,6 +98,8 @@ type RawToken = {
   metadataUri: string;
   creatorFeesEarned: string;
   creatorFeesClaimed: string;
+  /** The oldest trade's resulting price — one row, for the change figure. */
+  firstTrade?: { priceAfter: string }[];
 };
 
 type RawProtocol = {
@@ -170,7 +175,24 @@ export function toCoin(
   const { hue, seed } = artFromAddress(t.id);
   const price = toNum(t.price);
   const points = history.length >= 2 ? history : [price, price];
-  const first = points[0] || price;
+
+  /**
+   * Where the change figure measures from.
+   *
+   * `history` is only supplied by the coin detail query, which builds it from
+   * the token's trades. Everywhere else — the board, search, the portfolio —
+   * passed nothing, so `points` fell back to [price, price] and every coin
+   * reported exactly 0.00% change however far it had actually moved. The
+   * board is the one place that number is a reason to click.
+   *
+   * price24hAgo would be the obvious field, and it is the wrong one here: it
+   * is zero until a coin is a day old, and the coins that need a change
+   * figure most are minutes old. So the queries now ask for the oldest
+   * trade's resulting price, which is exactly what history[0] is on the
+   * detail page — the two agree by construction rather than by coincidence.
+   */
+  const firstTraded = toNum(t.firstTrade?.[0]?.priceAfter ?? "0");
+  const first = (history.length >= 2 ? points[0] : firstTraded) || price;
   return {
     id: t.id,
     name: t.name || "Untitled",

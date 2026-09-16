@@ -2,7 +2,7 @@ import "server-only";
 import { createPublicClient, getAbiItem, type Address, type Hex } from "viem";
 import { aromaRouterAbi, poolFactoryAbi, poolManagerAbi } from "./abis";
 import { POOL, POOL_CONTRACTS } from "./arc";
-import { activeChain } from "./chain";
+import { activeChain, ARC_RPC_URL, assertChainMatches } from "./chain";
 import { arcTransport } from "./transport";
 import { resolveImages } from "./server/ipfs";
 import type { Coin } from "./mock";
@@ -51,21 +51,68 @@ const WAD = 10n ** 18n;
 const Q192 = 2n ** 192n;
 const toNum = (v: bigint) => Number(v) / 1e18;
 
-/** Public RPCs cap how many blocks one eth_getLogs may span. */
-const LOG_CHUNK = 45_000n;
+/**
+ * How many blocks one eth_getLogs may span.
+ *
+ * Arc's own RPC refuses anything over 10,000 blocks outright ("requested
+ * range too large"), and separately refuses a query whose *result* would
+ * exceed 2,000 logs, naming a narrower range in the error when it does. 45,000
+ * was picked against a different chain's limits and fails on Arc on the very
+ * first call, which took the whole board down rather than degrading it.
+ *
+ * 9,000 leaves headroom under the hard cap while keeping the number of round
+ * trips down. It is a starting point, not a promise — scan() narrows further
+ * whenever a provider says so, because these limits are per-node and Arc's
+ * public endpoint is load-balanced across nodes that do not all answer the
+ * same way.
+ *
+ * Worth knowing what this costs: Arc produces a block every ~0.5s, so a day of
+ * history is ~170,000 blocks, or ~19 chunks per event type. That is fine for
+ * the first days after a deploy and untenable after a few weeks, which is the
+ * honest shape of this file — a bridge that keeps the site working until the
+ * subgraph is live, not a substitute for one.
+ */
+const LOG_CHUNK = 9_000n;
+
+/** Below this, narrowing further is not going to be what fixes it. */
+const MIN_LOG_CHUNK = 250n;
+
 /** And how many topics one filter may OR together. */
 const IDS_PER_QUERY = 100;
+
+/** Does this error mean "ask for less", as opposed to something real? */
+function isRangeComplaint(e: unknown): boolean {
+  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+  return (
+    msg.includes("range too large") ||
+    msg.includes("max allowed range") ||
+    msg.includes("exceeds max results") ||
+    msg.includes("too many results") ||
+    msg.includes("query returned more than") ||
+    msg.includes("log response size exceeded")
+  );
+}
 
 async function scan<T>(
   fetchRange: (fromBlock: bigint, toBlock: bigint) => Promise<readonly T[]>,
   latest: bigint,
 ): Promise<T[]> {
   let from = POOL_CONTRACTS.deployBlock;
+  let chunk = LOG_CHUNK;
   const out: T[] = [];
+
   while (from <= latest) {
-    const to = from + LOG_CHUNK > latest ? latest : from + LOG_CHUNK;
-    out.push(...(await fetchRange(from, to)));
-    from = to + 1n;
+    const to = from + chunk > latest ? latest : from + chunk;
+    try {
+      out.push(...(await fetchRange(from, to)));
+      from = to + 1n;
+    } catch (e) {
+      // A provider that says the window is too wide is telling us how to
+      // succeed, so halve it and try the same span again. Anything else is a
+      // real failure and belongs to the caller.
+      if (!isRangeComplaint(e) || chunk <= MIN_LOG_CHUNK) throw e;
+      chunk = chunk / 2n > MIN_LOG_CHUNK ? chunk / 2n : MIN_LOG_CHUNK;
+    }
   }
   return out;
 }
@@ -311,7 +358,11 @@ let inflight: Promise<Snapshot> | null = null;
 async function snapshot(): Promise<Snapshot> {
   if (cached && Date.now() - cached.at < TTL_MS) return cached.data;
   if (inflight) return inflight;
-  inflight = load()
+  // Guards against reading a chain that is not the one this build targets.
+  // Cheap (one eth_chainId per process) and it runs before the first scan, so
+  // a misconfigured endpoint surfaces as an error rather than an empty board.
+  inflight = assertChainMatches(ARC_RPC_URL)
+    .then(load)
     .then((data) => {
       cached = { at: Date.now(), data };
       return data;

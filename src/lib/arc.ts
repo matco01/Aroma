@@ -17,21 +17,21 @@
 /**
  * Arc mainnet, chain 5042.
  *
- * The explorer is deliberately empty. As of 2026-09-15 Circle has published
- * no mainnet explorer — arcscan.app has no address record, and testnet's is
- * a Blockscout deployment on its own subdomain — so any URL here would be a
- * guess. explorerUrl() returns null while this is empty and every explorer
- * link hides itself, which is better than sending people to a domain that
- * does not answer. Fill it in on launch day.
+ * The explorer is deliberately empty. As of 2026-09-16, launch day, Circle
+ * has published no public mainnet explorer: arcscan.app has no address
+ * record, and explorer.arc.io sits behind Circle's own Cloudflare Access
+ * login. explorerUrl() returns null while this is empty and every explorer
+ * link hides itself, which is better than sending people somewhere that
+ * asks them to sign in to Circle. Fill it in when one exists.
  */
 export const ARC_MAINNET = {
   id: 5042,
   name: "Arc",
   /**
-   * Circle's own mainnet endpoint. It resolves and answers 403 today, gated
-   * until the public launch. Used only as the default when
-   * NEXT_PUBLIC_ARC_RPC_URL is unset — production should set two providers
-   * there, per wagmi.ts.
+   * Circle's own mainnet endpoint, open since the public launch. Used only
+   * as the default when NEXT_PUBLIC_ARC_RPC_URL is unset — production should
+   * set two providers there, per chain.ts, so one having a bad minute does
+   * not stop everyone trading.
    */
   rpc: "https://rpc.mainnet.arc.io",
   explorer: "" as string,
@@ -71,10 +71,17 @@ export const ARC_MAINNET_CONTRACTS = {
  * Addresses come from the environment here and only here, because they come
  * from whatever the local deploy printed.
  */
-const LOCAL = process.env.NEXT_PUBLIC_AROMA_NETWORK === "local";
+export const LOCAL = process.env.NEXT_PUBLIC_AROMA_NETWORK === "local";
 
 const LOCAL_NETWORK = {
-  id: 31337,
+  /**
+   * anvil keeps the forked chain's id, so a fork of Arc answers 5042, not
+   * 31337. The default is anvil's own id for a bare `anvil`; set
+   * NEXT_PUBLIC_LOCAL_CHAIN_ID=5042 when forking Arc. Getting this wrong is
+   * no longer quiet — chain.ts checks the endpoint's id against this one
+   * before reading anything.
+   */
+  id: Number(process.env.NEXT_PUBLIC_LOCAL_CHAIN_ID ?? "31337"),
   name: "Local fork",
   rpc: "http://127.0.0.1:8545",
   explorer: "" as string,
@@ -88,7 +95,11 @@ export const POOL_CONTRACTS = LOCAL
       poolFactory: process.env.NEXT_PUBLIC_LOCAL_POOL_FACTORY ?? "",
       poolVault: process.env.NEXT_PUBLIC_LOCAL_POOL_VAULT ?? "",
       aromaRouter: process.env.NEXT_PUBLIC_LOCAL_AROMA_ROUTER ?? "",
-      poolManager: "0x000000000004444c5dc75cB358380D2e3dE08A90",
+      // Arc's, because a fork of Arc is what local mode is now for. Ethereum's
+      // PoolManager was the right default only while Arc mainnet was closed
+      // and Ethereum was the one chain with v4 deployed to fork.
+      poolManager:
+        process.env.NEXT_PUBLIC_LOCAL_POOL_MANAGER ?? ARC_MAINNET_CONTRACTS.poolManager,
       deployBlock: BigInt(process.env.NEXT_PUBLIC_LOCAL_DEPLOY_BLOCK ?? "0"),
     }
   : ARC_MAINNET_CONTRACTS;

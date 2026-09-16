@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ARC_TESTNET, CURVE } from "@/lib/arc";
+import { NETWORK, POOL, explorerUrl } from "@/lib/arc";
 import { ago, compact, pct, price, shortAddr, usd } from "@/lib/format";
 import { useToken } from "@/lib/use-chain";
 import type { Coin } from "@/lib/mock";
@@ -37,7 +37,7 @@ export function CoinView({ address }: { address: string }) {
           <p className="mt-1 text-[12px] text-ink-2">
             Nothing at{" "}
             <span className="num">{shortAddr(address)}</span> on{" "}
-            {ARC_TESTNET.name}.
+            {NETWORK.name}.
           </p>
         </div>
       </div>
@@ -45,7 +45,8 @@ export function CoinView({ address }: { address: string }) {
   }
 
   const up = coin.change24hPct >= 0;
-  const remaining = Math.max(0, CURVE.graduationTargetUsd - coin.raisedUsd);
+  const remaining = Math.max(0, POOL.graduationRaiseUsd - coin.raisedUsd);
+  const tokenUrl = explorerUrl(`/token/${coin.contract}`);
 
   // Holders come from trade history rather than a balance index — good
   // enough to show, but it counts buyers, not current holders. A real
@@ -55,7 +56,7 @@ export function CoinView({ address }: { address: string }) {
     .filter((t) => t.side === "buy")
     .reduce<HolderRow[]>((acc, t) => {
       const existing = acc.find((h) => h.account === t.account);
-      const share = (t.tokens / CURVE.totalSupply) * 100;
+      const share = (t.tokens / POOL.totalSupply) * 100;
       if (existing) existing.pctOwned += share;
       else acc.push({ account: t.account, pctOwned: share });
       return acc;
@@ -75,13 +76,15 @@ export function CoinView({ address }: { address: string }) {
         <IndexerStatus health={data?.indexer} />
       </div>
 
-      {/* Three items, not two, so the phone can put the trade panel between
-          the chart and the trades table. Stacked in DOM order a two-column
-          layout buries the buy box under the whole activity table, which on
-          a phone is most of a screen of scrolling to reach the one control
-          the page exists for. Explicit placement at lg keeps the desktop
-          layout exactly as it was: chart and table in column one, panel
-          spanning both rows in column two. */}
+      {/* Four items, so a phone gets identity, then the trade panel, then
+          the chart, then the table — in that order.
+
+          The panel sits above the chart rather than below it because the
+          page exists to be traded on. A chart is what you look at once you
+          have decided to care; the buy box is what you came for, and on a
+          phone anything below the fold may as well not be there. Desktop is
+          untouched: explicit placement at lg keeps column one as identity,
+          chart, table with the panel spanning all three rows beside it. */}
       <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <div className="flex items-start gap-3">
@@ -105,19 +108,26 @@ export function CoinView({ address }: { address: string }) {
                 <span>·</span>
                 <span>{ago(coin.createdAgoSeconds)} old</span>
                 <span>·</span>
-                <a
-                  href={`${ARC_TESTNET.explorer}/token/${coin.contract}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="-my-1.5 inline-block py-1.5 transition-colors hover:text-ink-2"
-                  title={coin.contract}
-                >
-                  contract {shortAddr(coin.contract)} ↗
-                </a>
+                {/* A link only once there is an explorer to link to — see
+                    explorerUrl. Until then the address is still shown, since
+                    it is the one thing someone checking the coin needs. */}
+                {tokenUrl ? (
+                  <a
+                    href={tokenUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="-my-1.5 inline-block py-1.5 transition-colors hover:text-ink-2"
+                    title={coin.contract}
+                  >
+                    contract {shortAddr(coin.contract)} ↗
+                  </a>
+                ) : (
+                  <span title={coin.contract}>contract {shortAddr(coin.contract)}</span>
+                )}
               </div>
             </div>
             <div className="text-right">
-              <div className="num text-[20px] text-ink">{price(coin.priceUsd)}</div>
+              <div className="num text-[24px] text-ink sm:text-[20px]">{price(coin.priceUsd)}</div>
               <div className={`num text-[12px] ${up ? "text-up" : "text-down"}`}>
                 {pct(coin.change24hPct)} <span className="text-ink-3">all</span>
               </div>
@@ -143,18 +153,31 @@ export function CoinView({ address }: { address: string }) {
             />
           </div>
 
-          <div className="mt-4.5">
-<PriceChart series={data?.series ?? []} />
-          </div>
         </div>
 
         {/* min-w-0 is load-bearing. A grid item defaults to min-width:auto,
             so without it the trade panel's min-content width sets the track
             for the whole single-column mobile layout — and drags the left
             column out with it, scrolling the entire page sideways. */}
-        <aside className="min-w-0 space-y-4.5 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-[calc(var(--header-h)+16px)] lg:self-start">
+        <aside className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-[calc(var(--header-h)+16px)] lg:self-start">
           <TradePanel coin={coin} />
+        </aside>
 
+        {/* Carded on a phone, bare on desktop. Stacked single-column the
+            chart sits between two bordered panels with nothing of its own,
+            so it reads as a gap rather than a section. On desktop it has a
+            whole column to itself and needs no help. */}
+        <div className="min-w-0 rounded-lg border border-line bg-surface p-3 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:col-start-1 lg:row-start-2">
+          <PriceChart series={data?.series ?? []} />
+        </div>
+
+        {/* Everything that is context rather than action. Split out of the
+            sidebar so that on a phone the chart lands directly under the
+            swap box: creator fees and graduation progress are things you
+            read once, and three cards between the buy button and the price
+            is three cards of scrolling to check the price before buying.
+            On desktop they sit under the panel exactly as before. */}
+        <div className="min-w-0 space-y-4.5 lg:col-start-2 lg:row-start-3">
           <CreatorFees coin={coin} />
 
           <div className="rounded-md border border-line bg-surface p-3.5">
@@ -164,35 +187,40 @@ export function CoinView({ address }: { address: string }) {
               showLabel
             />
             <p className="mt-3 text-[12px] leading-relaxed text-ink-2">
+              {/* Graduation here is a price level, not a move. The coin has
+                  traded in its own Uniswap v4 pool since the block it was
+                  created, so there is nothing to migrate and nothing that
+                  stops — only a milestone passed. */}
               {coin.graduated ? (
                 <>
-                  This token graduated. Its liquidity moved into a permanently
-                  locked pool.
+                  {coin.ticker} graduated: its first 800M tokens have been
+                  bought. Trading carries on in the same pool, into a further
+                  200M above graduation, and the liquidity stays locked for good.
                 </>
               ) : (
                 <>
-                  {usd(remaining)} more into the curve and {coin.ticker}{" "}
-                  graduates: liquidity migrates to a permanently locked pool at
-                  a {usd(CURVE.graduationMarketCapUsd)} market cap. Until then
-                  every buy and sell runs against the curve.
+                  {usd(remaining)} more and {coin.ticker} graduates at a{" "}
+                  {usd(POOL.graduationMarketCapUsd)} market cap. Nothing migrates
+                  when it does — it already trades in its own Uniswap v4 pool,
+                  with liquidity nobody can withdraw.
                 </>
               )}
             </p>
           </div>
 
-          <a
-            href={`${ARC_TESTNET.explorer}/token/${coin.contract}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex h-9 items-center justify-center rounded-md border border-line text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
-          >
-            View on Arcscan ↗
-          </a>
-        </aside>
+          {tokenUrl && (
+            <a
+              href={tokenUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-9 items-center justify-center rounded-md border border-line text-[12px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+            >
+              View on Arcscan ↗
+            </a>
+          )}
+        </div>
 
-        {/* Last in DOM, so on a phone it lands below the trade panel; back
-            under the chart in column one on desktop. */}
-        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-3">
           <CoinActivity
             trades={trades ?? []}
             holders={holders}

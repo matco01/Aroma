@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     siteName: "Aroma",
     title: "Aroma — launch coins on Arc",
     description:
-      "Fixed-supply tokens on a bonding curve. Gas is USDC, so every price is already a dollar.",
+      "Fixed-supply coins, each in its own Uniswap v4 pool. Gas is USDC, so every price is already a dollar.",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "Aroma" }],
   },
   twitter: {
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     creator: "@Aromadotmoney",
     title: "Aroma — launch coins on Arc",
     description:
-      "Fixed-supply tokens on a bonding curve. Gas is USDC, so every price is already a dollar.",
+      "Fixed-supply coins, each in its own Uniswap v4 pool. Gas is USDC, so every price is already a dollar.",
     images: ["/og.png"],
   },
 };

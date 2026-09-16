@@ -9,6 +9,7 @@ import { hasSubgraph } from "@/lib/server/subgraph";
 import { indexerLag } from "@/lib/server/lag";
 import { fetchBoardData } from "@/lib/chain-data";
 import { upstreamFailure } from "@/lib/server/upstream";
+import { POOL } from "@/lib/arc";
 
 /**
  * The board, served once for everyone.
@@ -45,12 +46,29 @@ export async function GET(request: NextRequest) {
     // still renders. Slow and rate-limited by design; see chain-data.ts.
     try {
       const { tokens, trades } = await fetchBoardData();
-      const filtered =
+      // Most recent trade per coin, for the default "recent buys" sort.
+      const lastTrade = new Map<string, number>();
+      for (const t of trades) {
+        if (!lastTrade.has(t.tokenAddress)) lastTrade.set(t.tokenAddress, t.timestamp);
+      }
+      const byFilter =
         filter === "climbing"
           ? tokens.filter((t) => !t.graduated)
           : filter === "graduated"
             ? tokens.filter((t) => t.graduated)
             : tokens;
+      // Sorted here rather than ignored. The fallback used to return creation
+      // order whatever was asked, which is a board that does not respond to
+      // its own tabs.
+      const filtered = [...byFilter].sort((a, b) =>
+        sort === "mcap"
+          ? b.marketCapUsd - a.marketCapUsd
+          : sort === "volume"
+            ? b.volume24hUsd - a.volume24hUsd
+            : sort === "new"
+              ? a.createdAgoSeconds - b.createdAgoSeconds
+              : (lastTrade.get(b.contract) ?? 0) - (lastTrade.get(a.contract) ?? 0),
+      );
       return NextResponse.json({
         tokens: filtered.slice(skip, skip + limit),
         trades: withTape ? trades.slice(0, 12) : [],
@@ -59,14 +77,18 @@ export async function GET(request: NextRequest) {
           tradeCount: trades.length,
           graduatedCount: tokens.filter((t) => t.graduated).length,
           totalVolumeUsd: trades.reduce((sum, t) => sum + t.usd, 0),
-          totalFeesUsd: 0,
+          totalFeesUsd: trades.reduce((sum, t) => sum + t.usd, 0) * (POOL.tradeFeeBps / 10_000),
         },
         indexer: {
           indexedBlock: 0,
           headBlock: null,
           blocksBehind: null,
           secondsBehind: null,
-          status: "unknown" as const,
+          // Read from the chain itself a few seconds ago, so there is no
+          // index to be behind. "unknown" put a can't-reach-the-chain
+          // warning on every page served this way, which is the opposite
+          // of true.
+          status: "live" as const,
           hasIndexingErrors: false,
         },
         hasMore: filtered.length > skip + limit,

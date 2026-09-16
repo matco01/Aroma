@@ -28,3 +28,28 @@ export const PROTOCOL_ID = "Aroma";
 
 /** Candle intervals in seconds: 5m, 1h, 1d. */
 export const CANDLE_INTERVALS: i32[] = [300, 3600, 86400];
+
+/**
+ * Pool-system constants. These MUST match src/pool/PoolVault.sol, for the
+ * same reason the curve constants must match CurveManager.sol: a subgraph
+ * cannot read a Solidity constant without an eth_call per event.
+ */
+
+/**
+ * PoolVault.TICK_GRADUATION. The sale range is exhausted at or *below* it.
+ *
+ * Below, not above: native USDC sorts first as currency0, so the pool
+ * quotes tokens-per-USDC and a token getting more expensive moves the tick
+ * down. Every comparison against this constant reads backwards from the
+ * intuition, which is why it is worth saying twice.
+ */
+export const POOL_TICK_GRADUATION = 95818;
+
+/** PoolVault.CREATOR_FEE_SHARE_BPS — the creator's cut of the 1% fee. */
+export const CREATOR_FEE_SHARE_BPS = BigInt.fromI32(7000);
+
+/** Q192 = 2^192, for converting sqrtPriceX96 to a WAD price. */
+export const Q192 = BigInt.fromI32(2).pow(192);
+
+export const VENUE_CURVE = "curve";
+export const VENUE_POOL = "pool";

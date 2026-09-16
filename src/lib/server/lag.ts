@@ -1,6 +1,6 @@
 import "server-only";
 import { createPublicClient } from "viem";
-import { arcTestnet } from "@reown/appkit/networks";
+import { activeChain } from "../chain";
 import { arcTransport } from "../transport";
 import type { SubgraphMeta } from "./subgraph";
 
@@ -19,7 +19,7 @@ import type { SubgraphMeta } from "./subgraph";
  */
 
 const client = createPublicClient({
-  chain: arcTestnet,
+  chain: activeChain,
   transport: arcTransport(),
 });
 

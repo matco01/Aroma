@@ -2,14 +2,20 @@
   "name": "aroma-subgraph",
   "version": "1.0.0",
   "private": true,
-  "description": "Indexes Aroma's launches and curve trading on Arc.",
+  "description": "Indexes Aroma's launches and trading on Arc. Two manifests, one schema: subgraph.yaml is the curve system on Arc testnet, subgraph.pool.yaml is the pool system on Arc mainnet. They cannot be one subgraph because a subgraph's data sources must share a network.",
   "scripts": {
-    "codegen": "graph codegen",
-    "build": "graph build",
-    "deploy": "goldsky subgraph deploy aroma/1.0.0 --path ."
+    "codegen": "graph codegen subgraph.yaml",
+    "build": "graph build subgraph.yaml",
+    "deploy": "goldsky subgraph deploy aroma/1.0.0 --path .",
+    "codegen:pool": "graph codegen subgraph.pool.yaml",
+    "build:pool": "graph build subgraph.pool.yaml --output-dir build-pool/",
+    "test": "graph test"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "0.97.1",
     "@graphprotocol/graph-ts": "0.38.1"
+  },
+  "devDependencies": {
+    "matchstick-as": "^0.6.0"
   }
 }

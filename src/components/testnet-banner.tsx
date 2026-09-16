@@ -1,35 +1,50 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { ARC_TESTNET } from "@/lib/arc";
+import { NETWORK, poolsDeployed } from "@/lib/arc";
 
 /**
- * The one thing a first-time visitor has to know.
+ * The one line a visitor needs about the network, when there is one.
  *
- * Two facts, and the second is the useful one: this is a test network, and
- * you cannot do anything here without test funds. Somebody arriving from a
- * link, connecting a wallet, and finding a zero balance has no way to guess
- * that a faucet exists — so the faucet is a link in the banner rather than
- * a line in the footer nobody scrolls to.
+ * This used to announce a test network: "coins here are worth nothing and
+ * balances are test funds". On mainnet that sentence is not merely stale, it
+ * is false in the most dangerous direction there is, so the banner now says
+ * only what is true for the network the build targets:
  *
- * Above the header and not sticky. The header is already 124px, and a
- * permanent second bar would spend a tenth of a laptop screen on something
- * you only need to read once. It scrolls away and stays gone.
+ *   - mainnet, before the contracts are deployed: launches are coming, so a
+ *     visitor who finds disabled buttons knows why;
+ *   - mainnet, once they are: nothing — a permanent banner teaches people to
+ *     ignore banners, which matters for the day there is something urgent;
+ *   - a local fork: that the funds are not real.
  *
- * Dismissal is remembered per browser. Nagging someone who has already
- * understood is how a banner teaches people to ignore banners — which
- * matters for the day there is something urgent to say.
+ * Above the header and not sticky, and dismissal is remembered per message,
+ * so dismissing "coming soon" does not also silence whatever comes next.
  */
 
-const KEY = "aroma:testnet-banner";
+type Message = { key: string; tone: string; label: string; body: string };
 
-/**
- * Whether the banner is dismissed lives in localStorage, which the server
- * cannot read — so the two render differently on purpose.
- *
- * useSyncExternalStore says exactly that, natively, with no effect and no
- * second render pass. The same reasoning as the mount check in wallet.tsx.
- */
+function currentMessage(): Message | null {
+  if (NETWORK.id !== 5042) {
+    return {
+      key: "aroma:banner:local",
+      tone: "text-warn",
+      label: NETWORK.name,
+      body: "Test funds on a local fork of a real chain. Nothing here is worth anything.",
+    };
+  }
+  if (!poolsDeployed) {
+    return {
+      key: "aroma:banner:launching",
+      tone: "text-accent-2",
+      label: "Launching on Arc",
+      body: "Aroma opens for launches and trading with Arc mainnet.",
+    };
+  }
+  return null;
+}
+
+const MESSAGE = currentMessage();
+
 const listeners = new Set<() => void>();
 
 function subscribe(cb: () => void) {
@@ -40,11 +55,11 @@ function subscribe(cb: () => void) {
 }
 
 function isOpen(): boolean {
+  if (!MESSAGE) return false;
   try {
-    return localStorage.getItem(KEY) !== "dismissed";
+    return localStorage.getItem(MESSAGE.key) !== "dismissed";
   } catch {
-    // Private window, or site data blocked. Showing it is the safer
-    // failure — worse to hide a testnet warning than to repeat it.
+    // Private window, or site data blocked. Showing it is the safer failure.
     return true;
   }
 }
@@ -55,11 +70,11 @@ const isClosedOnServer = () => false;
 export function TestnetBanner() {
   const show = useSyncExternalStore(subscribe, isOpen, isClosedOnServer);
 
-  if (!show) return null;
+  if (!show || !MESSAGE) return null;
 
   function dismiss() {
     try {
-      localStorage.setItem(KEY, "dismissed");
+      localStorage.setItem(MESSAGE!.key, "dismissed");
     } catch {
       // It reappears next visit. A small cost, and nothing to do about it.
     }
@@ -71,20 +86,10 @@ export function TestnetBanner() {
       <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2">
         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] leading-relaxed">
           <span className="flex items-center gap-1.5">
-            <span className="size-1.5 shrink-0 rounded-full bg-warn" />
-            <span className="font-medium text-warn">Test network</span>
+            <span className={`size-1.5 shrink-0 rounded-full bg-current ${MESSAGE.tone}`} />
+            <span className={`font-medium ${MESSAGE.tone}`}>{MESSAGE.label}</span>
           </span>
-          <span className="text-ink-2">
-            Coins here are worth nothing and balances are test funds.
-          </span>
-          <a
-            href={ARC_TESTNET.faucet}
-            target="_blank"
-            rel="noreferrer"
-            className="text-ink underline decoration-line-strong underline-offset-2 transition-colors hover:decoration-ink-2"
-          >
-            Get test USDC from Circle&apos;s faucet ↗
-          </a>
+          <span className="text-ink-2">{MESSAGE.body}</span>
         </span>
 
         <button

@@ -6,7 +6,7 @@ import {
   type BoardFilter,
   type BoardSort,
 } from "@/lib/use-chain";
-import { CURVE } from "@/lib/arc";
+import { POOL } from "@/lib/arc";
 import { usd } from "@/lib/format";
 import { CoinCard, CoinRow } from "./coin-card";
 import { IndexerStatus } from "./indexer-status";
@@ -124,7 +124,7 @@ export function Board() {
               <span className="hidden lg:inline">
                 graduates at{" "}
                 <span className="text-ink-2">
-                  {usd(CURVE.graduationMarketCapUsd)}
+                  {usd(POOL.graduationMarketCapUsd)}
                 </span>
               </span>
             </>
@@ -171,7 +171,7 @@ export function Board() {
           </p>
           <p className="mt-1 text-[12px] text-ink-2">
             {filter === "graduated"
-              ? "Tokens appear here once they complete the curve."
+              ? "Coins appear here once they reach their graduation price."
               : "Be the first — launching is free, you only pay gas."}
           </p>
         </div>
@@ -312,7 +312,7 @@ function ListHeader() {
       <span className="label hidden w-20 shrink-0 text-right sm:block">Volume</span>
       <span className="label hidden w-14 shrink-0 text-right md:block">Holders</span>
       <span className="label w-16 shrink-0 text-right">Change</span>
-      <span className="label hidden w-24 shrink-0 sm:block">Curve</span>
+      <span className="label hidden w-24 shrink-0 sm:block">Graduation</span>
     </div>
   );
 }

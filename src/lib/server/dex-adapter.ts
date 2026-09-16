@@ -6,6 +6,16 @@ import { CURVE } from "../arc";
 /**
  * A public feed of curve trading, in the shape DEX Screener's indexer polls.
  *
+ * Curve coins only. Pool coins — everything launched on Arc mainnet — are
+ * deliberately excluded, for two reasons. They do not need it: each one is a
+ * standard Uniswap v4 pool from its first block, visible to any indexer that
+ * watches PoolManager, which is the whole point of the pool system. And this
+ * file would describe them wrongly: the
+ * reserves below are recovered by inverting the curve's virtual-reserve
+ * maths, which does not hold for a v4 position, so serving pool coins here
+ * would publish depth figures that are simply false. A feed that says nothing
+ * about a coin beats one that lies about it.
+ *
  * Why this exists at all: a coin on the curve is invisible to every screener
  * and terminal in the market. Those trades happen inside CurveManager, which
  * is not an AMM anyone has an adapter for, so nothing indexes them — the same
@@ -136,18 +146,19 @@ export async function asset(id: string): Promise<AdapterAsset | null> {
       tokensSold: string;
       graduated: boolean;
       creator: string;
+      venue: string;
     } | null;
   }>(
     `dex:asset:${id}`,
     `query Asset($id: ID!) {
-      token(id: $id) { id name symbol tokensSold graduated creator }
+      token(id: $id) { id name symbol tokensSold graduated creator venue }
     }`,
     { id },
     10_000,
   );
 
   const t = data.token;
-  if (!t) return null;
+  if (!t || t.venue !== "curve") return null;
 
   // Held by the curve contract until sold, and by the locked pool after
   // graduation — so what is actually in circulation is what the curve has
@@ -183,18 +194,19 @@ export async function pair(id: string): Promise<AdapterPair | null> {
       createdAt: string;
       createdAtBlock: string;
       createdTx: string;
+      venue: string;
     } | null;
   }>(
     `dex:pair:${id}`,
     `query Pair($id: ID!) {
-      token(id: $id) { id createdAt createdAtBlock createdTx }
+      token(id: $id) { id createdAt createdAtBlock createdTx venue }
     }`,
     { id },
     60_000,
   );
 
   const t = data.token;
-  if (!t) return null;
+  if (!t || t.venue !== "curve") return null;
 
   return {
     id: t.id,
@@ -262,7 +274,7 @@ export async function events(
       `dex:events:${fromBlock}:${toBlock}:${skip}`,
       `query Events($from: BigInt!, $to: BigInt!, $first: Int!, $skip: Int!) {
         trades(
-          where: { block_gte: $from, block_lte: $to }
+          where: { block_gte: $from, block_lte: $to, token_: { venue: "curve" } }
           orderBy: block
           orderDirection: asc
           first: $first

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ARC_TESTNET, ARC_TESTNET_CONTRACTS, CURVE } from "@/lib/arc";
+import { NETWORK, POOL, POOL_CONTRACTS, explorerUrl } from "@/lib/arc";
 import { SITE_REPO } from "@/lib/site";
 
 /**
@@ -10,23 +10,30 @@ import { SITE_REPO } from "@/lib/site";
  * the code is worse than none — someone reads a stale fee and sizes a trade
  * against it — and the only way to stop that is to make drift impossible
  * rather than a thing to remember.
+ *
+ * Written for the pool system, which is what launches on Arc mainnet. The
+ * bonding-curve contracts still exist on testnet but nothing on the site uses
+ * them, so describing them here would only confuse someone reading this to
+ * understand what they are about to trade.
  */
 
 const nav = [
   { id: "overview", label: "Overview" },
   { id: "launches", label: "Launches" },
-  { id: "curve", label: "The curve" },
+  { id: "pricing", label: "Pricing" },
   { id: "fees", label: "Fees" },
   { id: "graduation", label: "Graduation" },
-  { id: "launch-tax", label: "Launch tax" },
+  { id: "first-block", label: "The first block" },
   { id: "risks", label: "Risks" },
   { id: "contracts", label: "Contracts" },
-  { id: "data-api", label: "Data API" },
   { id: "trading", label: "Trading integration" },
+  { id: "indexing", label: "Indexing" },
   { id: "network", label: "Network" },
 ];
 
 export function DocsView() {
+  const protocolShare = 100 - POOL.creatorFeeShareBps / 100;
+
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-6">
       <div className="grid gap-8 lg:grid-cols-[180px_1fr]">
@@ -52,9 +59,15 @@ export function DocsView() {
 
           <Section id="overview" title="Overview">
             <P>
-              Aroma is a place to launch and trade tokens on {ARC_TESTNET.name}.
+              Aroma is a place to launch and trade coins on {NETWORK.name}.
               Browse the board, open a coin to see its chart and trades, and buy
               or sell straight from your wallet.
+            </P>
+            <P>
+              Every coin launches straight into its own Uniswap v4 pool. There is
+              no separate curve contract and no migration later — the pool is
+              the market from the first block, so the coin shows up anywhere that
+              reads Uniswap, not only here.
             </P>
             <P>
               Gas on Arc is USDC. That means a price is a price — no second
@@ -80,44 +93,50 @@ export function DocsView() {
               </li>
               <li>
                 Optionally buy some of your own coin in the same transaction, up
-                to {usd(2000)}. This is public — it shows on your coin as a dev
-                holding.
+                to {dollars(POOL.maxDevBuyUsd)}. This is public — it shows on your
+                coin as a dev holding — and it pays the same fee as anyone
+                else&apos;s buy.
               </li>
               <li>
                 The token deploys with a fixed supply of{" "}
-                {compact(CURVE.totalSupply)} and no mint function. Nobody,
-                including us, can create more of it.
+                {compact(POOL.totalSupply)} and no mint function, and the whole
+                supply goes into the pool. Nobody, including us, can create more
+                of it or take it back out.
               </li>
             </Ol>
             <P>
-              Trading opens immediately against the bonding curve. There is no
-              listing step and no approval from anyone.
+              Trading opens in that same transaction. There is no listing step
+              and no approval from anyone.
             </P>
           </Section>
 
-          <Section id="curve" title="The curve">
+          <Section id="pricing" title="Pricing">
             <P>
-              Every coin starts on a bonding curve. The price is set by a
-              formula, not an order book, so there is always something to trade
-              against and no one has to provide liquidity.
+              The whole supply is deposited as single-sided liquidity: a range of
+              prices above the opening price, funded only with the token. As
+              people buy, the price walks up through that range and the pool
+              collects their USDC. Nobody had to provide any USDC to start it.
             </P>
             <P>
-              Buying moves the price up, selling moves it down, and the amount
-              it moves depends on the size of the trade against what is already
-              in the curve. Early buys move it more than later ones.
+              Within a range, a Uniswap position is a constant-product curve with
+              virtual reserves — the same shape a bonding curve uses. Buying moves
+              the price up, selling moves it down, and early buys move it more
+              than later ones.
             </P>
             <Facts
               rows={[
-                ["Total supply", compact(CURVE.totalSupply)],
-                ["Sold on the curve", compact(CURVE.curveSupply)],
-                ["Held back for liquidity", compact(CURVE.lpReserveSupply)],
-                ["Opening market cap", usd(4300)],
+                ["Total supply", compact(POOL.totalSupply)],
+                ["Sold up to graduation", compact(POOL.saleSupply)],
+                ["Available above graduation", compact(POOL.reserveSupply)],
+                ["Opening market cap", dollars(POOL.openingMarketCapUsd)],
+                ["Graduation market cap", dollars(POOL.graduationMarketCapUsd)],
+                ["Where liquidity ends", dollars(POOL.topMarketCapUsd)],
               ]}
             />
             <P>
-              The {compact(CURVE.lpReserveSupply)} held back is not sold to
-              anyone. It is what seeds the pool at graduation, and it is why the
-              price does not jump when a coin leaves the curve.
+              The figures are not round because they are where Uniswap&apos;s
+              price ticks actually land, and they are stated as they are rather
+              than rounded to look tidier.
             </P>
           </Section>
 
@@ -125,75 +144,66 @@ export function DocsView() {
             <Facts
               rows={[
                 ["Launching", "Free"],
-                ["Trade fee", `${CURVE.tradeFeeBps / 100}% of every buy and sell`],
-                ["To the creator", `${CURVE.creatorFeeShareBps / 100}% of that fee`],
-                ["To the protocol", `${100 - CURVE.creatorFeeShareBps / 100}% of that fee`],
+                ["Trade fee", `${POOL.tradeFeeBps / 100}% of every buy and sell`],
+                ["To the creator", `${POOL.creatorFeeShareBps / 100}% of that fee`],
+                ["To the protocol", `${protocolShare}% of that fee`],
               ]}
             />
             <P>
-              On a {usd(100)} trade the fee is {usd(1)}. The creator gets{" "}
-              {usd(0.7)} and Aroma gets {usd(0.3)}. The creator&apos;s share
-              accrues in the contract and they claim it whenever they want; it
-              is visible on the coin&apos;s page whether you are the creator or
-              not.
+              On a {dollars(100)} trade the fee is {dollars(1)}. The creator gets{" "}
+              {dollars(0.7)} and Aroma gets {dollars(0.3)}.
             </P>
             <P>
-              Creator fees keep accruing after graduation, from swap fees on the
-              pool.
+              Every fee is paid in USDC, on buys and sells alike. The pool charges
+              nothing itself; a hook takes the fee from whichever side of the
+              trade is USDC, so no token is ever sold to pay anyone. The fee is
+              part of the pool, which means it applies to every trade whichever
+              app or router sends it.
+            </P>
+            <P>
+              The creator&apos;s share accrues in the contract and they claim it
+              whenever they want. It is visible on the coin&apos;s page whether
+              you are the creator or not, and it never stops accruing.
             </P>
           </Section>
 
           <Section id="graduation" title="Graduation">
             <P>
-              A coin graduates once {usd(CURVE.graduationTargetUsd)} has been
-              raised into its curve, which is a market cap of{" "}
-              {usd(CURVE.graduationMarketCapUsd)}. Anyone can trigger it — it
-              does not wait on us.
+              A coin graduates when its first {compact(POOL.saleSupply)} tokens
+              have been bought — once {dollars(POOL.graduationRaiseUsd)} has come
+              in, at a market cap of {dollars(POOL.graduationMarketCapUsd)}.
             </P>
             <P>
-              At that point the curve closes and the raise, together with the{" "}
-              {compact(CURVE.lpReserveSupply)} that was held back, seeds a
-              Uniswap v4 pool. The liquidity is locked: the contract that holds
-              it has no function that can reduce a position or move one out.
+              Nothing moves when it does. The coin has traded in its own pool
+              since the block it launched, so there is no migration, no new pool,
+              and no pause. Trading simply carries on into the next{" "}
+              {compact(POOL.reserveSupply)} tokens, which sit in the same pool
+              above the graduation price.
             </P>
             <P>
-              The pool opens at the price the curve closed at. There is no jump
-              — the ratio of held-back tokens to raised USDC is chosen so the
-              two prices match.
+              Graduation is a milestone, and on the board it stays earned: a coin
+              that graduated and then dipped below the line is still marked as
+              having made it.
             </P>
-            <Note>
-              Uniswap v4 is not deployed on {ARC_TESTNET.name}. On testnet a
-              graduated coin&apos;s funds are held by the locker contract and
-              the pool is seeded once v4 exists. Nothing can be traded after
-              graduation until then.
-            </Note>
           </Section>
 
-          <Section id="launch-tax" title="Launch tax">
+          <Section id="first-block" title="The first block">
             <P>
-              Creators can switch on a tax that falls on whoever buys in the
-              first moments. Buys in the launch second pay{" "}
-              {CURVE.snipeStartBps / 100}%, decaying to nothing over{" "}
-              {CURVE.snipeWindowSeconds} seconds. It makes front-running a
-              launch unprofitable rather than merely rude.
+              Pool launches have no launch tax. A coin is tradeable the moment it
+              exists, and a bot watching for new pools can buy in the very next
+              transaction.
             </P>
             <P>
-              The creator declares their own wallets as exempt when they launch.
-              That list is fixed at that moment — nobody, including them, can
-              add to it afterwards.
+              The protection there is, is the creator&apos;s own first buy. It runs
+              inside the launch transaction, before anyone else can see the coin,
+              so a creator who wants to buy their own coin cannot be front-run
+              doing it.
             </P>
-            <P>
-              The contract caps both numbers, so this cannot be turned into a
-              trap. The window can never exceed{" "}
-              {CURVE.snipeWindowSeconds} seconds and the rate can never exceed{" "}
-              {CURVE.snipeStartBps / 100}%, whatever a creator asks for. Three
-              seconds after any launch, every buyer pays the ordinary fee and
-              nothing more.
-            </P>
-            <P>
-              The tax follows the same split as a trade fee. It is off unless a
-              creator turned it on, and the coin page says which.
-            </P>
+            <Note>
+              If you are buying a coin in the seconds after it launches, you are
+              competing with bots. Check the price you are paying, not only the
+              market cap on the card.
+            </Note>
           </Section>
 
           <Section id="risks" title="Risks">
@@ -216,9 +226,14 @@ export function DocsView() {
                 there is no undo and no support desk that can reverse it.
               </li>
               <li>
-                <B>Early buyers pay less.</B> That is how a bonding curve works,
-                not a bug — but it means whoever is already in is up on you the
+                <B>Early buyers pay less.</B> That is how the pricing works, not
+                a bug — but it means whoever is already in is up on you the
                 moment you buy.
+              </li>
+              <li>
+                <B>The contracts have not been audited.</B> They are tested
+                against Uniswap&apos;s own deployed code and they are public, but
+                nobody independent has reviewed them.
               </li>
             </Ul>
             <P>Nothing here is investment advice.</P>
@@ -226,21 +241,27 @@ export function DocsView() {
 
           <Section id="contracts" title="Contracts">
             <P>
-              All verified on Arcscan. Read them rather than taking our word for
-              any of the above.
+              Three contracts, on top of Uniswap v4&apos;s own. Read them rather
+              than taking our word for any of the above.
             </P>
             <Addresses
               rows={[
-                ["CurveManager", ARC_TESTNET_CONTRACTS.curveManager, "Holds every curve. Buying, selling, fees, graduation."],
-                ["AromaFactory", ARC_TESTNET_CONTRACTS.aromaFactory, "Deploys tokens and registers them with the curve."],
-                ["LiquidityLocker", ARC_TESTNET_CONTRACTS.liquidityLocker, "Holds graduated liquidity. Cannot release it."],
+                ["PoolFactory", POOL_CONTRACTS.poolFactory, "Deploys a token and launches its pool in one transaction."],
+                ["PoolVault", POOL_CONTRACTS.poolVault, "Creates each pool, owns every position, and is the pool's hook — the fee lives here."],
+                ["AromaRouter", POOL_CONTRACTS.aromaRouter, "Buys and sells. Holds nothing between trades."],
+                ["Uniswap v4 PoolManager", POOL_CONTRACTS.poolManager, "Uniswap's own singleton. Every pool lives in it."],
               ]}
             />
             <P>
-              The owner key can do exactly two things: withdraw accumulated
-              protocol fees, and set the factory address once at deployment.
-              There is no pause, no upgrade, and no path from the owner to a
-              curve reserve or a creator&apos;s fees.
+              The liquidity is locked because PoolVault owns every position and
+              has no function that removes liquidity — not one that is guarded,
+              none at all.
+            </P>
+            <P>
+              The owner key can do exactly two things: withdraw the protocol&apos;s
+              share of fees, and set the factory address once at deployment. There
+              is no pause, no upgrade, and no path from the owner to a pool&apos;s
+              liquidity or a creator&apos;s fees.
             </P>
             <P>
               The whole thing is public — contracts, indexer and this site — at
@@ -251,106 +272,88 @@ export function DocsView() {
             </P>
           </Section>
 
-          <Section id="data-api" title="Data API">
-            <P>
-              Trading on the curve happens inside our own contract rather than on
-              an AMM, so no screener or terminal sees it the way it sees an
-              ordinary pool. This is a public, unauthenticated feed of it, shaped
-              the way DEX Screener&apos;s indexer expects, so anyone can index
-              Aroma without asking us for anything.
-            </P>
-            <Endpoints
-              rows={[
-                ["GET /api/dex/latest-block", "Newest block the feed can answer for"],
-                ["GET /api/dex/asset?id=", "A token, or the zero address for native USDC"],
-                ["GET /api/dex/pair?id=", "A coin and its curve, addressed by token"],
-                ["GET /api/dex/events?fromBlock=&toBlock=", "Every curve trade in a range, oldest first"],
-              ]}
-            />
-            <P>
-              Pairs are quoted token-first, so <B>priceNative</B> is USDC per token
-              — a dollar price, since USDC is the gas token here. Reserves are the
-              real ones: USDC actually held and tokens still left to sell, not the
-              virtual reserves the pricing math uses.
-            </P>
-            <P>
-              Rate limited per caller: 90 range queries and 240 lookups a minute,
-              which is well clear of what polling the head every second needs. A
-              429 carries a Retry-After. Get in touch if you need more.
-            </P>
-            <P>
-              The feed covers the curve only. Once a coin graduates its pool is an
-              ordinary Uniswap v4 pool with no hooks, which indexers pick up
-              natively, and this stops rather than reporting it twice.
-            </P>
-          </Section>
-
           <Section id="trading" title="Trading integration">
             <P>
-              The feed above is read-only. Trading a coin while it is on the curve
-              means calling CurveManager directly — there is no pool, so there is
-              nothing for a router to route through. Every coin lives on the one
-              address below, so a single log filter covers all of them and there is
-              no per-token contract to discover.
+              Every Aroma coin is a Uniswap v4 pool with native USDC as currency0
+              and the coin as currency1, tick spacing {POOL.tickSpacing}, an LP fee
+              of zero, and PoolVault as its hook. Anything that can swap a v4 pool
+              can trade it, and the hook charges its fee whichever route the trade
+              takes.
             </P>
-            <Addresses
-              rows={[
-                ["CurveManager", ARC_TESTNET_CONTRACTS.curveManager, "Buy, sell, and quote every coin on the curve."],
-              ]}
-            />
+            <P>
+              AromaRouter is the simplest way in, because Uniswap has published no
+              Universal Router for Arc. It keeps sells to one transaction with an
+              EIP-2612 permit instead of Permit2.
+            </P>
             <Endpoints
               rows={[
-                ["buy(address token, address recipient, uint256 minTokensOut) payable", "USDC is the value sent, since it is the gas token. Tokens go to recipient, so you can buy straight into a user’s wallet."],
-                ["sell(address token, uint256 amount, uint256 minUsdcOut, uint256 deadline, uint8 v, bytes32 r, bytes32 s)", "One transaction. The EIP-2612 permit replaces a separate approve."],
-                ["quoteBuy(address token, uint256 usdcIn) view", "Returns (tokensOut, fee). Use it rather than reimplementing the curve."],
-                ["quoteSell(address token, uint256 amount) view", "Returns (usdcOut, fee)."],
-                ["snipeTaxBps(address token, address buyer) view", "The launch tax this buyer would pay right now, in bps. Zero once the window has passed."],
+                ["buy(address token, uint256 minTokensOut) payable", "USDC is the value sent. Tokens go straight to the caller."],
+                ["sell(address token, uint256 amount, uint256 minUsdcOut, uint256 deadline, uint8 v, bytes32 r, bytes32 s)", "One transaction. The permit's spender is the router."],
               ]}
             />
             <Note>
-              <B>quoteBuy does not include the launch tax.</B> buy() takes the tax
-              off the value sent first and charges the {CURVE.tradeFeeBps / 100}% fee
-              on what is left, so during a launch window a direct quote is too high
-              and the buy reverts on slippage. Take the tax off first:
+              <B>A trade the pool cannot fill completely reverts.</B> A buy larger
+              than the liquidity left, or a sell of more tokens than ever left the
+              pool, fails with &quot;insufficient liquidity&quot; instead of filling
+              part of it. From launch the pool can take about{" "}
+              {dollars(POOL.totalRaiseUsd)} in total.
             </Note>
-            <Code>{`taxBps    = snipeTaxBps(token, buyer)
-spendable = usdcIn * (10000 - taxBps) / 10000
-(out, _)  = quoteBuy(token, spendable)
-minOut    = out * (10000 - slippageBps) / 10000
-buy{value: usdcIn}(token, recipient, minOut)`}</Code>
             <P>
-              Outside the window snipeTaxBps returns zero and this collapses to
-              quoting directly. The window is never longer than
-              {" "}{CURVE.snipeWindowSeconds} seconds, and the contract will not
-              accept a longer one.
+              For a quote, simulate the router call itself with a minimum of zero
+              and read the return value. That runs the real pool, the real fee and
+              the router&apos;s own checks, which is what this site does before
+              every trade.
             </P>
             <P>
-              Events worth decoding, all from that same address. topic0 is the
-              keccak256 of the signature, so nothing here has to be taken on trust:
+              Two shapes are refused by the hook: exact-output sells (&quot;give me
+              exactly N USDC&quot;) revert, because charging a fee on an exact
+              output would mean handing back less than was asked for. Every
+              ordinary exact-input buy and sell works.
+            </P>
+          </Section>
+
+          <Section id="indexing" title="Indexing">
+            <P>
+              Nothing custom is needed. Watch PoolFactory for new coins and
+              Uniswap&apos;s PoolManager for their trades.
             </P>
             <Endpoints
               rows={[
-                ["Bought(address,address,address,uint256,uint256,uint256,uint256)", "token, recipient, payer, usdcIn, fee, creatorFee, tokensOut"],
-                ["Sold(address,address,uint256,uint256,uint256,uint256)", "token, seller, tokensIn, usdcOut, fee, creatorFee"],
-                ["TokenRegistered(address,address)", "token, creator — a new coin exists"],
-                ["Graduated(address,uint256,uint256,uint256)", "token, usdcSeed, tokenSeed, graduationFee — the curve is closed"],
+                ["PoolFactory · TokenCreated(address token, address creator, bytes32 poolId, string name, string symbol, string description, string metadataUri, uint256 devBuyUsdc)", "A new coin and its PoolId. token, creator and poolId are indexed."],
+                ["PoolManager · Swap(bytes32 id, address sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)", "Every trade. Filter by id — PoolManager serves every v4 pool on the chain."],
+                ["PoolVault · FeeTaken(address token, uint256 usdc)", "The exact fee each trade paid, in USDC."],
               ]}
             />
+            <P>
+              Two details trip people up. A Swap&apos;s amounts are{" "}
+              <B>net of the fee on a buy and gross of it on a sell</B>, because the
+              hook charges before the swap in one direction and after it in the
+              other. And its <B>sender is the router</B>, not the trader — use the
+              transaction sender, or AromaRouter&apos;s own Bought and Sold events,
+              which name the trader.
+            </P>
+            <P>
+              The price is tokens per USDC in the pool, so a coin getting more
+              expensive moves the tick down, and graduation is reached at tick{" "}
+              {POOL.tickGraduation.toLocaleString("en-US")} or below.
+            </P>
           </Section>
 
           <Section id="network" title="Network">
             <Facts
               rows={[
-                ["Chain", ARC_TESTNET.name],
-                ["Chain ID", String(ARC_TESTNET.id)],
+                ["Chain", NETWORK.name],
+                ["Chain ID", String(NETWORK.id)],
                 ["Gas token", "USDC"],
-                ["Explorer", ARC_TESTNET.explorer.replace("https://", "")],
+                ["Liquidity", "Uniswap v4"],
+                ...(NETWORK.explorer
+                  ? ([["Explorer", NETWORK.explorer.replace("https://", "")]] as [string, string][])
+                  : []),
               ]}
             />
             <P>
-              Test funds come from{" "}
-              <A href={ARC_TESTNET.faucet}>Circle&apos;s faucet</A>. They have no
-              monetary value, and neither does anything you buy with them.
+              Your wallet will be asked to switch to {NETWORK.name}, or to add it
+              if it has never seen it, the first time you trade.
             </P>
           </Section>
 
@@ -438,14 +441,6 @@ function Facts({ rows }: { rows: [string, string][] }) {
   );
 }
 
-function Code({ children }: { children: React.ReactNode }) {
-  return (
-    <pre className="overflow-x-auto rounded-md border border-line bg-surface px-3.5 py-3">
-      <code className="num text-[12.5px] leading-[1.7] text-ink">{children}</code>
-    </pre>
-  );
-}
-
 function Endpoints({ rows }: { rows: [string, string][] }) {
   return (
     <ul className="rounded-md border border-line bg-surface">
@@ -465,33 +460,43 @@ function Endpoints({ rows }: { rows: [string, string][] }) {
 function Addresses({ rows }: { rows: [string, string, string][] }) {
   return (
     <div className="space-y-2">
-      {rows.map(([name, addr, what]) => (
-        <div key={name} className="rounded-md border border-line bg-surface px-3.5 py-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[13.5px] text-ink">{name}</span>
-            <a
-              href={`${ARC_TESTNET.explorer}/address/${addr}`}
-              target="_blank"
-              rel="noreferrer"
-              className="num shrink-0 text-[11.5px] text-ink-3 transition-colors hover:text-ink-2"
-            >
-              Arcscan ↗
-            </a>
+      {rows.map(([name, addr, what]) => {
+        // An empty address means not deployed yet. Saying so beats rendering
+        // an empty line that looks like a missing value.
+        const href = addr ? explorerUrl(`/address/${addr}`) : null;
+        return (
+          <div key={name} className="rounded-md border border-line bg-surface px-3.5 py-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[13.5px] text-ink">{name}</span>
+              {href && (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="num shrink-0 text-[11.5px] text-ink-3 transition-colors hover:text-ink-2"
+                >
+                  Arcscan ↗
+                </a>
+              )}
+            </div>
+            <div className="num mt-1 break-all text-[11.5px] text-ink-2">
+              {addr || "Published at launch"}
+            </div>
+            <p className="mt-1.5 text-[12.5px] text-ink-3">{what}</p>
           </div>
-          <div className="num mt-1 break-all text-[11.5px] text-ink-2">{addr}</div>
-          <p className="mt-1.5 text-[12.5px] text-ink-3">{what}</p>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 /* Local formatters — the shared ones round for a dense board, which is the
    wrong trade in prose where an exact figure is the point. */
-function usd(n: number): string {
-  if (n >= 1000) return `$${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
-  if (Number.isInteger(n)) return `$${n}`;
-  return `$${n.toFixed(2)}`;
+function dollars(n: number): string {
+  return `$${n.toLocaleString("en-US", {
+    minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function compact(n: number): string {

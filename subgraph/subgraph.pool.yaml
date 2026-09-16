@@ -21,7 +21,7 @@ dataSources:
   # Launches. One event per token, ever.
   - kind: ethereum
     name: PoolFactory
-    network: arc
+    network: arc-mainnet
     source:
       # FIXME: fill in from the DeployPool.s.sol output. Not a placeholder
       # that can be guessed — PoolFactory is deployed fresh, and the vault it
@@ -55,7 +55,7 @@ dataSources:
   # deployed in.
   - kind: ethereum
     name: PoolManager
-    network: arc
+    network: arc-mainnet
     source:
       # Uniswap v4 on Arc mainnet, from Uniswap's sdk-core address table and
       # their UniswapX chain playbook, which agree. Not ours, and not
@@ -82,7 +82,7 @@ dataSources:
   # on a sell, so they cannot settle the fee ledger on their own.
   - kind: ethereum
     name: PoolVault
-    network: arc
+    network: arc-mainnet
     source:
       # FIXME: fill in from the DeployPool.s.sol output. This address is
       # mined, so it is neither guessable nor stable across redeploys.

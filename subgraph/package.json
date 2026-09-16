@@ -7,6 +7,7 @@
     "codegen": "graph codegen subgraph.yaml",
     "build": "graph build subgraph.yaml",
     "deploy": "goldsky subgraph deploy aroma/1.0.0 --path .",
+    "deploy:pool": "graph codegen subgraph.pool.yaml && graph build subgraph.pool.yaml --output-dir build-pool/ && goldsky subgraph deploy aroma-pool/1.0.0 --path build-pool/",
     "codegen:pool": "graph codegen subgraph.pool.yaml",
     "build:pool": "graph build subgraph.pool.yaml --output-dir build-pool/",
     "test": "graph test"

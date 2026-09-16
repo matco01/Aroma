@@ -114,11 +114,29 @@ export function CreateForm() {
    * of after uploading megabytes. The server checks again regardless —
    * this is a courtesy, not the gate.
    */
-  function measure(objectUrl: string): Promise<{ width: number; height: number }> {
+  async function measure(
+    file: File,
+    objectUrl: string,
+  ): Promise<{ width: number; height: number } | null> {
+    // createImageBitmap first: it decodes formats and sizes that <img> will
+    // not, which matters on phones, where Safari refuses to decode the largest
+    // camera images into an element at all.
+    if (typeof createImageBitmap === "function") {
+      try {
+        const bitmap = await createImageBitmap(file);
+        const size = { width: bitmap.width, height: bitmap.height };
+        bitmap.close();
+        return size;
+      } catch {
+        // Falls through to the element.
+      }
+    }
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      img.onerror = () => resolve({ width: 0, height: 0 });
+      // null, not zero. A picture we could not measure is not a picture with
+      // no dimensions, and the difference decides whether someone can launch.
+      img.onerror = () => resolve(null);
       img.src = objectUrl;
     });
   }
@@ -136,13 +154,29 @@ export function CreateForm() {
     }
 
     const objectUrl = URL.createObjectURL(file);
-    const { width, height } = await measure(objectUrl);
-    const dimensionProblem = checkImageDimensions(width, height);
-    if (dimensionProblem) {
-      setUploadError(dimensionProblem);
-      setImagePreview("");
-      URL.revokeObjectURL(objectUrl);
-      return;
+
+    /**
+     * Measuring here is a courtesy — it saves someone a slow upload of a file
+     * that was never going to be accepted — and the server checks properly
+     * regardless, from the header, without decoding anything.
+     *
+     * So a measurement that *fails* must not reject the file. It used to:
+     * measure() returned 0x0 on any decode error and 0x0 fails the dimension
+     * check, so "the browser could not decode this" was reported as "couldn't
+     * read that image's dimensions" and the upload stopped there. On a phone
+     * that meant every photo in the roll, since the browser would not decode
+     * them and nothing else ever got a look. Now an unmeasurable file is
+     * simply passed to the server, which is the one that decides.
+     */
+    const size = await measure(file, objectUrl);
+    if (size) {
+      const dimensionProblem = checkImageDimensions(size.width, size.height);
+      if (dimensionProblem) {
+        setUploadError(dimensionProblem);
+        setImagePreview("");
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
     }
 
     setImagePreview(objectUrl);

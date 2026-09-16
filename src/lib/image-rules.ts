@@ -31,11 +31,21 @@ export const IMAGE_RULES = {
    * memory on whatever tries to render it. Checking dimensions from the
    * header, before anything decodes the pixels, is the actual defence.
    */
-  maxDimension: 4096,
+  maxDimension: 10_000,
   /** Below this, upscaling to the output size looks obviously soft. */
   minDimension: 128,
-  /** Total pixels, so a 4096 x 4096 limit can't be dodged with 4096 x 40000. */
-  maxPixels: 4096 * 4096,
+  /**
+   * Total pixels, so the dimension limit can't be dodged with 4096 x 40000.
+   *
+   * This was 4096 x 4096, which sounded generous and quietly rejected the
+   * single most common thing anyone uploads: a photo straight off a phone. A
+   * 48MP camera writes 8064 x 6048, so every picture in the roll failed. The
+   * cap exists to stop a decompression bomb, not to stop a photograph, and
+   * 64M pixels still does the first — sharp shrinks JPEGs on load rather than
+   * materialising them, and `limitInputPixels` in normalizeImage is set from
+   * this same number, so the decoder refuses anything past it too.
+   */
+  maxPixels: 64_000_000,
   /**
    * Art renders square with object-cover, so a very long image is mostly
    * cropped away — the creator would be uploading something quite unlike

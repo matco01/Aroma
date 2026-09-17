@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useCreateToken } from "@/lib/use-trade";
 import { IMAGE_RULES, checkImageFile, checkImageDimensions } from "@/lib/image-rules";
-import { POOL, poolsDeployed } from "@/lib/arc";
-import { marketCapAfterDevBuy } from "@/lib/pool-math";
+import { CLUB, clubsDeployed, POOL, poolsDeployed } from "@/lib/arc";
+import { OPENING_PRICE_USD, marketCapAfterDevBuy, previewBuy } from "@/lib/pool-math";
 import { compact, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
 import { useWallet } from "./wallet";
@@ -20,6 +20,12 @@ export function CreateForm() {
   const [website, setWebsite] = useState("");
   const [x, setX] = useState("");
   const [telegram, setTelegram] = useState("");
+  /**
+   * Normal or club. Only offered once the club contracts exist; until then
+   * every launch is normal and the choice is not shown at all.
+   */
+  const [mode, setMode] = useState<"normal" | "club">("normal");
+  const isClub = clubsDeployed && mode === "club";
 
   // Image upload. The preview is a local object URL so it appears the
   // instant a file is chosen, rather than after a round trip to IPFS —
@@ -38,7 +44,12 @@ export function CreateForm() {
   const networkFee = 0.0383;
   // What the coin opens at once the creator's own buy has landed. It is the
   // number the coin is judged on the moment it appears on the board.
-  const openingCap = marketCapAfterDevBuy(Math.min(devBuyValue, POOL.maxDevBuyUsd));
+  // A club coin's pool is identical, but its 1.5% fee leaves a little less of
+  // the first buy to move the price.
+  const cappedDevBuy = Math.min(devBuyValue, POOL.maxDevBuyUsd);
+  const openingCap = isClub
+    ? previewBuy(OPENING_PRICE_USD, cappedDevBuy, CLUB.tradeFeeBps).priceAfterUsd * POOL.totalSupply
+    : marketCapAfterDevBuy(cappedDevBuy);
   // No creation fee — launching costs gas and, optionally, whatever the
   // creator chooses to put into their own first buy.
   const total = devBuyValue + networkFee;
@@ -102,7 +113,14 @@ export function CreateForm() {
       }
     }
 
-    await create(name.trim(), ticker.trim(), description.trim(), devBuy || "0", metadataUri);
+    await create(
+      name.trim(),
+      ticker.trim(),
+      description.trim(),
+      devBuy || "0",
+      metadataUri,
+      isClub ? "club" : "normal",
+    );
   }
 
   const busy = phase === "signing" || phase === "pending" || uploading;
@@ -217,10 +235,18 @@ export function CreateForm() {
           <Summary label="Paid" value={usd(total)} />
           <Summary label="Your allocation" value={devBuyValue > 0 ? usd(devBuyValue) : "None"} />
         </dl>
-        <p className="mt-4 text-[11.5px] leading-relaxed text-ink-3">
-          It is trading in its own Uniswap v4 pool, with the liquidity locked for
-          good. Anyone can buy it here, and anything that routes v4 can see it.
-        </p>
+        {isClub ? (
+          <p className="mt-4 text-[11.5px] leading-relaxed text-ink-3">
+            It is an invite-only club, trading in its own Uniswap v4 pool with the
+            liquidity locked for good. Only people you invite can buy. You have{" "}
+            {CLUB.creatorSeats} invites — make a link from the coin page and send it.
+          </p>
+        ) : (
+          <p className="mt-4 text-[11.5px] leading-relaxed text-ink-3">
+            It is trading in its own Uniswap v4 pool, with the liquidity locked for
+            good. Anyone can buy it here, and anything that routes v4 can see it.
+          </p>
+        )}
         <div className="mt-4 flex gap-2">
           <button
             onClick={reset}
@@ -253,6 +279,59 @@ export function CreateForm() {
           <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ink">
             Launch a coin
           </h1>
+
+          {clubsDeployed && (
+            <div
+              role="radiogroup"
+              aria-label="Kind of coin"
+              className="mt-4 grid grid-cols-2 gap-2"
+            >
+              {(
+                [
+                  ["normal", "Open", "Anyone can buy. You earn 70% of every trade fee."],
+                  ["club", "Club", "Invite-only. Buyers need an invite, and whoever brings people in earns."],
+                ] as const
+              ).map(([value, title, blurb]) => {
+                const on = mode === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setMode(value)}
+                    // Accent and a filled dot, not just a lighter surface. On the
+                    // glass theme two surface tones are close enough that the
+                    // selected card was indistinguishable in a screenshot — and a
+                    // choice this consequential has to be unmistakable.
+                    // flex-col + justify-start: a <button> centres its content
+                    // vertically, so the card with the shorter description had
+                    // its title sitting lower than its neighbour's.
+                    className={`flex flex-col justify-start rounded-sm border px-3 py-2.5 text-left transition-colors ${
+                      on
+                        ? "border-accent-2/60 bg-accent-2-dim"
+                        : "border-line hover:border-line-strong"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        aria-hidden
+                        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${
+                          on ? "border-accent-2" : "border-line-strong"
+                        }`}
+                      >
+                        {on && <span className="h-1.5 w-1.5 rounded-full bg-accent-2" />}
+                      </span>
+                      <span className={`text-[13px] font-medium ${on ? "text-accent-2" : "text-ink-2"}`}>
+                        {title}
+                      </span>
+                    </span>
+                    <span className="mt-1 block pl-5.5 text-[11.5px] leading-snug text-ink-3">{blurb}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mt-5 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -436,10 +515,12 @@ export function CreateForm() {
           {/* One line, not a paragraph. The cost panel is scanned, not
               read, and burying the earnings pitch in four sentences of
               caveats meant nobody reached the end of it. */}
-          <div className="mt-3 flex items-baseline justify-between border-t border-line pt-3">
+          <div className="mt-3 flex items-baseline justify-between gap-3 border-t border-line pt-3">
             <span className="text-[12px] text-up">You earn</span>
-            <span className="num text-[12.5px] text-up">
-              {POOL.creatorFeeShareBps / 100}% of every fee
+            <span className="num text-right text-[12.5px] text-up">
+              {isClub
+                ? `${CLUB.rootFeeBps / 100}% of every trade, plus your invites`
+                : `${POOL.creatorFeeShareBps / 100}% of every fee`}
             </span>
           </div>
 
@@ -460,7 +541,9 @@ export function CreateForm() {
                   ? "Insufficient USDC"
                   : !valid
                     ? "Name and ticker required"
-                    : "Launch coin"}
+                    : isClub
+                      ? "Launch club"
+                      : "Launch coin"}
           </button>
 
           {error && (
@@ -473,6 +556,8 @@ export function CreateForm() {
             Supply is fixed at {compact(POOL.totalSupply)} and the contract has
             no mint function. The whole supply goes into a Uniswap v4 pool whose
             liquidity can never be withdrawn. Deployment is irreversible.
+            {isClub &&
+              ` Club coins trade at ${CLUB.tradeFeeBps / 100}% — ${CLUB.protocolFeeBps / 100}% to Aroma, ${CLUB.rootFeeBps / 100}% to you, and ${CLUB.treeFeeBps / 100}% to the people who invited each trader.`}
           </p>
         </div>
       </aside>

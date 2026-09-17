@@ -46,6 +46,13 @@ export type Coin = {
   holders: number;
   raisedUsd: number;
   graduated: boolean;
+  /**
+   * An invite-only club coin rather than a normal one. The two trade through
+   * different contracts for life — a pool's hook is fixed at creation — so
+   * this decides which router a trade goes through, what fee it pays, and
+   * whether a buy needs membership. See CLUBS.md.
+   */
+  club: boolean;
   hue: number;
   seed: number;
   history: number[];
@@ -180,6 +187,7 @@ function buildCoin(index: number): Coin {
     holders,
     raisedUsd,
     graduated,
+    club: false,
     hue: Math.floor(rnd() * 360),
     seed: 1337 + index * 7919,
     history,

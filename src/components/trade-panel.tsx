@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAccount, useReadContract } from "wagmi";
 import { formatUnits, type Address } from "viem";
 import type { Coin } from "@/lib/mock";
-import { POOL, poolsDeployed } from "@/lib/arc";
+import { CLUB, POOL, clubsDeployed, poolsDeployed } from "@/lib/arc";
 import { previewBuy, previewSell } from "@/lib/pool-math";
-import { compact, usd, usdExact } from "@/lib/format";
+import { compact, shortAddr, usd, usdExact } from "@/lib/format";
 import { aromaTokenAbi } from "@/lib/abis";
 import { useTrade } from "@/lib/use-trade";
+import { useClub, useInviteCheck } from "@/lib/use-club";
+import { clubReason, decodeInvite } from "@/lib/club-trade";
 import { useWallet } from "./wallet";
 import { TradeToast, type TradeToastData } from "./trade-toast";
 
@@ -58,7 +61,24 @@ export function TradePanel({ coin }: { coin: Coin }) {
   const [editingSlippage, setEditingSlippage] = useState(false);
   const [toast, setToast] = useState<TradeToastData | null>(null);
 
-  const { buy, sell, phase, error, reset } = useTrade(coin.contract);
+  /**
+   * A club coin, and an invite if the page was opened from one.
+   *
+   * The invite rides in the URL — /coin/0x…?invite=… — because that is the
+   * thing people actually send each other. It is only ever used to join: a
+   * member's buys ignore it, so a link clicked twice is just a buy.
+   */
+  const isClub = clubsDeployed && coin.club;
+  const searchParams = useSearchParams();
+  const invite = useMemo(
+    () => (isClub ? decodeInvite(searchParams.get("invite")) : null),
+    [isClub, searchParams],
+  );
+  const club = useClub(coin.contract, isClub);
+  const inviteCheck = useInviteCheck(coin.contract, invite, address);
+  const feeBps = isClub ? CLUB.tradeFeeBps : POOL.tradeFeeBps;
+
+  const { buy, sell, phase, error, reset } = useTrade(coin.contract, isClub, invite);
 
   const isBuy = side === "buy";
   const isCustomSlippage = !SLIPPAGE_PRESETS.includes(slippage);
@@ -128,7 +148,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
     // Buying, the pool's own maths says what this USDC gets, fee and price
     // movement included. Selling, the figure is the holding's value at spot,
     // which is what decides the portion being sold.
-    const got = isBuy ? previewBuy(coin.priceUsd, n).out : n / coin.priceUsd;
+    const got = isBuy ? previewBuy(coin.priceUsd, n, feeBps).out : n / coin.priceUsd;
     setTokenAmountText(n > 0 && coin.priceUsd > 0 ? String(Math.round(got)) : "");
     if (phase === "error") reset();
   }
@@ -152,13 +172,13 @@ export function TradePanel({ coin }: { coin: Coin }) {
   // Selling, `value` is the USDC worth of the tokens at spot; the portion of
   // the holding it represents is what actually gets sold.
   const tokens = isBuy
-    ? previewBuy(coin.priceUsd, value).out
+    ? previewBuy(coin.priceUsd, value, feeBps).out
     : coin.priceUsd > 0
       ? value / coin.priceUsd
       : 0;
   const preview = isBuy
-    ? previewBuy(coin.priceUsd, value)
-    : previewSell(coin.priceUsd, tokens);
+    ? previewBuy(coin.priceUsd, value, feeBps)
+    : previewSell(coin.priceUsd, tokens, feeBps);
   const total = isBuy ? value + networkFee : preview.out - networkFee;
   const impact = preview.impactPct;
 
@@ -170,7 +190,29 @@ export function TradePanel({ coin }: { coin: Coin }) {
    * so here, before a wallet prompt, beats a revert after one.
    */
   const unfillable = value > 0 && !preview.fillable;
-  const blocked = insufficientUsdc || insufficientTokens || unfillable;
+
+  /**
+   * The club gate, for buying only — anyone holding a club coin can always
+   * sell. A connected non-member can buy exactly when they hold an invite the
+   * vault would accept, and their first buy is what joins them.
+   */
+  const clubBuy = isClub && isBuy && connected;
+  const checkingMembership = clubBuy && club.loading;
+  const needsInvite = clubBuy && !club.loading && !club.isMember;
+  const inviteOk = Boolean(invite) && inviteCheck.data === "";
+  const joining = needsInvite && inviteOk;
+  const clubBlocked = needsInvite && !inviteOk;
+  const belowJoinMin = joining && value > 0 && value < CLUB.minJoinUsd;
+
+  const blocked =
+    insufficientUsdc || insufficientTokens || unfillable || clubBlocked || belowJoinMin || checkingMembership;
+  /**
+   * What the amount field itself gets marked red for. Deliberately narrower
+   * than `blocked`: not having an invite is not something wrong with the number
+   * someone typed, and an empty field outlined in red read as an error before
+   * they had done anything.
+   */
+  const amountInvalid = insufficientUsdc || insufficientTokens || unfillable || belowJoinMin;
   // Graduation is deliberately absent. On the curve it closed trading; in a
   // pool it is a price level and the pool carries on, so blocking on it
   // would lock every coin that succeeds.
@@ -223,7 +265,9 @@ export function TradePanel({ coin }: { coin: Coin }) {
 
   function buttonLabel() {
     if (!poolsDeployed) return "Trading opens at launch";
-    if (!connected) return "Connect wallet to trade";
+    if (!connected) return invite && isClub ? "Connect wallet to join" : "Connect wallet to trade";
+    if (checkingMembership) return "Checking membership…";
+    if (clubBlocked) return invite ? "Invite can't be used" : "Invite only";
     if (phase === "quoting") return "Quoting…";
     if (phase === "signing") return "Confirm in wallet…";
     if (phase === "pending") return "Submitting…";
@@ -231,6 +275,8 @@ export function TradePanel({ coin }: { coin: Coin }) {
     if (insufficientTokens) return `Not enough ${coin.ticker}`;
     if (unfillable) return "Too large for the pool";
     if (value === 0) return "Enter an amount";
+    if (belowJoinMin) return `Joining takes $${CLUB.minJoinUsd} or more`;
+    if (joining) return `Join & buy ${coin.ticker}`;
     return `${isBuy ? "Buy" : "Sell"} ${coin.ticker}`;
   }
 
@@ -278,7 +324,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
                 : `Holding ${compact(Math.round(held))}`
             }
             disabled={busy}
-            invalid={blocked}
+            invalid={amountInvalid}
           />
 
           <div className="relative my-1.5 flex justify-center">
@@ -349,7 +395,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
                   {impact.toFixed(2)}% impact
                 </span>
                 {" · "}
-                {POOL.tradeFeeBps / 100}% fee
+                {feeBps / 100}% fee
               </>
             )}
           </p>
@@ -412,6 +458,14 @@ export function TradePanel({ coin }: { coin: Coin }) {
             </div>
           </div>
 
+          {isClub && isBuy && <ClubNotice
+            connected={connected}
+            isMember={club.isMember}
+            loading={club.loading}
+            invite={invite}
+            problem={inviteCheck.data}
+          />}
+
           <button
             onClick={submit}
             disabled={!poolsDeployed || (connected && !canSubmit)}
@@ -440,6 +494,55 @@ export function TradePanel({ coin }: { coin: Coin }) {
 
       {toast && <TradeToast key={toast.id} data={toast} onDone={() => setToast(null)} />}
     </>
+  );
+}
+
+/**
+ * What the buy box needs to say about a club, and nothing when there is
+ * nothing to say — a member buying their own club's coin sees an ordinary
+ * trade ticket.
+ */
+function ClubNotice({
+  connected,
+  isMember,
+  loading,
+  invite,
+  problem,
+}: {
+  connected: boolean;
+  isMember: boolean;
+  loading: boolean;
+  invite: { inviter: string } | null;
+  problem: string | undefined;
+}) {
+  if (connected && (loading || isMember)) return null;
+
+  let tone: "info" | "good" | "bad" = "info";
+  let text: string;
+  if (!invite) {
+    text = "Invite-only club. You need an invite link from a member to buy. Anyone holding it can sell.";
+  } else if (problem === undefined) {
+    text = "Checking your invite…";
+  } else if (problem === "") {
+    tone = "good";
+    text = connected
+      ? `You're invited by ${shortAddr(invite.inviter)}. Your first buy of $${CLUB.minJoinUsd} or more makes you a member.`
+      : `You've been invited by ${shortAddr(invite.inviter)}. Connect a wallet to join.`;
+  } else {
+    tone = "bad";
+    text = clubReason(problem) ?? problem;
+  }
+
+  const style =
+    tone === "good"
+      ? "border-up/25 bg-up/8 text-up"
+      : tone === "bad"
+        ? "border-down/25 bg-down/8 text-down"
+        : "border-line bg-surface-2 text-ink-2";
+  return (
+    <p role="status" className={`mt-3.5 rounded-sm border px-2.5 py-2 text-[11.5px] leading-relaxed ${style}`}>
+      {text}
+    </p>
   );
 }
 

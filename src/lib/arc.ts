@@ -109,6 +109,59 @@ export const poolsDeployed = Boolean(
   POOL_CONTRACTS.poolFactory && POOL_CONTRACTS.poolVault && POOL_CONTRACTS.aromaRouter,
 );
 
+/**
+ * Club coins — invite-only launches. See CLUBS.md.
+ *
+ * A second contract system beside the pool one, not a mode of it: a v4 pool's
+ * hook is fixed when the pool is created, so a club coin and a normal coin
+ * live in different vaults for their whole lives. Everything club-shaped in
+ * the app is gated on `clubsDeployed`, so until these addresses exist the site
+ * behaves exactly as it does without clubs — nothing to hide, because nothing
+ * renders.
+ */
+export const ARC_MAINNET_CLUB_CONTRACTS = {
+  clubFactory: "",
+  clubVault: "",
+  clubRouter: "",
+  /** Block ClubVault was deployed in. Log scans start here. */
+  deployBlock: 0n,
+} as const;
+
+export const CLUB_CONTRACTS = LOCAL
+  ? {
+      clubFactory: process.env.NEXT_PUBLIC_LOCAL_CLUB_FACTORY ?? "",
+      clubVault: process.env.NEXT_PUBLIC_LOCAL_CLUB_VAULT ?? "",
+      clubRouter: process.env.NEXT_PUBLIC_LOCAL_CLUB_ROUTER ?? "",
+      deployBlock: BigInt(process.env.NEXT_PUBLIC_LOCAL_CLUB_DEPLOY_BLOCK ?? "0"),
+    }
+  : ARC_MAINNET_CLUB_CONTRACTS;
+
+export const clubsDeployed = Boolean(
+  CLUB_CONTRACTS.clubFactory && CLUB_CONTRACTS.clubVault && CLUB_CONTRACTS.clubRouter,
+);
+
+/** Mirrors the constants in ClubVault.sol. */
+export const CLUB = {
+  /** 1.5%. Pool geometry is identical to a normal coin; only this differs. */
+  tradeFeeBps: 150,
+  protocolFeeBps: 30,
+  /** The creator's cut of every trade, at any depth. */
+  rootFeeBps: 10,
+  treeFeeBps: 110,
+  /** How far up the tree one trade's fee travels. */
+  maxDepth: 10,
+  creatorSeats: 10,
+  memberSeats: 3,
+  /** Smallest buy that can redeem an invite. */
+  minJoinUsd: 1,
+  /**
+   * How long an invite link stays valid. Long enough to survive being posted
+   * and read a day later; short enough that an old link dug out of a chat
+   * does not quietly work forever. Revoking is the tool for "right now".
+   */
+  inviteTtlSeconds: 7 * 24 * 60 * 60,
+} as const;
+
 /** A link into the explorer, or null while there is no explorer to link to. */
 export function explorerUrl(path: string): string | null {
   return NETWORK.explorer ? `${NETWORK.explorer}${path}` : null;

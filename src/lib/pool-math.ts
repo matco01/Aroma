@@ -28,6 +28,13 @@ import { POOL } from "./arc";
 
 const FEE = POOL.tradeFeeBps / 10_000;
 
+/**
+ * The fee as a fraction, for a given rate. Club coins charge 1.5% where a
+ * normal coin charges 1%, on an identical pool, so the rate is the only thing
+ * these previews need told.
+ */
+const feeFraction = (feeBps?: number) => (feeBps === undefined ? FEE : feeBps / 10_000);
+
 /** L in whole-token units. The contract constants are 18-decimal. */
 const L_SALE = Number(POOL.saleLiquidity) / 1e18;
 const L_RESERVE = Number(POOL.reserveLiquidity) / 1e18;
@@ -56,11 +63,11 @@ export type Preview = {
   fillable: boolean;
 };
 
-export function previewBuy(priceUsd: number, usdcIn: number): Preview {
+export function previewBuy(priceUsd: number, usdcIn: number, feeBps?: number): Preview {
   let q = Math.max(Math.sqrt(Math.max(priceUsd, 0)), Q_INIT);
   const qStart = q;
   // The hook takes its 1% before the swap, so only the rest moves the price.
-  let rest = usdcIn * (1 - FEE);
+  let rest = usdcIn * (1 - feeFraction(feeBps));
   let out = 0;
 
   for (const [L, ceiling] of [
@@ -87,7 +94,7 @@ export function previewBuy(priceUsd: number, usdcIn: number): Preview {
   };
 }
 
-export function previewSell(priceUsd: number, tokensIn: number): Preview {
+export function previewSell(priceUsd: number, tokensIn: number, feeBps?: number): Preview {
   let q = Math.min(Math.sqrt(Math.max(priceUsd, 0)), Q_TOP);
   const qStart = q;
   let rest = tokensIn;
@@ -111,7 +118,7 @@ export function previewSell(priceUsd: number, tokensIn: number): Preview {
   const priceAfterUsd = q * q;
   return {
     // The hook takes its 1% from what leaves the pool.
-    out: gross * (1 - FEE),
+    out: gross * (1 - feeFraction(feeBps)),
     priceAfterUsd,
     impactPct: qStart > 0 ? (1 - priceAfterUsd / (qStart * qStart)) * 100 : 0,
     fillable: rest <= tokensIn * 1e-9,

@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { parseUnits, type Address, type PublicClient } from "viem";
 import { activeChain } from "./chain";
 import * as pool from "./pool-trade";
+import * as club from "./club-trade";
 
 /**
  * The write side: buys, sells and launches as real transactions, through the
@@ -29,6 +30,17 @@ import * as pool from "./pool-trade";
  */
 
 export type { TxPhase } from "./pool-trade";
+
+/**
+ * An error, in words, for either kind of coin. Club refusals — invite only, no
+ * seats, expired — are checked first because pool-trade's readableError knows
+ * nothing about them and would fall back to raw revert text.
+ */
+export function tradeError(e: unknown): string {
+  const msg =
+    e instanceof Error ? `${e.message} ${String((e as { cause?: unknown }).cause ?? "")}` : String(e);
+  return club.clubReason(msg) ?? pool.readableError(e);
+}
 
 /**
  * Makes sure the wallet is on Arc before it is asked to sign anything.
@@ -51,8 +63,8 @@ export function useArcChain() {
   }, [chainId, switchChainAsync]);
 }
 
-/** The pieces pool-trade.ts needs, built from wagmi. */
-function useCtx() {
+/** The pieces pool-trade.ts and club-trade.ts need, built from wagmi. */
+export function useCtx() {
   const { address } = useAccount();
   const publicClient = usePublicClient({ chainId: activeChain.id });
   const { writeContractAsync } = useWriteContract();
@@ -85,7 +97,7 @@ function usePhase() {
   }, []);
 
   const fail = useCallback((e: unknown) => {
-    setError(pool.readableError(e));
+    setError(tradeError(e));
     setPhase("error");
   }, []);
 
@@ -96,7 +108,17 @@ function usePhase() {
   );
 }
 
-export function useTrade(tokenAddress: string | undefined) {
+/**
+ * @param isClub   Which contract system the coin lives in. Decides the router,
+ *                 and whether a buy needs membership.
+ * @param invite   An invite from the page's link, if there is one. Only used
+ *                 by a club buy, and only while the buyer is not yet a member.
+ */
+export function useTrade(
+  tokenAddress: string | undefined,
+  isClub = false,
+  invite: club.Invite | null = null,
+) {
   const ensureChain = useArcChain();
   const makeCtx = useCtx();
   const queryClient = useQueryClient();
@@ -111,7 +133,9 @@ export function useTrade(tokenAddress: string | undefined) {
    * trader sees their own trade missing from the list they just moved.
    */
   const invalidate = useCallback(() => {
-    const keys = [["board"], ["token"], ["portfolio"]];
+    // club-status: joining is a buy, and the panel must stop offering "Join"
+    // the moment it lands rather than on its next 15-second poll.
+    const keys = [["board"], ["token"], ["portfolio"], ["club-status"], ["club-claimable"]];
     const sweep = () => {
       for (const queryKey of keys) queryClient.invalidateQueries({ queryKey });
       // wagmi's own reads — the header balance and the coin-page token
@@ -135,11 +159,11 @@ export function useTrade(tokenAddress: string | undefined) {
         await ensureChain();
         const ctx = makeCtx(s.setPhase);
         if (!ctx) return false;
-        const { hash } = await pool.buy(ctx, {
-          token: tokenAddress as Address,
-          usdc: parseUnits(usdcAmount, 18),
-          slippagePct,
-        });
+        const token = tokenAddress as Address;
+        const usdc = parseUnits(usdcAmount, 18);
+        const { hash } = isClub
+          ? await club.buy(ctx, { token, usdc, slippagePct, invite })
+          : await pool.buy(ctx, { token, usdc, slippagePct });
         s.setHash(hash);
         s.setPhase("success");
         invalidate();
@@ -149,7 +173,7 @@ export function useTrade(tokenAddress: string | undefined) {
         return false;
       }
     },
-    [tokenAddress, ensureChain, makeCtx, invalidate, s],
+    [tokenAddress, isClub, invite, ensureChain, makeCtx, invalidate, s],
   );
 
   const sell = useCallback(
@@ -160,11 +184,8 @@ export function useTrade(tokenAddress: string | undefined) {
         await ensureChain();
         const ctx = makeCtx(s.setPhase);
         if (!ctx) return false;
-        const { hash } = await pool.sell(ctx, {
-          token: tokenAddress as Address,
-          amount: tokenAmount,
-          slippagePct,
-        });
+        const params = { token: tokenAddress as Address, amount: tokenAmount, slippagePct };
+        const { hash } = isClub ? await club.sell(ctx, params) : await pool.sell(ctx, params);
         s.setHash(hash);
         s.setPhase("success");
         invalidate();
@@ -174,7 +195,7 @@ export function useTrade(tokenAddress: string | undefined) {
         return false;
       }
     },
-    [tokenAddress, ensureChain, makeCtx, invalidate, s],
+    [tokenAddress, isClub, ensureChain, makeCtx, invalidate, s],
   );
 
   return { buy, sell, phase: s.phase, error: s.error, hash: s.hash, reset: s.reset };
@@ -199,19 +220,22 @@ export function useCreateToken() {
       description: string,
       devBuyUsdc: string,
       metadataUri = "",
+      mode: "normal" | "club" = "normal",
     ) => {
       try {
         s.setError(null);
         await ensureChain();
         const ctx = makeCtx(s.setPhase);
         if (!ctx) return;
-        const { hash, token } = await pool.createToken(ctx, {
+        const launch = {
           name,
           symbol,
           description,
           metadataUri,
           devBuy: devBuyUsdc ? parseUnits(devBuyUsdc, 18) : 0n,
-        });
+        };
+        const { hash, token } =
+          mode === "club" ? await club.createClub(ctx, launch) : await pool.createToken(ctx, launch);
         s.setHash(hash);
         setTokenAddress(token);
         s.setPhase("success");

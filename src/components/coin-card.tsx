@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Coin } from "@/lib/mock";
-import { POOL } from "@/lib/arc";
+import { clubsDeployed, POOL } from "@/lib/arc";
 import { ago, compact, pct, shortAddr, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
 import { useValueFlash } from "@/lib/use-value-flash";
@@ -64,6 +64,15 @@ export function CoinCard({ coin }: { coin: Coin }) {
           alt={coin.name}
           className="h-full w-full object-cover"
         />
+
+        {/* The corner the graduated badge used to hold. A club coin is worth
+            flagging on the board: someone who can't buy it should know that
+            before clicking, not after. */}
+        {clubsDeployed && coin.club && (
+          <span className="absolute left-2 top-2 rounded-xs bg-bg/80 px-2 py-1 text-[11px] font-medium text-accent-2 backdrop-blur-sm">
+            club
+          </span>
+        )}
 
         <span
           className={`num absolute right-2 top-2 rounded-xs bg-bg/80 px-2 py-1 text-[11.5px] backdrop-blur-sm ${

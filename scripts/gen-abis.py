@@ -42,6 +42,15 @@ WANT = {
         "withdrawProtocolFees", "ProtocolFeesWithdrawn",
     },
     "AromaRouter": {"buy", "sell", "Bought", "Sold"},
+    # Club coins. See CLUBS.md.
+    "ClubFactory": {"createToken", "TokenCreated", "MAX_DEV_BUY_USDC"},
+    "ClubVault": {
+        "isMember", "inviterOf", "seatsOf", "seatsLeft", "inviteNonce", "inviteDigest",
+        "inviteProblem", "revokeInvites", "claimable", "claim", "creatorOf", "poolKey",
+        "protocolUsdc", "withdrawProtocolFees", "owner", "clubs",
+        "Joined", "Credited", "FeeTaken", "Claimed", "InvitesRevoked",
+    },
+    "ClubRouter": {"buy", "buyWithInvite", "sell", "Bought", "Sold"},
     # Uniswap's own singleton. Only its Swap event is needed, and only by the
     # direct-from-chain fallback that runs when no indexer is configured.
     "PoolManager": {"Swap"},

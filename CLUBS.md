@@ -3,10 +3,12 @@
 A design for invite-only coins on Aroma: the spec, the reasoning behind each
 number, and the simulation results the numbers came from.
 
-**Status:** the contracts are written and tested — `contracts/src/club/` —
-and rehearsed end to end on a fork of Arc mainnet. They are not deployed, and
-the frontend does not exist yet. See [Implementation](#implementation) for the
-decisions the contracts made that this document had left open.
+**Status:** contracts and frontend are built, tested, and rehearsed end to end
+on a fork of Arc mainnet — including through a real browser. **Not live yet.**
+Everything in the app is gated on the club contracts having mainnet addresses,
+so until they do, the site behaves exactly as it does without clubs. See
+[Implementation](#implementation) for the decisions the contracts made, and
+[Before clubs go live](#before-clubs-go-live) for what is left.
 
 ---
 
@@ -356,6 +358,43 @@ normal coin.
 were mutation-checked: removing the gate, trusting hook data from any sender,
 dropping the roll-up, and restoring OpenZeppelin's signature check are each
 caught.
+
+## Frontend
+
+- **Launch form** offers Open or Club, shown only once club contracts exist.
+- **Coin page** shows a `club` badge, and a club panel in place of the
+  creator-fees card: your seats, who invited you, a *Create invite link* button,
+  and your earnings across every club with one Claim.
+- **Invite links** are `/coin/0x…?invite=…` — the invite packed into 135
+  characters. Opening one tells you who invited you before you connect, checks
+  the invite against the vault before you sign, and turns the buy button into
+  *Join & buy*.
+- **Without an invite** the buy button reads *Invite only* and explains why.
+  Selling is always available.
+- **The board** marks club coins so nobody clicks one expecting to buy it.
+
+`scripts/club-trade-check.ts` drives the trade functions against a fork (15
+checks, including that a wallet's EIP-712 signature matches the vault's digest
+exactly). `scripts/club-check.mjs` drives the whole flow through the UI with
+three separate wallets (22 checks): a creator launches a club and makes a link,
+someone joins with it, a stranger is refused, and a normal coin still trades.
+
+The no-indexer data path was generalised to read both systems. Its output for
+normal coins was diffed against the original code on identical chain state and
+is identical; its fee inversion was checked over 400,000 amounts against the
+original 1% formula with no difference.
+
+## Before clubs go live
+
+1. **Index clubs in the subgraph.** Production reads the board from Goldsky,
+   and the deployed subgraph does not watch the club factory, so a club coin
+   launched today would trade but not appear on the board. The swap handler also
+   reconstructs amounts assuming a 1% fee; it needs the coin's own rate, and its
+   output for normal coins has to stay identical.
+2. **Deploy the contracts** with `script/DeployClub.s.sol`, verify the bytecode,
+   and accept ownership.
+3. **Fill `ARC_MAINNET_CLUB_CONTRACTS`** in `src/lib/arc.ts`. That is the switch
+   that turns the feature on.
 
 ## Decided
 

@@ -34,7 +34,7 @@ const TOKEN_FIELDS = `
   id creator name symbol description createdAt
   reserve price marketCap progressBps graduated
   volume tradeCount buyerCount lastTradeAt metadataUri
-  creatorFeesEarned creatorFeesClaimed
+  creatorFeesEarned creatorFeesClaimed venue
   firstTrade: trades(first: 1, orderBy: timestamp, orderDirection: asc) {
     priceAfter
   }
@@ -98,6 +98,8 @@ type RawToken = {
   metadataUri: string;
   creatorFeesEarned: string;
   creatorFeesClaimed: string;
+  /** "curve", "pool" or "club" — which contract system launched the coin. */
+  venue?: string;
   /** The oldest trade's resulting price — one row, for the change figure. */
   firstTrade?: { priceAfter: string }[];
 };
@@ -212,6 +214,7 @@ export function toCoin(
     holders: t.buyerCount,
     raisedUsd: toNum(t.reserve),
     graduated: t.graduated,
+    club: t.venue === "club",
     hue,
     seed,
     history: points,

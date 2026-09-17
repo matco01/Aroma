@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { NETWORK, POOL, explorerUrl } from "@/lib/arc";
+import { NETWORK, POOL, clubsDeployed, explorerUrl } from "@/lib/arc";
 import { ago, compact, pct, price, shortAddr, usd } from "@/lib/format";
 import { useToken } from "@/lib/use-chain";
 import type { Coin } from "@/lib/mock";
 import { IndexerStatus } from "./indexer-status";
 import { CoinArt } from "./coin-art";
 import { CopyAddress } from "./copy-address";
-import { Stat } from "./primitives";
+import { Chip, Stat } from "./primitives";
 import { PriceChart } from "./price-chart";
 import { TradePanel } from "./trade-panel";
 import { CreatorFees } from "./creator-fees";
+import { ClubPanel } from "./club-panel";
 import { CoinActivity } from "./coin-activity";
 
 export function CoinView({ address }: { address: string }) {
@@ -95,6 +96,7 @@ export function CoinView({ address }: { address: string }) {
                   {coin.name}
                 </h1>
                 <span className="num text-[14px] text-ink-2">${coin.ticker}</span>
+                {clubsDeployed && coin.club && <Chip tone="accent">club</Chip>}
               </div>
               <div className="num mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-3">
                 <span>
@@ -180,7 +182,7 @@ export function CoinView({ address }: { address: string }) {
             is three cards of scrolling to check the price before buying.
             On desktop they sit under the panel exactly as before. */}
         <div className="min-w-0 space-y-4.5 lg:col-start-2 lg:row-start-3">
-          <CreatorFees coin={coin} />
+          {clubsDeployed && coin.club ? <ClubPanel coin={coin} /> : <CreatorFees coin={coin} />}
 
           {/* What replaced the graduation bar.
 

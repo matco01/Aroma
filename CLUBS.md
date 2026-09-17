@@ -1,8 +1,12 @@
 # Club coins
 
-A design for invite-only coins on Aroma. **Nothing here is built.** This is the
-spec, the reasoning behind each number, and the simulation results the numbers
-came from.
+A design for invite-only coins on Aroma: the spec, the reasoning behind each
+number, and the simulation results the numbers came from.
+
+**Status:** the contracts are written and tested — `contracts/src/club/` —
+and rehearsed end to end on a fork of Arc mainnet. They are not deployed, and
+the frontend does not exist yet. See [Implementation](#implementation) for the
+decisions the contracts made that this document had left open.
 
 ---
 
@@ -277,6 +281,81 @@ holder-dividends would need. If more than one of these is happening, they should
 happen together — every separate migration strands another set of coins.
 
 ---
+
+## Implementation
+
+Three contracts in `contracts/src/club/`, deployed beside the pool system by
+`script/DeployClub.s.sol`, sharing nothing with it but the token contract and
+Uniswap's PoolManager. **Normal coins are untouched**: their vault, factory and
+router are not modified, and a normal coin was launched and traded on the same
+fork as the club rehearsal to prove it.
+
+| Contract | Role |
+| --- | --- |
+| `ClubVault` | The hook. Same pool geometry as `PoolVault`; gates buys, redeems invites, walks the tree. |
+| `ClubFactory` | `PoolFactory` with the creator's dev buy identified to the hook. |
+| `ClubRouter` | Buys, sells, and `buyWithInvite` — the only way to redeem an invite. |
+
+### Decisions the spec had left open
+
+**Who the hook believes is trading.** Swaps from `ClubRouter` or `ClubFactory`
+state the trader in hook data; everything else is `tx.origin`. The router is
+what makes smart-contract wallets work at all, and `tx.origin` is what lets a
+member buy through any terminal. Hook data from any other sender is ignored
+entirely — anyone can call the pool manager claiming to be a member, and the
+test suite proves such a claim is refused. Router and factory are set once by
+the owner and can never change, so the owner cannot later install a router that
+lies about identity.
+
+**A join needs at least 1 USDC.** Seats are consumed by buying so they aren't
+wasted, and without a floor a one-wei buy would count — a publicly posted link
+could have its seats burned for nothing.
+
+**The tree split has no table.** Each level takes two thirds of what is left and
+passes a third up; the deepest ancestor reached takes the remainder. That is the
+73.3 / 24.4 / 8.1 schedule, with the roll-up built in, and with no wei lost to
+rounding: the vault's balance equals what it owes exactly, checked in tests and
+on the fork.
+
+**A trader with nobody above them pays no tree.** That is the creator trading
+their own coin, or a non-member selling tokens they were sent. Their 110 bps go
+to the protocol. It means a creator's dev buy on a club coin sends 140 bps to
+the protocol, against 30 on a normal coin — worth knowing, and easy to change if
+it should go to the creator instead.
+
+**One balance to claim, not one per club.** Everything a member earns across
+every club is withdrawn in one transaction. Protocol revenue is one balance too.
+Per-club figures live in the `Credited` events.
+
+**Invite signatures accept the key first, then ERC-1271.** OpenZeppelin's
+`SignatureChecker` picks ERC-1271 for any address with code — which, since
+EIP-7702, includes ordinary accounts carrying a delegation. Those accounts still
+sign with their own key, and the library never checks it. Found on the Arc fork,
+where anvil's first account carries a delegation and every invite it signed was
+refused while being valid. Wallets are putting delegations on user accounts, so
+this is the case to get right. Contract wallets like a Safe still work through
+the ERC-1271 branch, and both are tested.
+
+### Measured
+
+On a fork of Arc mainnet, from receipts:
+
+| Buy, by levels above the buyer | Gas | At 20 gwei |
+| --- | --- | --- |
+| 0 — the creator | 135,002 | $0.0027 |
+| 1 | 140,113 | $0.0028 |
+| 3 | 160,227 | $0.0032 |
+| 10 | 230,405 | $0.0046 |
+| 12 — past the cap | 235,237 | $0.0047 |
+
+A normal-coin buy is 138,798. Joining costs more — 245k–358k — because it writes
+new membership state. Launching a club is 1,621,256 against 1,587,760 for a
+normal coin.
+
+31 tests, run against Uniswap's deployed PoolManager. The ones guarding the gate
+were mutation-checked: removing the gate, trusting hook data from any sender,
+dropping the roll-up, and restoring OpenZeppelin's signature check are each
+caught.
 
 ## Decided
 

@@ -172,8 +172,8 @@ gone wrong.
 
 | | |
 | --- | --- |
-| Seats per member | 3, granted on their first buy |
-| Seats for the creator | 10, at launch |
+| Seats per member | 3, granted on their first buy, never replenished |
+| Seats for the creator | 10, at launch, the same for every club |
 | Consumed | on redemption, not on send |
 | Transferable | no |
 | Revocable | only by invalidating outstanding links, never after redemption |
@@ -278,15 +278,37 @@ happen together — every separate migration strands another set of coins.
 
 ---
 
-## Open questions
+## Decided
 
-- **How many seats does the creator get?** 10 is assumed throughout. It sets how
-  fast a club can grow and how much wider the creator's branch is than anyone
-  else's.
-- **Do seats ever replenish?** Flat 3 forever is simplest and keeps them scarce.
-  Earning more at volume milestones grows clubs faster and dilutes the feeling.
-- **Should a club coin be visible to non-members?** Showing the member count and
-  the tree while making it unbuyable is probably the point. Worth deciding
-  deliberately.
-- **What happens to a club coin's `graduated` flag and board placement**, given
-  the board no longer shows milestones at all.
+**The creator gets 10 seats, fixed for every club.** Seats never replenish, so
+the creator's seats are what keep a club alive when members don't invite. In
+the realistic case where most members invite nobody:
+
+| Creator seats | Median club | Clubs that barely grow |
+| --- | --- | --- |
+| 3 | 14 members | 39% |
+| 5 | 29 | 19% |
+| 10 | 89 | 3% |
+| 20 | 239 | 0% |
+
+At 3, four clubs in ten never get going. At 10 almost none stall and it still
+feels exclusive. When members are keen, the seed count stops mattering: clubs
+grow whatever the creator started with. It is fixed rather than picked at
+launch so every club starts on equal terms.
+
+**Seats never replenish.** Each member gets 3, once, on their first buy. That
+keeps them scarce, which is the point of the whole feature.
+
+**Club coins are visible to everyone.** Non-members see the coin, its price,
+its member count and its tree, and a buy box that tells them it is invite-only.
+Seeing a club you're not in is part of the feeling.
+
+One consequence to design for: terminals and screeners will index a club coin
+like any other pool, because it is one. A non-member who tries to buy through a
+bot will have the transaction revert and pay gas for it. The coin page should
+say "invite-only" plainly, and the coin's metadata should too, so a bot user
+who looks it up has a chance to find out before trying.
+
+## Open
+
+- **Where club coins sit on the board.** Deferred.

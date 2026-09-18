@@ -36,6 +36,13 @@ type Token @entity(immutable: false) {
   venue: String!
   """The v4 PoolId. Null for curve launches, which have no pool."""
   poolId: Bytes
+  """
+  This pool's trade fee, in basis points: 100 for a normal coin, 150 for a
+  club coin (ClubVault.SWAP_FEE_BPS). Stored per-token rather than assumed,
+  because handleSwap serves every v4 pool on the chain from one handler and
+  cannot otherwise tell a club pool's rate from a normal one's.
+  """
+  tradeFeeBps: BigInt!
 
   # --- live curve state, updated on every trade ---
   "Net USDC held by the curve, 18-decimal."

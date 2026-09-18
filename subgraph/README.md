@@ -5,16 +5,22 @@ Two manifests, one schema.
 | Manifest | Network | Indexes |
 | --- | --- | --- |
 | `subgraph.yaml` | `arc-testnet` | the curve system — `AromaFactory`, `CurveManager` |
-| `subgraph.pool.yaml` | `arc-mainnet` | the pool system — `PoolFactory`, `PoolManager`, `PoolVault` |
+| `subgraph.pool.yaml` | `arc-mainnet` | the pool system — `PoolFactory`, `PoolManager`, `PoolVault` — and club coins — `ClubFactory` — see [CLUBS.md](../CLUBS.md) |
 
 They are two deployments rather than one because every data source in a
 subgraph must share a network, and these cannot: the pool system needs
-Uniswap, which is not deployed on Arc testnet at any version.
+Uniswap, which is not deployed on Arc testnet at any version. Club coins
+share `subgraph.pool.yaml` rather than getting a third manifest, because they
+deploy on the same network — Arc mainnet — as the pool system; a manifest
+only has to split when its data sources' networks actually differ, and here
+they don't.
 
 Both write **the same entities** — `Token`, `Trade`, `Balance`, `Candle`,
 `Protocol` — so the board, `/api/*` and the DEX Screener adapter work across
-both venues without knowing which produced a row. `Token.venue` is `"curve"`
-or `"pool"`, and exists for labelling rather than for branching.
+all three venues without knowing which produced a row. `Token.venue` is
+`"curve"`, `"pool"` or `"club"`, and `Token.tradeFeeBps` (100 or 150) is what
+lets one `handleSwap` charge each its own rate rather than assuming 1%
+everywhere — see the comment on `grossFromNet` in `src/pool.ts`.
 
 ```bash
 npm run codegen && npm run build            # curve
@@ -31,6 +37,14 @@ the matching pair before a build.
 output: `PoolFactory`'s address, `PoolVault`'s address, and the block they
 were deployed in. `PoolVault`'s address is mined for its hook permission
 bits, so it is neither guessable nor stable across redeploys.
+
+It also carries a placeholder for `ClubFactory`'s address, currently the zero
+address, because the club contracts are not deployed anywhere yet — see
+[CLUBS.md](../CLUBS.md#before-clubs-go-live). That placeholder is fine for
+`codegen`/`build`/`test` (checked) but must be replaced with
+`DeployClub.s.sol`'s real output, and `startBlock` updated, before this
+manifest is deployed to Goldsky — deploying with a zero address would index
+nothing for clubs and give no error saying why.
 
 `startBlock` matters more here than on the curve side. v4 is a singleton, so
 `handleSwap` is called for **every swap in every v4 pool on the chain**, not

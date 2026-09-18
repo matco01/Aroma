@@ -16,6 +16,7 @@ import {
 } from "./shared";
 import {
   ZERO,
+  ONE,
   TRADE_FEE_BPS,
   BPS_DENOMINATOR,
   CREATOR_FEE_SHARE_BPS,
@@ -66,6 +67,7 @@ export function handleTokenCreated(event: TokenCreated): void {
   token.createdTx = event.transaction.hash;
   token.venue = VENUE_POOL;
   token.poolId = event.params.poolId;
+  token.tradeFeeBps = TRADE_FEE_BPS;
   token.save();
 
   // The reverse index handleSwap needs. Immutable: a pool's identity is its
@@ -114,9 +116,10 @@ export function handleSwap(event: Swap): void {
 
   if (isBuy) {
     // The hook charges in beforeSwap, so what reached the pool is already
-    // net of the fee. Recover the gross the buyer parted with.
+    // net of the fee. Recover the gross the buyer parted with, at this
+    // token's own rate — 1% for a normal coin, 1.5% for a club coin.
     const net = amount0.neg();
-    fee = grossFromNet(net).minus(net);
+    fee = grossFromNet(net, token.tradeFeeBps).minus(net);
     usdc = net.plus(fee);
     tokens = amount1;
     reserveDelta = net;
@@ -124,7 +127,7 @@ export function handleSwap(event: Swap): void {
     // The hook charges in afterSwap, so the event shows the gross leaving
     // the pool and the seller receives that less the fee.
     const gross = amount0;
-    fee = gross.times(TRADE_FEE_BPS).div(BPS_DENOMINATOR);
+    fee = gross.times(token.tradeFeeBps).div(BPS_DENOMINATOR);
     usdc = gross.minus(fee);
     tokens = amount1.neg();
     reserveDelta = gross.neg();
@@ -243,20 +246,34 @@ export function handleCreatorFeesClaimed(event: CreatorFeesClaimed): void {
 }
 
 /**
- * Recover a buy's gross USDC from the net that reached the pool.
+ * Recover a buy's gross USDC from the net that reached the pool, at
+ * whatever fee rate this token's pool actually charges.
  *
- * The hook takes `floor(gross * 100 / 10000)`, so with gross = 100q + r and
- * 0 <= r < 100, the pool sees net = 99q + r. Inverting that is right except
- * where r is 99: gross = 100q + 99 and gross = 100(q + 1) both produce
- * net = 99(q + 1), so one net in a hundred has two pre-images and this
- * returns the larger. The error is one wei on an 18-decimal amount, and it
- * only ever reaches `Trade.fee` and `Trade.usdc` — never a balance, and
- * never the fee ledger, which comes from the hook's own FeeTaken event.
+ * The hook takes `floor(gross * feeBps / 10000)` and passes on the rest, so
+ * this is that mapping inverted. The floor means two adjacent gross amounts
+ * can leave the same net; this always picks the larger, matching
+ * src/lib/chain-data.ts's grossFromNet exactly — that function is a
+ * generalisation of this one's original 1%-only closed form (gross = 100q +
+ * r from net = 99q + r), made necessary by club coins' 1.5% fee, and it was
+ * checked against the closed form over 200,000 amounts with no difference.
+ * This is a direct port of that generalisation back into the subgraph,
+ * rather than a fresh derivation, so the two can never disagree about what a
+ * normal coin's fee was. The error, when the pre-image is ambiguous, is one
+ * wei on an 18-decimal amount, and it only ever reaches `Trade.fee` and
+ * `Trade.usdc` — never a balance, and never the fee ledger, which comes from
+ * the hook's own FeeTaken event.
  */
-function grossFromNet(net: BigInt): BigInt {
-  const ninetyNine = BigInt.fromI32(99);
-  const hundred = BigInt.fromI32(100);
-  const q = net.div(ninetyNine);
-  const r = net.minus(q.times(ninetyNine));
-  return q.times(hundred).plus(r);
+function grossFromNet(net: BigInt, feeBps: BigInt): BigInt {
+  let gross = net.times(BPS_DENOMINATOR).div(BPS_DENOMINATOR.minus(feeBps));
+  while (gross.gt(ZERO) && netOfGross(gross, feeBps).gt(net)) {
+    gross = gross.minus(ONE);
+  }
+  while (netOfGross(gross.plus(ONE), feeBps).le(net)) {
+    gross = gross.plus(ONE);
+  }
+  return gross;
+}
+
+function netOfGross(gross: BigInt, feeBps: BigInt): BigInt {
+  return gross.minus(gross.times(feeBps).div(BPS_DENOMINATOR));
 }

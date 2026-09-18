@@ -18,6 +18,40 @@ schema:
 # build a pool on. They are two deployments of one schema.
 
 dataSources:
+  # Club launches. One event per club coin, ever — see CLUBS.md. A separate
+  # dataSource from PoolFactory below, not a shared one, because they are
+  # different contracts at different addresses on-chain even though their
+  # TokenCreated events are identical in shape (see ClubFactory.sol). Lives
+  # in this manifest rather than a separate one: club contracts deploy on
+  # Arc mainnet, the same network as the pool system, and a subgraph's
+  # dataSources only have to split across manifests when their networks
+  # differ — see subgraph/README.md.
+  - kind: ethereum
+    name: ClubFactory
+    network: arc-mainnet
+    source:
+      # FIXME: fill in from DeployClub.s.sol's output. Not deployed yet — see
+      # CLUBS.md "Before clubs go live". This placeholder builds and codegens
+      # fine (checked); do not deploy the subgraph with it still in place.
+      address: "0x0000000000000000000000000000000000000000"
+      abi: ClubFactory
+      # FIXME: the block ClubVault was deployed in, same reasoning as
+      # PoolVault's startBlock below — v4 is a singleton and this dataSource
+      # only needs launches from its own deploy forward.
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/club.ts
+      entities: [Token, Account, Protocol, PoolRef]
+      abis:
+        - name: ClubFactory
+          file: ./abis/ClubFactory.json
+      eventHandlers:
+        - event: TokenCreated(indexed address,indexed address,indexed bytes32,string,string,string,string,uint256)
+          handler: handleTokenCreated
+
   # Launches. One event per token, ever.
   - kind: ethereum
     name: PoolFactory

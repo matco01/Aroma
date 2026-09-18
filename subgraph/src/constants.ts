@@ -24,6 +24,7 @@ export const TRADE_FEE_BPS = BigInt.fromI32(100);
 export const BPS_DENOMINATOR = BigInt.fromI32(10000);
 
 export const ZERO = BigInt.zero();
+export const ONE = BigInt.fromI32(1);
 export const PROTOCOL_ID = "Aroma";
 
 /** Candle intervals in seconds: 5m, 1h, 1d. */
@@ -53,3 +54,8 @@ export const Q192 = BigInt.fromI32(2).pow(192);
 
 export const VENUE_CURVE = "curve";
 export const VENUE_POOL = "pool";
+/** A club coin. See CLUBS.md — a separate hook, same pool geometry. */
+export const VENUE_CLUB = "club";
+
+/** ClubVault.SWAP_FEE_BPS — 1.5%, vs. a normal coin's 1%. */
+export const CLUB_TRADE_FEE_BPS = BigInt.fromI32(150);

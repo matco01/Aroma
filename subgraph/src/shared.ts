@@ -11,6 +11,7 @@ import {
   PROTOCOL_ID,
   CANDLE_INTERVALS,
   VENUE_CURVE,
+  TRADE_FEE_BPS,
   Q192,
 } from "./constants";
 
@@ -78,6 +79,11 @@ export function getOrCreateToken(
   // The pool mapping sets both fields explicitly on launch.
   token.venue = VENUE_CURVE;
   token.poolId = null;
+  // Overwritten explicitly by whichever launch handler actually announces
+  // this token (pool.ts sets 100, club.ts sets 150) — this default only
+  // matters for the same "trade beat the announcement" race the venue
+  // default above exists for, and only curve/pool trades can win that race.
+  token.tradeFeeBps = TRADE_FEE_BPS;
   token.reserve = ZERO;
   token.tokensSold = ZERO;
   token.price = spotPrice(ZERO, ZERO);

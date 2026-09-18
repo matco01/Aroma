@@ -430,3 +430,5 @@ who looks it up has a chance to find out before trying.
 ## Open
 
 - **Where club coins sit on the board.** Deferred.
+- **A second chain for club coins.** See [ROBINHOOD.md](ROBINHOOD.md) — spec
+  stage, nothing built yet.

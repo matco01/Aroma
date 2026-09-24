@@ -10,6 +10,8 @@
     "deploy:pool": "graph codegen subgraph.pool.yaml && graph build subgraph.pool.yaml --output-dir build-pool/ && goldsky subgraph deploy aroma-pool/1.0.0 --path build-pool/",
     "codegen:pool": "graph codegen subgraph.pool.yaml",
     "build:pool": "graph build subgraph.pool.yaml --output-dir build-pool/",
+    "codegen:robinhood": "graph codegen subgraph.robinhood.yaml",
+    "build:robinhood": "graph build subgraph.robinhood.yaml --output-dir build-robinhood/",
     "test": "graph test"
   },
   "dependencies": {

@@ -4,10 +4,11 @@ import { useEffect, useState, type ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createAppKit, useAppKit } from "@reown/appkit/react";
-import { activeChain } from "@/lib/chain";
+import { activeChain as arcChain } from "@/lib/chain";
 import {
   wagmiAdapter,
   wagmiConfig,
+  liveChain,
   REOWN_PROJECT_ID,
   hasReownProject,
 } from "@/lib/wagmi";
@@ -25,12 +26,15 @@ import { LiveProvider } from "./live-provider";
 if (hasReownProject) {
   createAppKit({
     adapters: [wagmiAdapter],
-    networks: [activeChain],
-    defaultNetwork: activeChain,
+    // Robinhood Chain first and default — the Club runs there. Arc stays
+    // registered because the pool system's hooks still pin to it; see
+    // wagmi.ts.
+    networks: [liveChain, arcChain],
+    defaultNetwork: liveChain,
     projectId: REOWN_PROJECT_ID,
     metadata: {
       name: "Aroma",
-      description: "Launch and trade fixed-supply tokens on Arc.",
+      description: "Bid for the Club, then launch and trade the coin it wins.",
       url: "https://aroma.money",
       icons: [],
     },

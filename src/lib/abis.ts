@@ -2131,3 +2131,879 @@ export const poolManagerAbi = [
     "anonymous": false
   }
 ] as const;
+
+export const poolFactoryUsdgAbi = [
+  {
+    "type": "function",
+    "name": "MAX_DEV_BUY_USDC",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TOTAL_SUPPLY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "createToken",
+    "inputs": [
+      {
+        "name": "info",
+        "type": "tuple",
+        "internalType": "struct PoolFactoryUsdg.TokenInfo",
+        "components": [
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "metadataUri",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      },
+      {
+        "name": "devBuyUsdc",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minTokensOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "salt",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "internalType": "PoolId"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "TokenCreated",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "creator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "poolId",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "PoolId"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "symbol",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "metadataUri",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "devBuyUsdc",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  }
+] as const;
+
+export const aromaRouterUsdgAbi = [
+  {
+    "type": "function",
+    "name": "buy",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "usdgIn",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minTokensOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "permitDeadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "v",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "r",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "s",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "tokensOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "sell",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minUsdgOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "permitDeadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "v",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "r",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "s",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "usdgOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "Bought",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "usdgIn",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "tokensOut",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Sold",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "seller",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "tokensIn",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "usdgOut",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  }
+] as const;
+
+export const clubAuctionAbi = [
+  {
+    "type": "function",
+    "name": "antiSnipeExtension",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "bid",
+    "inputs": [
+      {
+        "name": "bidAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "devBuyUsdc",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "minTokensOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "draft",
+        "type": "tuple",
+        "internalType": "struct ClubAuction.Draft",
+        "components": [
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "metadataUri",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      },
+      {
+        "name": "permit",
+        "type": "tuple",
+        "internalType": "struct ClubAuction.Permit",
+        "components": [
+          {
+            "name": "deadline",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "v",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "r",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "s",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimCreatorFeesFor",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "usdgOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getCurrentClub",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct ClubAuction.Club",
+        "components": [
+          {
+            "name": "id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "endsAt",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "finalized",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "topBidder",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "topBid",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "topDevBuy",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "minTokensOut",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "metadataUri",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "minBidIncrementBps",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "minOpeningBid",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pendingReturns",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "roundDuration",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "updateDraft",
+    "inputs": [
+      {
+        "name": "draft",
+        "type": "tuple",
+        "internalType": "struct ClubAuction.Draft",
+        "components": [
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "metadataUri",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "winnerOf",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "winner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "withdraw",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "ClubBid",
+    "inputs": [
+      {
+        "name": "clubId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "bidder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "bidAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "devBuyUsdc",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "endsAt",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ClubDraftUpdated",
+    "inputs": [
+      {
+        "name": "clubId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "bidder",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "symbol",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "metadataUri",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ClubLaunched",
+    "inputs": [
+      {
+        "name": "clubId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "winner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "winningBid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "devBuyUsdc",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ClubOpened",
+    "inputs": [
+      {
+        "name": "clubId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "endsAt",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ClubVoided",
+    "inputs": [
+      {
+        "name": "clubId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  }
+] as const;
+
+export const erc20PermitAbi = [
+  {
+    "type": "function",
+    "name": "name",
+    "stateMutability": "view",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "balanceOf",
+    "stateMutability": "view",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "allowance",
+    "stateMutability": "view",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "name": "spender",
+        "type": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "nonces",
+    "stateMutability": "view",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "DOMAIN_SEPARATOR",
+    "stateMutability": "view",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "permit",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "name": "spender",
+        "type": "address"
+      },
+      {
+        "name": "value",
+        "type": "uint256"
+      },
+      {
+        "name": "deadline",
+        "type": "uint256"
+      },
+      {
+        "name": "v",
+        "type": "uint8"
+      },
+      {
+        "name": "r",
+        "type": "bytes32"
+      },
+      {
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "outputs": []
+  }
+] as const;

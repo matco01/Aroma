@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   useBoard,
   type BoardFilter,
@@ -157,7 +158,11 @@ export function Board() {
             Nothing launched yet
           </p>
           <p className="mt-1 text-[12px] text-ink-2">
-            Be the first — launching is free, you only pay gas.
+            Every coin here is launched by winning{" "}
+            <Link href="/club" className="text-accent-2 hover:underline">
+              the Club
+            </Link>
+            , a 24-hour auction for the next launch.
           </p>
         </div>
       )}

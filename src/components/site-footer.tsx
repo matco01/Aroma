@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { NETWORK, POOL } from "@/lib/arc";
+import { ROBINHOOD_TESTNET, POOL_USDG } from "@/lib/robinhood";
 import { SITE_REPO } from "@/lib/site";
 
 /**
@@ -15,8 +15,9 @@ export function SiteFooter() {
           <div className="max-w-xs">
             <div className="mb-2 text-[13px] font-semibold text-ink">Aroma</div>
             <p className="text-[12px] leading-relaxed text-ink-2">
-              Launch and trade fixed-supply tokens on Arc. Your wallet signs and
-              submits every transaction. Aroma never takes custody of your funds.
+              A 24-hour auction for the right to launch the next coin, settled in
+              USDG on Robinhood Chain. Your wallet signs and submits every
+              transaction. Aroma never takes custody of your funds.
             </p>
 
             {/* Quiet on purpose. The mark rather than the handle, at the size
@@ -38,24 +39,23 @@ export function SiteFooter() {
 
           <FooterCol title="Protocol">
             <FooterLink href="/">Board</FooterLink>
-            <FooterLink href="/create">Launch a coin</FooterLink>
+            <FooterLink href="/club">The Club</FooterLink>
             <FooterLink href="/docs">Docs</FooterLink>
-            <FooterRow label="Trade fee" value={`${POOL.tradeFeeBps / 100}%`} />
+            <FooterRow label="Trade fee" value={`${POOL_USDG.tradeFeeBps / 100}%`} />
             <FooterRow
               label="To creator"
-              value={`${POOL.creatorFeeShareBps / 100}% of fees`}
+              value={`${POOL_USDG.creatorFeeShareBps / 100}% of fees`}
             />
-            <FooterRow label="Creation fee" value="Free" />
+            <FooterRow label="Winning bid" value="To treasury" />
           </FooterCol>
 
           <FooterCol title="Network">
-            <FooterRow label="Chain" value={NETWORK.name} />
-            <FooterRow label="Chain ID" value={String(NETWORK.id)} />
-            <FooterRow label="Gas token" value="USDC" />
+            <FooterRow label="Chain" value={ROBINHOOD_TESTNET.name} />
+            <FooterRow label="Chain ID" value={String(ROBINHOOD_TESTNET.id)} />
+            <FooterRow label="Trading currency" value="USDG" />
             <FooterRow label="Liquidity" value="Uniswap v4" />
-            {NETWORK.explorer && (
-              <FooterExternal href={NETWORK.explorer}>Arcscan</FooterExternal>
-            )}
+            <FooterExternal href={ROBINHOOD_TESTNET.explorer}>Explorer</FooterExternal>
+            <FooterExternal href={ROBINHOOD_TESTNET.faucet}>Testnet faucet</FooterExternal>
           </FooterCol>
 
           <FooterCol title="Legal">
@@ -67,10 +67,11 @@ export function SiteFooter() {
 
         <p className="mt-8 border-t border-line pt-5 text-[11.5px] leading-relaxed text-ink-3">
           Transactions are submitted through your wallet and are irreversible
-          once final. Tokens launched here are created by anonymous third
-          parties, carry no rights or claims, and can lose all value. Nothing on
-          this site is investment advice. Most coins launched on any launchpad
-          go to zero.
+          once final. Tokens launched here are created by whoever wins that
+          round&apos;s auction, carry no rights or claims, and can lose all value.
+          Nothing on this site is investment advice. Currently running against{" "}
+          {ROBINHOOD_TESTNET.name} — balances are test funds with no monetary
+          value.
         </p>
       </div>
     </footer>

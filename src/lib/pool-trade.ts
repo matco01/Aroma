@@ -63,7 +63,7 @@ export function applySlippage(amount: bigint, slippagePct: number): bigint {
  * trade that reverted on-chain — a slippage floor hit between quote and
  * inclusion — was reported as a success.
  */
-async function confirm(publicClient: PublicClient, hash: Hex) {
+export async function confirm(publicClient: PublicClient, hash: Hex) {
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") {
     throw new Error("Transaction reverted on-chain");
@@ -285,6 +285,13 @@ export function readableError(e: unknown): string {
   if (has("chain mismatch") || has("does not match the target chain")) {
     return "Switch your wallet to Arc to continue";
   }
+  // ClubAuction.sol's reverts — use-club.ts shares this function.
+  if (has("bid too low")) return "Someone else's bid is higher now — try more";
+  if (has("auction ended")) return "This round just ended";
+  if (has("round finalized")) return "This round has already launched";
+  if (has("not top bidder")) return "You're not the top bidder anymore";
+  if (has("name required") || has("symbol required")) return "Name and ticker are required";
+  if (has("nothing to withdraw")) return "Nothing to withdraw";
 
   const first = (e as { shortMessage?: string })?.shortMessage ?? msg.split("\n")[0];
   return first.slice(0, 140);

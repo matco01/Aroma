@@ -1,5 +1,5 @@
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
-import { NETWORK, POOL } from "@/lib/arc";
+import { ROBINHOOD_TESTNET, POOL_USDG, CLUB } from "@/lib/robinhood";
 
 /**
  * Machine-readable description of what this site is.
@@ -7,14 +7,14 @@ import { NETWORK, POOL } from "@/lib/arc";
  * Search engines and the retrieval layers behind assistants both parse
  * schema.org, and both are answering a question the home page never states
  * outright: not "what does this page show" but "what is this thing, and is it
- * the right answer to what was asked". A board full of live tickers reads, to
- * a machine, as a table of numbers. This says it is a launchpad, on Arc, that
- * works a particular way.
+ * the right answer to what was asked". This says it is a launch auction, on
+ * Robinhood Chain, that works a particular way — not a permissionless
+ * launchpad, which is what it used to be and no longer is.
  *
- * The FAQ entries are the ones people actually ask before using a launchpad,
- * phrased as questions rather than headings, because that is the shape a
- * retrieval system matches against. Every number comes from POOL, so the
- * answers cannot drift from the contracts the way hand-written copy would.
+ * The FAQ entries are the ones people actually ask before bidding, phrased
+ * as questions rather than headings, because that is the shape a retrieval
+ * system matches against. Numbers come from CLUB/POOL_USDG so the answers
+ * cannot drift from the contracts the way hand-written copy would.
  *
  * Only claims that are true and checkable. Structured data that oversells is
  * how a domain earns a manual penalty, and an assistant that repeats an
@@ -22,10 +22,6 @@ import { NETWORK, POOL } from "@/lib/arc";
  * includes the unflattering ones: there is no launch tax, and the contracts
  * are unaudited.
  */
-
-const n = (v: number) => v.toLocaleString("en-US");
-const d = (v: number) =>
-  `$${v.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })}`;
 
 export function StructuredData() {
   const graph = {
@@ -57,15 +53,16 @@ export function StructuredData() {
         applicationCategory: "FinanceApplication",
         operatingSystem: "Web",
         description: SITE_DESCRIPTION,
-        // Launching is free to attempt; the protocol earns from trade fees.
+        // Bidding costs whatever the auction demands; the protocol earns
+        // the winning bid, not a fee for attempting to launch.
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         featureList: [
-          "One-transaction token launches",
-          `Fixed ${n(POOL.totalSupply)} supply, no mint function`,
-          "Every coin trades in its own Uniswap v4 pool from the first block",
-          "Liquidity locked permanently",
-          "USDC-denominated pricing with USDC as native gas",
-          "Creator fee share on every trade, paid in USDC",
+          "24-hour Club auction gating every launch",
+          "Top bidder edits the coin's name, ticker, description and image live",
+          "Fixed 1,000,000,000 supply, no mint function",
+          "Settled in USDG on Robinhood Chain",
+          "Locked single-sided Uniswap v4 liquidity from the first block",
+          "Creator fee share on every trade after launch",
         ],
       },
       {
@@ -74,35 +71,39 @@ export function StructuredData() {
         mainEntity: [
           faq(
             `What is ${SITE_NAME}?`,
-            `${SITE_NAME} is a launchpad on Arc, Circle's Layer 1 blockchain. Anyone can launch a fixed-supply coin in one transaction. The whole supply goes straight into the coin's own Uniswap v4 pool, so it is tradeable immediately and visible to anything that reads Uniswap.`,
+            `${SITE_NAME} gates every coin launch behind a 24-hour Club auction on Robinhood Chain. Whoever holds the top bid when the countdown ends gets their coin launched automatically — a fixed-supply token, tradeable from the first block against locked Uniswap v4 liquidity.`,
           ),
           faq(
-            "How does launching a coin on Arc work?",
-            `A launch mints ${n(POOL.totalSupply)} tokens with no mint function and deposits all of them as single-sided liquidity in a Uniswap v4 pool, so nobody has to provide USDC to start trading. The price rises as people buy. Deployment is irreversible and there is no admin key over a coin once it exists.`,
+            "How does the Club auction work?",
+            "Anyone can bid USDG for the current Club. The top bidder can rewrite the coin's name, ticker, description and image at any time while they hold the lead, visible to everyone watching. A bid inside the last few minutes extends the countdown, so the round can't be won by a bid nobody has time to answer. When time runs out, the leading bid's coin launches on its own — no separate transaction needed.",
           ),
           faq(
-            "Can a coin's liquidity be pulled?",
-            `No. A launch deposits all ${n(POOL.totalSupply)} tokens into the pool as single-sided liquidity and nobody can withdraw it — not the creator, not ${SITE_NAME}. The coin trades in its own Uniswap v4 pool from the block it is created, so there is no migration step and no point at which trading stops.`,
+            "What happens to the winning bid?",
+            "It goes to the protocol treasury, not into the coin. The winner can also set aside a separate, optional first buy — up to a fixed cap — which becomes their own opening position in the coin they just launched.",
           ),
           faq(
-            `What are the fees on ${SITE_NAME}?`,
-            `${POOL.tradeFeeBps / 100}% on every buy and sell, paid in USDC. ${POOL.creatorFeeShareBps / 100}% of that fee goes to the coin's creator and the rest to the protocol. Launching is free apart from network gas.`,
+            "What happens if I'm outbid?",
+            "Your USDG is never taken — it sits in the contract as a withdrawable refund the moment someone bids higher, and you claim it back whenever you like.",
           ),
           faq(
-            "Why are prices in dollars rather than a volatile token?",
-            "Arc uses USDC as its native gas token, so the asset you pay with and the asset you price in are the same dollar-denominated stablecoin. A coin's price and market cap are already dollars, with no conversion and no second asset moving underneath them.",
+            "What is USDG, and why not the chain's own gas token?",
+            "Robinhood Chain's native gas token is ETH, not a stablecoin, so Aroma settles every bid and every trade in USDG — Paxos's dollar-backed stablecoin — instead. A coin's price and market cap are USDG amounts, not a volatile gas-token quantity.",
           ),
           faq(
-            "Can a creator rug a coin?",
-            "They cannot pull liquidity. The whole supply is deposited in a Uniswap v4 position owned by a contract with no function that removes liquidity, so nobody — the creator or the protocol — can withdraw it. A creator can still sell their own holdings, which is visible on the coin's page along with the fees they have earned.",
+            "What does a launched coin look like?",
+            `A fixed supply of 1,000,000,000 tokens with no mint function and no admin key, deposited as locked single-sided Uniswap v4 liquidity in the same transaction it launches. Trades pay ${POOL_USDG.tradeFeeBps / 100}%, split ${POOL_USDG.creatorFeeShareBps / 100}% to the coin's creator — the auction's winner — and the rest to the protocol.`,
+          ),
+          faq(
+            "Can the auction's winner rug the coin?",
+            "They cannot pull liquidity, because there is none to pull: it is deposited once, at launch, into a contract with no withdraw function. A winner can still sell their own opening position, which is visible on the coin's page along with the fees they have earned.",
           ),
           faq(
             "Is there protection against snipers?",
-            `There is no launch tax. A creator's own first buy, up to ${d(POOL.maxDevBuyUsd)}, runs inside the launch transaction so it cannot be front-run, but anyone buying in the first seconds after a launch is competing with bots.`,
+            `There is no launch tax. The winner's optional first buy, up to ${CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG, runs inside the same transaction that launches the coin, so it cannot be front-run — but anyone else buying in the first seconds after a launch is competing with bots.`,
           ),
           faq(
             `Which network does ${SITE_NAME} run on?`,
-            `Arc (chain ${NETWORK.id}), with liquidity on Uniswap v4. The contracts are public and have not been independently audited.`,
+            `Robinhood Chain, an Arbitrum Orbit Layer 2, with liquidity on Uniswap v4. It is live on ${ROBINHOOD_TESTNET.name} today, running a ${CLUB.roundDurationSeconds / 3600}-hour auction cycle. The contracts are public and have not been independently audited.`,
           ),
         ],
       },

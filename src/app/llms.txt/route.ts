@@ -1,5 +1,5 @@
 import { SITE_URL, SITE_NAME } from "@/lib/site";
-import { NETWORK, POOL } from "@/lib/arc";
+import { CLUB, POOL_USDG, ROBINHOOD_TESTNET } from "@/lib/robinhood";
 
 /**
  * llms.txt — a plain-text summary of the site for language models.
@@ -23,43 +23,39 @@ import { NETWORK, POOL } from "@/lib/arc";
 export const dynamic = "force-static";
 export const revalidate = 86_400;
 
-const n = (v: number) => v.toLocaleString("en-US");
-const d = (v: number) =>
-  `$${v.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })}`;
-
 export function GET() {
   const body = `# ${SITE_NAME}
 
-> ${SITE_NAME} is a launchpad on Arc, Circle's Layer 1 blockchain, where USDC is the native gas token. Anyone can launch a fixed-supply coin in one transaction, and it trades in its own Uniswap v4 pool from the first block. Because gas and pricing are the same dollar-denominated stablecoin, every price and market cap is already in dollars.
+> ${SITE_NAME} gates every coin launch behind a 24-hour Club auction on Robinhood Chain, settled in USDG (a dollar-backed stablecoin) rather than the chain's own ETH gas token. Whoever holds the top bid when the countdown ends gets their coin launched automatically, tradeable from the first block.
 
 ## What it does
 
-Launching mints ${n(POOL.totalSupply)} tokens with no mint function and no admin key over the coin, and deposits the whole supply as single-sided liquidity in a Uniswap v4 pool. Nobody has to provide USDC to start trading: buyers' USDC becomes the pool's liquidity as the price rises. The position is owned by a contract with no function that removes liquidity, so it cannot be withdrawn by anyone, including us.
+Anyone can bid USDG for the current Club. The top bidder can rewrite the coin's name, ticker, description and image at any time while they hold the lead. A bid inside the closing minutes extends the countdown, so the round can't be won by a bid nobody has time to answer.
 
-The first ${n(POOL.saleSupply)} tokens span a 16x rise from a ${d(POOL.openingMarketCapUsd)} market cap to ${d(POOL.graduationMarketCapUsd)}, which is where a coin graduates. Graduation moves nothing: trading carries on in the same pool into a further ${n(POOL.reserveSupply)} tokens, up to about a ${d(POOL.topMarketCapUsd)} market cap.
+When the countdown reaches zero, the leading bid's coin launches on its own: a fixed supply of 1,000,000,000 tokens with no mint function, deposited as locked single-sided Uniswap v4 liquidity in the same transaction. The position is owned by a contract with no function that removes liquidity, so nobody can withdraw it, including us. The winning bid goes to the protocol treasury, not the coin; the winner can also set aside a separate, optional first buy of up to ${CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG, which runs inside the launch transaction so it cannot be front-run.
 
-Trades pay ${POOL.tradeFeeBps / 100}%, always in USDC, charged by a hook on the pool so it applies whichever app or router sends the trade. ${POOL.creatorFeeShareBps / 100}% of that goes to the coin's creator, the rest to the protocol.
+Trades after launch pay ${POOL_USDG.tradeFeeBps / 100}%, always in USDG, charged by a hook on the pool so it applies whichever app or router sends the trade. ${POOL_USDG.creatorFeeShareBps / 100}% of that goes to the coin's creator — the auction's winner — the rest to the protocol. There is no launch tax.
 
-There is no launch tax. A creator's own first buy, up to ${d(POOL.maxDevBuyUsd)}, runs inside the launch transaction so it cannot be front-run.
+Outbid? Nothing is taken: the USDG sits in the contract as a withdrawable refund from the moment someone bids higher.
 
 ## Status
 
-Live on ${NETWORK.name} mainnet (chain ${NETWORK.id}). The contracts are public and have not been independently audited.
+Live on ${ROBINHOOD_TESTNET.name}. Robinhood Chain mainnet has not been used yet, so coins here trade in test funds and are worth nothing. The contracts are public and have not been independently audited.
 
 ## Pages
 
-- [Board](${SITE_URL}/): every coin, live prices and trades
-- [Docs](${SITE_URL}/docs): launching, pricing, fees, graduation, and how to trade or index a coin
-- [Create](${SITE_URL}/create): launch a coin
+- [Board](${SITE_URL}/): every launched coin, live prices and trades
+- [The Club](${SITE_URL}/club): the current auction — bid, edit the draft, or watch the countdown
+- [Docs](${SITE_URL}/docs): how the auction, fees and the pool mechanics work, and how to trade or index a coin
 - [Terms](${SITE_URL}/terms) and [Privacy](${SITE_URL}/privacy)
 
 ## For machines
 
-Every coin is a standard Uniswap v4 pool: native USDC as currency0, the coin as currency1, and Aroma's PoolVault as the hook. Index it from PoolFactory's TokenCreated event, which carries the PoolId, and PoolManager's Swap events filtered by that id. AromaRouter's buy and sell are the simplest way to trade one. Both are documented at ${SITE_URL}/docs.
+Every coin is a standard Uniswap v4 pool: USDG as currency0, the coin as currency1, and Aroma's PoolVaultUsdg as the hook. Index it from PoolFactoryUsdg's TokenCreated event, which carries the PoolId, and PoolManager's Swap events filtered by that id; ClubAuction's ClubLaunched event ties a coin to the round that launched it. AromaRouterUsdg's buy and sell are the simplest way to trade one. Documented at ${SITE_URL}/docs.
 
 ## Caveats worth repeating
 
-Coins launched here are not investments and most go to zero. Anyone can launch anything, including a coin that imitates a real project. Nothing on this site is vetted.
+Coins launched here are not investments and most go to zero. Anyone can win the auction and launch anything, including a coin that imitates a real project. Nothing on this site is vetted.
 `;
 
   return new Response(body, {

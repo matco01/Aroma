@@ -32,6 +32,12 @@ type Token @entity(immutable: false) {
   already works across both without knowing which is which. This field
   exists so the UI can label them, and so "only the indexed ones" is a
   query rather than a join.
+
+  A Club-launched token also writes "pool" here — it trades through the same
+  PoolVault/AromaRouter *shape* of contract (just against USDG on Robinhood
+  Chain rather than native USDC on Arc), so nothing that branches on venue
+  for trading/quoting needs to learn a third value. `clubId` below is what
+  records its actual origin.
   """
   venue: String!
   """The v4 PoolId. Null for curve launches, which have no pool."""
@@ -43,6 +49,11 @@ type Token @entity(immutable: false) {
   cannot otherwise tell a club pool's rate from a normal one's.
   """
   tradeFeeBps: BigInt!
+  """
+  The Club whose auction launched this token, if any. Null for every token
+  launched the old, permissionless way — curve or pool alike.
+  """
+  clubId: BigInt
 
   # --- live curve state, updated on every trade ---
   "Net USDC held by the curve, 18-decimal."
@@ -176,4 +187,49 @@ have to load-and-discard on every unrelated swap.
 type PoolRef @entity(immutable: true) {
   id: ID!                      # poolId, hex
   token: Token!
+}
+
+"""
+One 24-hour auction for the exclusive right to launch the next coin.
+
+Exactly one Club is open at a time; ClubAuction.sol opens the next
+automatically the instant one finalizes, so ids are a plain sequence with no
+gaps. `token` is null until (and unless) it launches — a Club with no bids
+closes `void` instead.
+"""
+type Club @entity(immutable: false) {
+  id: ID!                       # club id, as a string
+  openedAt: BigInt!
+  endsAt: BigInt!
+  finalized: Boolean!
+  "True if the round closed with no bids at all — nothing launched."
+  void: Boolean!
+  topBidder: Bytes
+  "USDG. Goes to the protocol treasury at finalize, not into the coin."
+  topBid: BigInt!
+  "USDG reserved for the winner's own first buy, if any."
+  topDevBuy: BigInt!
+  "The draft identity in effect when the round closed."
+  name: String!
+  symbol: String!
+  description: String!
+  metadataUri: String!
+  "Set once, at ClubLaunched. Null for a void round."
+  token: Bytes
+  bids: [ClubBid!]! @derivedFrom(field: "club")
+}
+
+"""
+One bid on a Club — kept for the "how did this coin get its name" history a
+board of instant, permissionless launches never needed.
+"""
+type ClubBid @entity(immutable: true) {
+  id: ID!                       # txHash-logIndex
+  club: Club!
+  bidder: Bytes!
+  bidAmount: BigInt!
+  devBuyUsdc: BigInt!
+  "The deadline in effect immediately after this bid (anti-snipe may have extended it)."
+  endsAt: BigInt!
+  timestamp: BigInt!
 }

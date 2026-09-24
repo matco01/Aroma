@@ -1,15 +1,49 @@
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import { activeChain } from "./chain";
+import { robinhoodTestnet } from "@reown/appkit/networks";
+import { activeChain as arcChain } from "./chain";
 
 /**
  * Wallet + chain wiring.
  *
- * The chain itself — id, RPC endpoints, explorer — is defined once in
- * chain.ts, which the server-side readers share. This file only adds what a
- * browser wallet needs on top.
+ * Two chains are registered, not one, and the order matters:
+ *
+ *   - Robinhood Chain (`liveChain`) is where the Club auction runs, and is
+ *     the default — it is what a fresh visitor's wallet is asked to use.
+ *   - Arc (`chain.ts`'s `activeChain`) is where the pool system this
+ *     replaced was built to launch. Its hooks (use-trade, use-creator-fees)
+ *     pin every read and write to Arc's chain id and switch the wallet
+ *     before signing, so Arc has to stay registered here or those calls
+ *     have no chain to resolve against.
+ *
+ * Testnet by default for Robinhood Chain, matching the project's own
+ * verification-first stance on it: nothing there has run end-to-end yet
+ * (see src/lib/robinhood.ts's FIXME addresses).
  */
 
-export { ARC_RPC_URLS, ARC_RPC_URL, hasRpcFallback } from "./chain";
+const PUBLIC_ROBINHOOD_TESTNET_RPC = "https://rpc.testnet.chain.robinhood.com";
+
+/**
+ * Every Robinhood Chain RPC endpoint we're willing to use, best first —
+ * same reasoning as chain.ts's ARC_RPC_URLS: reads are cheap to retry, but a
+ * single provider having a bad minute should not mean nobody can bid.
+ */
+export const ROBINHOOD_RPC_URLS: string[] = (
+  process.env.NEXT_PUBLIC_ROBINHOOD_RPC_URL ?? PUBLIC_ROBINHOOD_TESTNET_RPC
+)
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+export const ROBINHOOD_RPC_URL = ROBINHOOD_RPC_URLS[0] ?? PUBLIC_ROBINHOOD_TESTNET_RPC;
+
+/**
+ * viem's built-in definition, with the RPC a wallet is offered replaced by
+ * ours — viem's default is the public, rate-limited endpoint.
+ */
+export const liveChain = {
+  ...robinhoodTestnet,
+  rpcUrls: { default: { http: [ROBINHOOD_RPC_URL] } },
+};
 
 /**
  * Reown Cloud project ID. Free, from cloud.reown.com.
@@ -23,11 +57,11 @@ export { ARC_RPC_URLS, ARC_RPC_URL, hasRpcFallback } from "./chain";
 export const REOWN_PROJECT_ID = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID ?? "";
 export const hasReownProject = REOWN_PROJECT_ID.length > 0;
 
-export const networks = [activeChain] as const;
+export const networks = [liveChain, arcChain] as const;
 
 export const wagmiAdapter = new WagmiAdapter({
   projectId: REOWN_PROJECT_ID,
-  networks: [activeChain],
+  networks: [liveChain, arcChain],
   // Deliberately *not* cookie storage. Cookie-based rehydration needs
   // headers() in the root layout, which opts every route out of static
   // generation — trading 54 prerendered pages for avoiding a brief

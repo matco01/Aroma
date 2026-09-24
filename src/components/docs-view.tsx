@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { NETWORK, POOL, POOL_CONTRACTS, explorerUrl } from "@/lib/arc";
+import {
+  ROBINHOOD_TESTNET,
+  ROBINHOOD_TESTNET_CONTRACTS,
+  CLUB,
+  POOL_USDG,
+} from "@/lib/robinhood";
 import { SITE_REPO } from "@/lib/site";
 
 /**
@@ -7,33 +12,29 @@ import { SITE_REPO } from "@/lib/site";
  *
  * Every number on this page is imported from the same constants the
  * contracts and the UI use, never typed in. Documentation that drifts from
- * the code is worse than none — someone reads a stale fee and sizes a trade
+ * the code is worse than none — someone reads a stale fee and sizes a bid
  * against it — and the only way to stop that is to make drift impossible
  * rather than a thing to remember.
  *
- * Written for the pool system, which is what launches on Arc mainnet. The
- * bonding-curve contracts still exist on testnet but nothing on the site uses
- * them, so describing them here would only confuse someone reading this to
- * understand what they are about to trade.
+ * This describes the live system: the Club auction, settled in USDG on
+ * Robinhood Chain. The old permissionless, per-transaction launch flow this
+ * replaced (a bonding curve, priced in native USDC on Arc) still exists in
+ * the codebase, dormant, but nothing on this page is about it any more.
  */
 
 const nav = [
   { id: "overview", label: "Overview" },
-  { id: "launches", label: "Launches" },
-  { id: "pricing", label: "Pricing" },
+  { id: "the-club", label: "The Club" },
   { id: "fees", label: "Fees" },
-  { id: "depth", label: "Sale and reserve" },
-  { id: "first-block", label: "The first block" },
+  { id: "launch", label: "Launch" },
   { id: "risks", label: "Risks" },
   { id: "contracts", label: "Contracts" },
+  { id: "data-api", label: "Data API" },
   { id: "trading", label: "Trading integration" },
-  { id: "indexing", label: "Indexing" },
   { id: "network", label: "Network" },
 ];
 
 export function DocsView() {
-  const protocolShare = 100 - POOL.creatorFeeShareBps / 100;
-
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-6">
       <div className="grid gap-8 lg:grid-cols-[180px_1fr]">
@@ -59,182 +60,136 @@ export function DocsView() {
 
           <Section id="overview" title="Overview">
             <P>
-              Aroma is a place to launch and trade coins on {NETWORK.name}.
-              Browse the board, open a coin to see its chart and trades, and buy
-              or sell straight from your wallet.
+              Aroma no longer lets anyone launch a coin whenever they want.
+              Instead there is exactly one <B>Club</B> open at a time — a
+              24-hour auction on {ROBINHOOD_TESTNET.name} for the exclusive
+              right to launch the next coin. Bid, watch the countdown, and if
+              you&apos;re still on top when it hits zero, your coin launches
+              automatically.
             </P>
             <P>
-              Every coin launches straight into its own Uniswap v4 pool. There is
-              no separate curve contract and no migration later — the pool is
-              the market from the first block, so the coin shows up anywhere that
-              reads Uniswap, not only here.
+              Everything is priced in <B>USDG</B>, a dollar-backed stablecoin
+              — not the chain&apos;s own gas token, which is ETH. A bid, a
+              trade and a market cap are all USDG amounts, with no volatile
+              asset moving underneath them.
             </P>
             <P>
-              Gas on Arc is USDC. That means a price is a price — no second
-              asset to convert through, and no gas token to hold separately.
-              Every figure on the site is dollars.
-            </P>
-            <P>
-              Aroma never holds your funds. Your wallet signs and submits every
-              transaction, and the contracts have no function that lets us move
-              a token or a balance that is not ours.
+              Aroma never holds your funds. Your wallet signs and submits
+              every transaction, and the contracts have no function that lets
+              us move a token or a balance that isn&apos;t ours.
             </P>
           </Section>
 
-          <Section id="launches" title="Launches">
+          <Section id="the-club" title="The Club">
             <P>
-              Anyone can launch. It costs nothing but gas, and it is one
-              transaction.
-            </P>
-            <Ol>
-              <li>
-                Name, ticker, and optionally a description, a picture and links.
-                The picture and links are pinned to IPFS; the URI goes on-chain.
-              </li>
-              <li>
-                Optionally buy some of your own coin in the same transaction, up
-                to {dollars(POOL.maxDevBuyUsd)}. This is public — it shows on your
-                coin as a dev holding — and it pays the same fee as anyone
-                else&apos;s buy.
-              </li>
-              <li>
-                The token deploys with a fixed supply of{" "}
-                {compact(POOL.totalSupply)} and no mint function, and the whole
-                supply goes into the pool. Nobody, including us, can create more
-                of it or take it back out.
-              </li>
-            </Ol>
-            <P>
-              Trading opens in that same transaction. There is no listing step
-              and no approval from anyone.
-            </P>
-          </Section>
-
-          <Section id="pricing" title="Pricing">
-            <P>
-              The whole supply is deposited as single-sided liquidity: a range of
-              prices above the opening price, funded only with the token. As
-              people buy, the price walks up through that range and the pool
-              collects their USDC. Nobody had to provide any USDC to start it.
-            </P>
-            <P>
-              Within a range, a Uniswap position is a constant-product curve with
-              virtual reserves — the same shape a bonding curve uses. Buying moves
-              the price up, selling moves it down, and early buys move it more
-              than later ones.
+              One Club is open at any moment. Bidding raises the price and
+              sets the coin&apos;s draft identity — name, ticker, description,
+              image and links — in the same transaction. Whoever is on top
+              can keep editing that draft for free, with a separate call that
+              moves no funds, right up until the countdown ends.
             </P>
             <Facts
               rows={[
-                ["Total supply", compact(POOL.totalSupply)],
-                ["In the sale range", compact(POOL.saleSupply)],
-                ["In the reserve range", compact(POOL.reserveSupply)],
-                ["Opening market cap", dollars(POOL.openingMarketCapUsd)],
-                ["Where the sale range ends", dollars(POOL.graduationMarketCapUsd)],
-                ["Where liquidity ends", dollars(POOL.topMarketCapUsd)],
+                ["Round length", `${CLUB.roundDurationSeconds / 3600} hours`],
+                ["Minimum opening bid", `${CLUB.minOpeningBidUsdg} USDG`],
+                ["Minimum raise to outbid", `${CLUB.minBidIncrementBps / 100}%`],
+                ["Anti-snipe extension", `${CLUB.antiSnipeExtensionSeconds / 60} minutes`],
               ]}
             />
             <P>
-              The figures are not round because they are where Uniswap&apos;s
-              price ticks actually land, and they are stated as they are rather
-              than rounded to look tidier.
+              A bid placed inside the last {CLUB.antiSnipeExtensionSeconds / 60}{" "}
+              minutes pushes the deadline out by that much. That&apos;s
+              deliberate: without it, a bid nobody has time to answer could
+              decide the round.
             </P>
+            <P>
+              Outbid? Your USDG was never taken out of your control — it sits
+              in the contract as a refund the instant someone bids higher, and
+              you withdraw it whenever you like. Nothing is sent back to you
+              automatically.
+            </P>
+            <Note>
+              If nobody bids at all in a round, it closes with nothing
+              launched and a new one opens immediately. There is always
+              exactly one Club open.
+            </Note>
           </Section>
 
           <Section id="fees" title="Fees">
             <Facts
               rows={[
-                ["Launching", "Free"],
-                ["Trade fee", `${POOL.tradeFeeBps / 100}% of every buy and sell`],
-                ["To the creator", `${POOL.creatorFeeShareBps / 100}% of that fee`],
-                ["To the protocol", `${protocolShare}% of that fee`],
+                ["Winning bid", "Goes to the protocol treasury"],
+                ["Trade fee, after launch", `${POOL_USDG.tradeFeeBps / 100}% of every buy and sell`],
+                ["To the creator", `${POOL_USDG.creatorFeeShareBps / 100}% of that fee`],
+                ["To the protocol", `${100 - POOL_USDG.creatorFeeShareBps / 100}% of that fee`],
               ]}
             />
             <P>
-              On a {dollars(100)} trade the fee is {dollars(1)}. The creator gets{" "}
-              {dollars(0.7)} and Aroma gets {dollars(0.3)}.
+              The bid you win with doesn&apos;t become the coin&apos;s
+              liquidity — it&apos;s the cost of the exclusive launch slot,
+              paid to the protocol. Separately, and optionally, a winner can
+              set aside their own first buy — up to {CLUB.maxDevBuyUsdg} USDG
+              — which becomes their own opening position in the coin they
+              just launched.
             </P>
             <P>
-              Every fee is paid in USDC, on buys and sells alike. The pool charges
-              nothing itself; a hook takes the fee from whichever side of the
-              trade is USDC, so no token is ever sold to pay anyone. The fee is
-              part of the pool, which means it applies to every trade whichever
-              app or router sends it.
-            </P>
-            <P>
-              The creator&apos;s share accrues in the contract and they claim it
-              whenever they want. It is visible on the coin&apos;s page whether
-              you are the creator or not, and it never stops accruing.
-            </P>
-          </Section>
-
-          <Section id="depth" title="Sale and reserve">
-            <P>
-              The supply is split across two price ranges in the same pool. The
-              first {compact(POOL.saleSupply)} tokens — the sale — are spread
-              from the opening price up to {dollars(POOL.graduationMarketCapUsd)}
-              of market cap. The remaining {compact(POOL.reserveSupply)} sit
-              above that, continuing the same pool to{" "}
-              {dollars(POOL.topMarketCapUsd)}.
-            </P>
-            <P>
-              Nothing happens at the boundary. There is no migration, no new
-              pool, no pause and no milestone — trading simply moves from one
-              range into the next, and the only thing that changes is how deep
-              the book is at that price. Other launchpads call this point
-              graduation because on a bonding curve it is where the coin finally
-              reaches a real exchange. Here it reached one in the block it was
-              created, so the word would describe something that already
-              happened.
+              After launch, trading works like any coin here: a{" "}
+              {POOL_USDG.tradeFeeBps / 100}% fee on every buy and sell,{" "}
+              {POOL_USDG.creatorFeeShareBps / 100}% of it to the coin&apos;s
+              creator — the auction&apos;s winner — accruing in the contract
+              until they claim it. Visible on the coin&apos;s page whether
+              you&apos;re the creator or not.
             </P>
           </Section>
 
-          <Section id="first-block" title="The first block">
+          <Section id="launch" title="Launch">
             <P>
-              Pool launches have no launch tax. A coin is tradeable the moment it
-              exists, and a bot watching for new pools can buy in the very next
-              transaction.
+              The moment the countdown reaches zero, the leading bid&apos;s
+              draft launches on its own — no separate transaction from the
+              winner, no waiting on us. A fixed supply of 1,000,000,000
+              tokens deploys with no mint function, and the whole supply goes
+              straight into a Uniswap v4 pool as locked single-sided
+              liquidity, in the same transaction.
             </P>
             <P>
-              The protection there is, is the creator&apos;s own first buy. It runs
-              inside the launch transaction, before anyone else can see the coin,
-              so a creator who wants to buy their own coin cannot be front-run
-              doing it.
+              Locked means what it says: the contract holding that liquidity
+              has no function that can reduce a position or move one out.
+              Nobody, including us, can pull it. The coin is indexed and
+              tradeable — on this site and on any screener watching Uniswap —
+              from its very first block, with no invisible period beforehand.
             </P>
             <Note>
-              If you are buying a coin in the seconds after it launches, you are
-              competing with bots. Check the price you are paying, not only the
-              market cap on the card.
+              Finalizing a round is done by a bot the team runs, not a
+              permissionless keeper anyone can trigger. If it&apos;s ever
+              down past a round&apos;s deadline, nothing launches until
+              it&apos;s back — there is no on-chain fallback, by design.
             </Note>
           </Section>
 
           <Section id="risks" title="Risks">
             <P>
-              Coins launched here are made by anonymous third parties. They
-              carry no rights, no claim on anything, and can go to zero. Most
-              do.
+              Coins launched here are made by whoever won that round&apos;s
+              auction. They carry no rights, no claim on anything, and can go
+              to zero. Most do.
             </P>
             <Ul>
               <li>
                 <B>Names and pictures can be copied.</B> Check the contract
-                address, not the name. It is on every coin page.
+                address, not the name. It&apos;s on every coin page.
               </li>
               <li>
-                <B>The creator can sell.</B> Their holding and their claimed
+                <B>The winner can sell.</B> Their holding and their claimed
                 fees are shown on the coin page. Look before you buy.
               </li>
               <li>
                 <B>Transactions are irreversible.</B> Once a trade is final
-                there is no undo and no support desk that can reverse it.
+                there&apos;s no undo and no support desk that can reverse it.
               </li>
               <li>
-                <B>Early buyers pay less.</B> That is how the pricing works, not
-                a bug — but it means whoever is already in is up on you the
-                moment you buy.
-              </li>
-              <li>
-                <B>The contracts have not been audited.</B> They are tested
-                against Uniswap&apos;s own deployed code and they are public, but
-                nobody independent has reviewed them.
+                <B>No snipe protection on a fresh launch.</B> Unlike the old
+                per-transaction launch flow this replaced, there&apos;s no
+                launch-window tax here — a coin is tradeable, and snipeable,
+                from the block it launches in.
               </li>
             </Ul>
             <P>Nothing here is investment advice.</P>
@@ -242,119 +197,136 @@ export function DocsView() {
 
           <Section id="contracts" title="Contracts">
             <P>
-              Three contracts, on top of Uniswap v4&apos;s own. Read them rather
-              than taking our word for any of the above.
+              Read them rather than taking our word for any of the above.
             </P>
             <Addresses
               rows={[
-                ["PoolFactory", POOL_CONTRACTS.poolFactory, "Deploys a token and launches its pool in one transaction."],
-                ["PoolVault", POOL_CONTRACTS.poolVault, "Creates each pool, owns every position, and is the pool's hook — the fee lives here."],
-                ["AromaRouter", POOL_CONTRACTS.aromaRouter, "Buys and sells. Holds nothing between trades."],
-                ["Uniswap v4 PoolManager", POOL_CONTRACTS.poolManager, "Uniswap's own singleton. Every pool lives in it."],
+                [
+                  "ClubAuction",
+                  ROBINHOOD_TESTNET_CONTRACTS.clubAuction,
+                  "The auction itself. Bidding, draft edits, refunds, finalize.",
+                ],
+                [
+                  "PoolFactoryUsdg",
+                  ROBINHOOD_TESTNET_CONTRACTS.poolFactoryUsdg,
+                  "Deploys the token and its pool when a round finalizes.",
+                ],
+                [
+                  "PoolVaultUsdg",
+                  ROBINHOOD_TESTNET_CONTRACTS.poolVaultUsdg,
+                  "Holds every launch's liquidity. The pool's hook. Cannot release it.",
+                ],
+                [
+                  "AromaRouterUsdg",
+                  ROBINHOOD_TESTNET_CONTRACTS.aromaRouterUsdg,
+                  "Buy and sell any coin launched by a Club.",
+                ],
               ]}
             />
             <P>
-              The liquidity is locked because PoolVault owns every position and
-              has no function that removes liquidity — not one that is guarded,
-              none at all.
+              ClubAuction&apos;s owner key can do exactly one thing:
+              finalize a round once its countdown has passed — see{" "}
+              <B>Launch</B> above for why that&apos;s a bot call, not a
+              permissionless one. There is no pause, no upgrade, and no path
+              from the owner to anyone&apos;s bid, refund or fees.
             </P>
             <P>
-              The owner key can do exactly two things: withdraw the protocol&apos;s
-              share of fees, and set the factory address once at deployment. There
-              is no pause, no upgrade, and no path from the owner to a pool&apos;s
-              liquidity or a creator&apos;s fees.
+              The whole thing is public — contracts, indexer and this site —
+              at <A href={SITE_REPO}>github.com/matco01/Aroma</A>. Readable
+              and auditable, though not open source: it&apos;s under the
+              Business Source License, which converts to MIT in 2030 rather
+              than permitting a competing deployment today.
+            </P>
+          </Section>
+
+          <Section id="data-api" title="Data API">
+            <P>
+              Every coin launched by a Club is a real Uniswap v4 pool, not a
+              custom mechanism invisible to outside tools — so DexScreener,
+              GeckoTerminal and any other indexer watching Uniswap already
+              see it, natively, from the first block. There&apos;s no custom
+              feed to integrate with for a Club-launched coin, unlike the
+              bonding curve this replaced, which needed one because it
+              wasn&apos;t a real AMM at all.
             </P>
             <P>
-              The whole thing is public — contracts, indexer and this site — at
-              {" "}<A href={SITE_REPO}>github.com/matco01/Aroma</A>. Readable and
-              auditable, though not open source: it is under the Business Source
-              License, which converts to MIT in 2030 rather than permitting a
-              competing deployment today.
+              The <code className="num text-[13px]">/api/dex/*</code> feed
+              that used to serve that purpose remains in the codebase for the
+              dormant curve system, but describes none of what launches
+              through the Club.
             </P>
           </Section>
 
           <Section id="trading" title="Trading integration">
             <P>
-              Every Aroma coin is a Uniswap v4 pool with native USDC as currency0
-              and the coin as currency1, tick spacing {POOL.tickSpacing}, an LP fee
-              of zero, and PoolVault as its hook. Anything that can swap a v4 pool
-              can trade it, and the hook charges its fee whichever route the trade
-              takes.
+              Trading a Club-launched coin means calling AromaRouterUsdg
+              directly, or through the pool it created — every coin lives in
+              its own Uniswap v4 pool, keyed by the token address, with
+              AromaRouterUsdg as the router that keeps a sell to one signed
+              transaction.
             </P>
-            <P>
-              AromaRouter is the simplest way in, because Uniswap has published no
-              Universal Router for Arc. It keeps sells to one transaction with an
-              EIP-2612 permit instead of Permit2.
-            </P>
+            <Addresses
+              rows={[
+                [
+                  "AromaRouterUsdg",
+                  ROBINHOOD_TESTNET_CONTRACTS.aromaRouterUsdg,
+                  "Buy and sell every coin a Club has launched.",
+                ],
+              ]}
+            />
             <Endpoints
               rows={[
-                ["buy(address token, uint256 minTokensOut) payable", "USDC is the value sent. Tokens go straight to the caller."],
-                ["sell(address token, uint256 amount, uint256 minUsdcOut, uint256 deadline, uint8 v, bytes32 r, bytes32 s)", "One transaction. The permit's spender is the router."],
+                [
+                  "buy(address token, uint256 usdgIn, uint256 minTokensOut, uint256 deadline, uint8 v, bytes32 r, bytes32 s)",
+                  "usdgIn is authorized by an EIP-2612 permit on USDG, not a prior approval — one signed transaction, same as sell.",
+                ],
+                [
+                  "sell(address token, uint256 amount, uint256 minUsdgOut, uint256 deadline, uint8 v, bytes32 r, bytes32 s)",
+                  "The permit here is on the launched token itself.",
+                ],
               ]}
             />
             <Note>
-              <B>A trade the pool cannot fill completely reverts.</B> A buy larger
-              than the liquidity left, or a sell of more tokens than ever left the
-              pool, fails with &quot;insufficient liquidity&quot; instead of filling
-              part of it. From launch the pool can take about{" "}
-              {dollars(POOL.totalRaiseUsd)} in total.
+              There is no quoteBuy/quoteSell view function here, unlike the
+              old curve. A real Uniswap v4 pool is quoted through Uniswap&apos;s
+              own v4 Quoter contract, which is a simulated call — quote with
+              a raw eth_call rather than an ordinary contract read, and expect
+              it to revert-and-return rather than behave like a view.
             </Note>
             <P>
-              For a quote, simulate the router call itself with a minimum of zero
-              and read the return value. That runs the real pool, the real fee and
-              the router&apos;s own checks, which is what this site does before
-              every trade.
-            </P>
-            <P>
-              Two shapes are refused by the hook: exact-output sells (&quot;give me
-              exactly N USDC&quot;) revert, because charging a fee on an exact
-              output would mean handing back less than was asked for. Every
-              ordinary exact-input buy and sell works.
-            </P>
-          </Section>
-
-          <Section id="indexing" title="Indexing">
-            <P>
-              Nothing custom is needed. Watch PoolFactory for new coins and
-              Uniswap&apos;s PoolManager for their trades.
+              Events worth decoding, all from AromaRouterUsdg:
             </P>
             <Endpoints
               rows={[
-                ["PoolFactory · TokenCreated(address token, address creator, bytes32 poolId, string name, string symbol, string description, string metadataUri, uint256 devBuyUsdc)", "A new coin and its PoolId. token, creator and poolId are indexed."],
-                ["PoolManager · Swap(bytes32 id, address sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)", "Every trade. Filter by id — PoolManager serves every v4 pool on the chain."],
-                ["PoolVault · FeeTaken(address token, uint256 usdc)", "The exact fee each trade paid, in USDC."],
+                ["Bought(address token, address buyer, uint256 usdgIn, uint256 tokensOut)", "A buy went through."],
+                ["Sold(address token, address seller, uint256 tokensIn, uint256 usdgOut)", "A sell went through."],
               ]}
             />
             <P>
-              Two details trip people up. A Swap&apos;s amounts are{" "}
-              <B>net of the fee on a buy and gross of it on a sell</B>, because the
-              hook charges before the swap in one direction and after it in the
-              other. And its <B>sender is the router</B>, not the trader — use the
-              transaction sender, or AromaRouter&apos;s own Bought and Sold events,
-              which name the trader.
-            </P>
-            <P>
-              The price is tokens per USDC in the pool, so a coin getting more
-              expensive moves the tick down, and the sale range ends at tick{" "}
-              {POOL.tickGraduation.toLocaleString("en-US")}.
+              For the launch itself, ClubAuction emits{" "}
+              <code className="num text-[13px]">
+                ClubLaunched(uint256 clubId, address token, address winner, uint256 winningBid, uint256 devBuyUsdc)
+              </code>{" "}
+              the instant a round finalizes — the earliest point a new
+              coin&apos;s address is knowable.
             </P>
           </Section>
 
           <Section id="network" title="Network">
             <Facts
               rows={[
-                ["Chain", NETWORK.name],
-                ["Chain ID", String(NETWORK.id)],
-                ["Gas token", "USDC"],
-                ["Liquidity", "Uniswap v4"],
-                ...(NETWORK.explorer
-                  ? ([["Explorer", NETWORK.explorer.replace("https://", "")]] as [string, string][])
-                  : []),
+                ["Chain", ROBINHOOD_TESTNET.name],
+                ["Chain ID", String(ROBINHOOD_TESTNET.id)],
+                ["Native gas token", "ETH"],
+                ["Trading currency", "USDG"],
+                ["Explorer", ROBINHOOD_TESTNET.explorer.replace("https://", "")],
               ]}
             />
             <P>
-              Your wallet will be asked to switch to {NETWORK.name}, or to add it
-              if it has never seen it, the first time you trade.
+              Test funds come from{" "}
+              <A href={ROBINHOOD_TESTNET.faucet}>the Robinhood Chain testnet
+              faucet</A>. They have no monetary value, and neither does
+              anything you buy with them.
             </P>
           </Section>
 
@@ -395,12 +367,6 @@ const B = ({ children }: { children: React.ReactNode }) => (
 
 const Ul = ({ children }: { children: React.ReactNode }) => (
   <ul className="space-y-2 text-[14px] leading-[1.65] text-ink-2">{children}</ul>
-);
-
-const Ol = ({ children }: { children: React.ReactNode }) => (
-  <ol className="list-decimal space-y-2 pl-5 text-[14px] leading-[1.65] text-ink-2 marker:text-ink-3">
-    {children}
-  </ol>
 );
 
 function Note({ children }: { children: React.ReactNode }) {
@@ -458,50 +424,35 @@ function Endpoints({ rows }: { rows: [string, string][] }) {
   );
 }
 
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
 function Addresses({ rows }: { rows: [string, string, string][] }) {
   return (
     <div className="space-y-2">
       {rows.map(([name, addr, what]) => {
-        // An empty address means not deployed yet. Saying so beats rendering
-        // an empty line that looks like a missing value.
-        const href = addr ? explorerUrl(`/address/${addr}`) : null;
+        const deployed = addr.toLowerCase() !== ZERO_ADDRESS;
         return (
           <div key={name} className="rounded-md border border-line bg-surface px-3.5 py-3">
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-[13.5px] text-ink">{name}</span>
-              {href && (
+              {deployed ? (
                 <a
-                  href={href}
+                  href={`${ROBINHOOD_TESTNET.explorer}/address/${addr}`}
                   target="_blank"
                   rel="noreferrer"
                   className="num shrink-0 text-[11.5px] text-ink-3 transition-colors hover:text-ink-2"
                 >
-                  Arcscan ↗
+                  Explorer ↗
                 </a>
+              ) : (
+                <span className="shrink-0 text-[11.5px] text-warn">Not yet deployed</span>
               )}
             </div>
-            <div className="num mt-1 break-all text-[11.5px] text-ink-2">
-              {addr || "Published at launch"}
-            </div>
+            {deployed && <div className="num mt-1 break-all text-[11.5px] text-ink-2">{addr}</div>}
             <p className="mt-1.5 text-[12.5px] text-ink-3">{what}</p>
           </div>
         );
       })}
     </div>
   );
-}
-
-/* Local formatters — the shared ones round for a dense board, which is the
-   wrong trade in prose where an exact figure is the point. */
-function dollars(n: number): string {
-  return `$${n.toLocaleString("en-US", {
-    minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function compact(n: number): string {
-  if (n >= 1_000_000_000) return `${n / 1_000_000_000}B`;
-  if (n >= 1_000_000) return `${n / 1_000_000}M`;
-  return String(n);
 }

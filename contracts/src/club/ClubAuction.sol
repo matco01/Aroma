@@ -7,7 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {PoolFactoryUsdg} from "../pool-usdg/PoolFactoryUsdg.sol";
+import {ClubFactoryUsdg} from "./ClubFactoryUsdg.sol";
 
 /// @title ClubAuction
 /// @notice Aroma no longer lets anyone launch a coin whenever they want.
@@ -19,28 +19,31 @@ import {PoolFactoryUsdg} from "../pool-usdg/PoolFactoryUsdg.sol";
 /// winner's draft launches automatically, the winning bid goes to the
 /// protocol treasury, and a new Club opens immediately.
 ///
+/// What launches is a club coin: invite-only, with the 1.5% fee paid up the
+/// invite tree (see CLUBS.md and ClubVaultUsdg). The winner is its creator —
+/// the root of the tree, holding the creator's invite seats — so winning the
+/// auction is winning the right to start a club.
+///
 /// @dev Every payment here is USDG (a plain ERC-20 — Robinhood Chain's native
 /// gas token is ETH, not a stablecoin), pulled via `transferFrom`, never
 /// `payable`/`msg.value`.
 ///
 /// Refunds to an outbid bidder use the pull-payment pattern
 /// (`pendingReturns` + `withdraw`), not a push transfer at bid time. That's a
-/// deliberate departure from how `PoolFactoryUsdg`/`PoolVaultUsdg` move funds
-/// (a raw push, safe there because a caller only ever pays itself): here, a
+/// deliberate departure from how the club contracts move funds (a raw push,
+/// safe there because a caller only ever pays itself): here, a
 /// *new* bidder's transaction would be paying a *different*, previous
 /// bidder, and a malicious top-bidder contract that reverts on receiving
 /// funds could otherwise wedge every future bid.
 ///
-/// `PoolFactoryUsdg.createToken` has no "on behalf of" parameter — whoever
-/// calls it becomes the token's recorded creator in `PoolVaultUsdg`, which
-/// means this contract, not the human winner. Rather than change
-/// `PoolFactoryUsdg`, `finalize` sweeps the dev-buy's tokens to the real
-/// winner itself, and `claimCreatorFeesFor` exists to keep forwarding
-/// ongoing creator fees to them for as long as the coin trades.
+/// This contract is ClubFactoryUsdg's only permitted launcher, and names the
+/// winner as creator when it calls. The winner's first buy lands in their
+/// wallet and their fees accrue to them in the vault; nothing launched here
+/// ever passes through this contract after `finalize`.
 contract ClubAuction is ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
 
-    PoolFactoryUsdg public immutable poolFactory;
+    ClubFactoryUsdg public immutable poolFactory;
     IERC20 public immutable usdg;
     address public immutable treasury;
 
@@ -54,7 +57,7 @@ contract ClubAuction is ReentrancyGuard, Ownable2Step {
     /// @dev Grouped rather than four flat string parameters on `bid`/
     /// `updateDraft` — with `bidAmount`/`devBuyUsdc`/`minTokensOut` already
     /// there, four more named parameters pushed solc past its stack limit,
-    /// the same class of error `PoolFactoryUsdg.TokenInfo` exists to fix.
+    /// the same class of error `ClubFactoryUsdg.TokenInfo` exists to fix.
     struct Draft {
         string name;
         string symbol;
@@ -78,7 +81,7 @@ contract ClubAuction is ReentrancyGuard, Ownable2Step {
         bool finalized;
         address topBidder;
         uint256 topBid; // -> treasury at finalize
-        uint256 topDevBuy; // -> forwarded into PoolFactoryUsdg's dev-buy
+        uint256 topDevBuy; // -> forwarded into ClubFactoryUsdg's first buy
         uint256 minTokensOut; // slippage floor for that dev-buy
         string name;
         string symbol;
@@ -92,10 +95,6 @@ contract ClubAuction is ReentrancyGuard, Ownable2Step {
     /// NatSpec for why this isn't a push transfer.
     mapping(address account => uint256 amount) public pendingReturns;
 
-    /// @dev token -> the human who actually won the auction that launched
-    /// it, since `PoolVaultUsdg` itself only ever sees this contract as the
-    /// creator. Set once, at launch, and never changed.
-    mapping(address token => address winner) public winnerOf;
 
     event ClubOpened(uint256 indexed clubId, uint64 endsAt);
     event ClubBid(
@@ -122,7 +121,6 @@ contract ClubAuction is ReentrancyGuard, Ownable2Step {
     );
     event ClubVoided(uint256 indexed clubId);
     event Withdrawn(address indexed account, uint256 amount);
-    event CreatorFeesForwarded(address indexed token, address indexed winner, uint256 usdg);
 
     constructor(
         address poolFactory_,
@@ -139,7 +137,7 @@ contract ClubAuction is ReentrancyGuard, Ownable2Step {
         require(treasury_ != address(0), "treasury=0");
         require(roundDuration_ > 0, "roundDuration=0");
 
-        poolFactory = PoolFactoryUsdg(poolFactory_);
+        poolFactory = ClubFactoryUsdg(poolFactory_);
         usdg = IERC20(usdg_);
         treasury = treasury_;
         roundDuration = roundDuration_;
@@ -285,7 +283,7 @@ contract ClubAuction is ReentrancyGuard, Ownable2Step {
     // ---------------------------------------------------------------
 
     /// @param salt CREATE2 salt for the launched token, mined off-chain by
-    /// the caller before this call — see `PoolFactoryUsdg`'s NatSpec for why
+    /// the caller before this call — see `ClubFactoryUsdg`'s NatSpec for why
     /// a salt is needed at all (USDG isn't address zero, so a launched
     /// token's address has to be steered above it, not merely hoped for).
     /// Ignored when the round has no bids to launch.
@@ -310,26 +308,17 @@ contract ClubAuction is ReentrancyGuard, Ownable2Step {
         }
 
         (address token,) = poolFactory.createToken(
-            PoolFactoryUsdg.TokenInfo({
+            ClubFactoryUsdg.TokenInfo({
                 name: c.name,
                 symbol: c.symbol,
                 description: c.description,
                 metadataUri: c.metadataUri
             }),
+            winner,
             devBuyUsdc,
             c.minTokensOut,
             salt
         );
-
-        winnerOf[token] = winner;
-
-        // The dev-buy's tokens land on whoever called createToken — this
-        // contract — not the real winner. Sweep them across immediately,
-        // while their true owner is still known.
-        uint256 tokensReceived = IERC20(token).balanceOf(address(this));
-        if (tokensReceived > 0) {
-            IERC20(token).safeTransfer(winner, tokensReceived);
-        }
 
         usdg.safeTransfer(treasury, winningBid);
 
@@ -337,18 +326,6 @@ contract ClubAuction is ReentrancyGuard, Ownable2Step {
         _openNewClub();
     }
 
-    /// @notice Forwards a club-launched token's accrued creator fees to the
-    /// human who actually won the auction that launched it. Callable by
-    /// anyone — funds only ever move to `winnerOf[token]`, never the caller.
-    function claimCreatorFeesFor(address token) external nonReentrant returns (uint256 usdgOut) {
-        address winner = winnerOf[token];
-        require(winner != address(0), "not a club-launched token");
-        usdgOut = poolFactory.vault().claimCreatorFees(token);
-        if (usdgOut > 0) {
-            usdg.safeTransfer(winner, usdgOut);
-        }
-        emit CreatorFeesForwarded(token, winner, usdgOut);
-    }
 
     // ---------------------------------------------------------------
     // Views

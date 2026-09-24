@@ -4,22 +4,16 @@ pragma solidity 0.8.28;
 import {Test, console} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {SwapParams} from "v4-core/types/PoolOperation.sol";
-import {TickMath} from "v4-core/libraries/TickMath.sol";
-import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
-import {PoolVaultUsdg} from "../../src/pool-usdg/PoolVaultUsdg.sol";
-import {PoolFactoryUsdg} from "../../src/pool-usdg/PoolFactoryUsdg.sol";
-import {AromaToken} from "../../src/AromaToken.sol";
+import {ClubVaultUsdg} from "../../src/club/ClubVaultUsdg.sol";
+import {ClubFactoryUsdg} from "../../src/club/ClubFactoryUsdg.sol";
+import {ClubRouterUsdg} from "../../src/club/ClubRouterUsdg.sol";
 import {ClubAuction} from "../../src/club/ClubAuction.sol";
 import {MockUsdg} from "../mocks/MockUsdg.sol";
 
 /// @notice Tests for the auction that gates every launch: bidding, refunds,
-/// draft editing, and finalize — including the two things `ClubAuction`'s
-/// NatSpec calls out as easy to get wrong: dev-buy tokens and creator fees
-/// both have to reach the real human winner, not this contract, even though
-/// `PoolFactoryUsdg`/`PoolVaultUsdg` only ever see `ClubAuction` itself as
-/// the caller.
+/// draft editing, and finalize — including that what finalize launches is a
+/// club whose root is the human winner, not this contract: the winner holds
+/// the first buy, the creator's invite seats, and the root's share of fees.
 contract ClubAuctionTest is Test {
     address constant POOL_MANAGER = 0x000000000004444c5dc75cB358380D2e3dE08A90;
     string constant DEFAULT_RPC = "https://eth.drpc.org";
@@ -34,34 +28,37 @@ contract ClubAuctionTest is Test {
     uint256 constant MIN_BID_INCREMENT_BPS = 500;
     uint64 constant ANTI_SNIPE_EXTENSION = 5 minutes;
 
-    PoolVaultUsdg vault;
-    PoolFactoryUsdg factory;
+    ClubVaultUsdg vault;
+    ClubFactoryUsdg factory;
+    ClubRouterUsdg router;
     ClubAuction club;
-    PoolSwapTest swapRouter;
     MockUsdg usdg;
 
     address poolOwner = makeAddr("poolOwner");
     address clubOwner = makeAddr("clubOwner");
     address treasury = makeAddr("treasury");
-    address alice = makeAddr("alice");
+    address alice;
+    uint256 alicePk;
     address bob = makeAddr("bob");
 
     function setUp() public {
         vm.createSelectFork(vm.envOr("ETH_RPC_URL", string(DEFAULT_RPC)), FORK_BLOCK);
 
+        (alice, alicePk) = makeAddrAndKey("alice");
         usdg = new MockUsdg();
 
         deployCodeTo(
-            "PoolVaultUsdg.sol:PoolVaultUsdg",
+            "ClubVaultUsdg.sol:ClubVaultUsdg",
             abi.encode(POOL_MANAGER, address(usdg), poolOwner),
             HOOK_ADDRESS
         );
-        vault = PoolVaultUsdg(payable(HOOK_ADDRESS));
-        factory = new PoolFactoryUsdg(address(vault));
-        vm.prank(poolOwner);
+        vault = ClubVaultUsdg(HOOK_ADDRESS);
+        factory = new ClubFactoryUsdg(address(vault));
+        router = new ClubRouterUsdg(address(vault));
+        vm.startPrank(poolOwner);
         vault.setFactory(address(factory));
-
-        swapRouter = new PoolSwapTest(IPoolManager(POOL_MANAGER));
+        vault.setRouter(address(router));
+        vm.stopPrank();
 
         club = new ClubAuction(
             address(factory),
@@ -73,6 +70,7 @@ contract ClubAuctionTest is Test {
             MIN_BID_INCREMENT_BPS,
             ANTI_SNIPE_EXTENSION
         );
+        factory.setLauncher(address(club));
 
         vm.etch(poolOwner, "");
         vm.etch(clubOwner, "");
@@ -87,7 +85,7 @@ contract ClubAuctionTest is Test {
         vm.prank(bob);
         usdg.approve(address(club), type(uint256).max);
         vm.prank(bob);
-        usdg.approve(address(swapRouter), type(uint256).max);
+        usdg.approve(address(router), type(uint256).max);
     }
 
     function _mineSaltFor(string memory name, string memory symbol)
@@ -95,24 +93,8 @@ contract ClubAuctionTest is Test {
         view
         returns (bytes32)
     {
-        bytes32 initCodeHash = keccak256(
-            abi.encodePacked(
-                type(AromaToken).creationCode,
-                abi.encode(name, symbol, factory.TOTAL_SUPPLY(), address(vault))
-            )
-        );
-        for (uint256 i = 0; i < 1000; i++) {
-            bytes32 salt = bytes32(i);
-            address predicted = address(
-                uint160(
-                    uint256(
-                        keccak256(
-                            abi.encodePacked(bytes1(0xff), address(factory), salt, initCodeHash)
-                        )
-                    )
-                )
-            );
-            if (predicted > address(usdg)) return salt;
+        for (uint256 i = 0; i < 1_000; i++) {
+            if (factory.predictToken(name, symbol, bytes32(i)) > address(usdg)) return bytes32(i);
         }
         revert("no salt found");
     }
@@ -186,9 +168,13 @@ contract ClubAuctionTest is Test {
     }
 
     function test_bid_devBuyAboveCapReverts() public {
+        // Read before expectRevert: an external call in the argument list
+        // would be the call the expectation applies to.
+        uint256 cap = factory.MAX_DEV_BUY_USDC();
+        assertEq(cap, 300e6, "first buy cap is 300 USDG");
         vm.prank(alice);
         vm.expectRevert("dev buy exceeds cap");
-        club.bid(200e6, factory.MAX_DEV_BUY_USDC() + 1, 0, ClubAuction.Draft({name: "Aroma Coin", symbol: "AROMA", description: "", metadataUri: ""}), ClubAuction.Permit({deadline: 0, v: 0, r: bytes32(0), s: bytes32(0)}));
+        club.bid(200e6, cap + 1, 0, ClubAuction.Draft({name: "Aroma Coin", symbol: "AROMA", description: "", metadataUri: ""}), ClubAuction.Permit({deadline: 0, v: 0, r: bytes32(0), s: bytes32(0)}));
     }
 
     function test_bid_nearDeadlineExtendsCountdown() public {
@@ -313,16 +299,22 @@ contract ClubAuctionTest is Test {
         assertEq(IERC20(token).balanceOf(address(club)), 0, "ClubAuction kept the dev-buy tokens");
     }
 
-    function test_finalize_recordsTheWinnerForFeeForwarding() public {
+    function test_finalize_makesTheWinnerTheClubsRoot() public {
+        address token = _launchForAlice();
+        assertEq(vault.creatorOf(token), alice, "creator is not the winner");
+        assertTrue(vault.isMember(token, alice));
+        assertFalse(vault.isMember(token, address(club)), "the auction joined the club");
+        assertEq(vault.seatsLeft(token, alice), 10, "winner lacks the creator's seats");
+    }
+
+    function _launchForAlice() internal returns (address token) {
         vm.prank(alice);
         club.bid(200e6, 0, 0, ClubAuction.Draft({name: "Aroma Coin", symbol: "AROMA", description: "", metadataUri: ""}), ClubAuction.Permit({deadline: 0, v: 0, r: bytes32(0), s: bytes32(0)}));
         _warpPastDeadline();
         bytes32 salt = _mineSaltFor("Aroma Coin", "AROMA");
         vm.prank(clubOwner);
         club.finalize(salt);
-
-        address token = _predictToken(salt, "Aroma Coin", "AROMA");
-        assertEq(club.winnerOf(token), alice);
+        token = _predictToken(salt, "Aroma Coin", "AROMA");
     }
 
     function _predictToken(bytes32 salt, string memory name, string memory symbol)
@@ -330,62 +322,39 @@ contract ClubAuctionTest is Test {
         view
         returns (address)
     {
-        bytes32 initCodeHash = keccak256(
-            abi.encodePacked(
-                type(AromaToken).creationCode,
-                abi.encode(name, symbol, factory.TOTAL_SUPPLY(), address(vault))
-            )
-        );
-        return address(
-            uint160(
-                uint256(
-                    keccak256(abi.encodePacked(bytes1(0xff), address(factory), salt, initCodeHash))
-                )
-            )
-        );
+        return factory.predictToken(name, symbol, salt);
     }
 
     // ---------------------------------------------------------------
-    // Creator fees
+    // The winner's club
     // ---------------------------------------------------------------
 
-    function test_claimCreatorFeesFor_paysTheWinnerNotTheCaller() public {
+    /// @dev End to end: win the auction, invite someone, and earn from their
+    /// trade. The invite is signed with the winner's own key.
+    function test_winner_invitesAndEarnsFromTheirTrades() public {
+        address token = _launchForAlice();
+
+        uint256 nonce = vault.inviteNonce(token, alice);
+        uint256 deadline = block.timestamp + 1 days;
+        (uint8 v, bytes32 r, bytes32 s_) = vm.sign(alicePk, vault.inviteDigest(token, alice, nonce, deadline));
+
+        vm.prank(bob, bob);
+        router.buyWithInvite(
+            token,
+            1_000e6,
+            0,
+            ClubRouterUsdg.Invite({inviter: alice, nonce: nonce, deadline: deadline, signature: abi.encodePacked(r, s_, v)}),
+            ClubRouterUsdg.Permit({deadline: 0, v: 0, r: bytes32(0), s: bytes32(0)})
+        );
+        assertEq(vault.inviterOf(token, bob), alice);
+
+        uint256 earned = vault.claimable(alice);
+        // Root cut plus the whole tree: alice is both bob's inviter and the root.
+        assertEq(earned, (1_000e6 * 150) / 10_000 - (1_000e6 * 150 / 10_000 * 30) / 150, "winner's share");
+
+        uint256 before = usdg.balanceOf(alice);
         vm.prank(alice);
-        club.bid(200e6, 0, 0, ClubAuction.Draft({name: "Aroma Coin", symbol: "AROMA", description: "", metadataUri: ""}), ClubAuction.Permit({deadline: 0, v: 0, r: bytes32(0), s: bytes32(0)}));
-        _warpPastDeadline();
-        bytes32 salt = _mineSaltFor("Aroma Coin", "AROMA");
-        vm.prank(clubOwner);
-        club.finalize(salt);
-        address token = _predictToken(salt, "Aroma Coin", "AROMA");
-
-        // Generate real fees with a direct pool-manager swap, the same
-        // primitive PoolLaunchUsdgTest's own `_buy` helper uses.
-        PoolKey memory key = vault.poolKey(token);
-        vm.prank(bob);
-        swapRouter.swap(
-            key,
-            SwapParams({
-                zeroForOne: true,
-                amountSpecified: -int256(uint256(10_000e6)),
-                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
-            }),
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
-            ""
-        );
-
-        uint256 winnerBefore = usdg.balanceOf(alice);
-        uint256 callerBefore = usdg.balanceOf(bob);
-
-        vm.prank(bob);
-        uint256 paid = club.claimCreatorFeesFor(token);
-
-        assertGt(paid, 0, "no fees to claim");
-        assertEq(usdg.balanceOf(alice) - winnerBefore, paid, "winner was not paid");
-        assertEq(usdg.balanceOf(bob), callerBefore, "caller was paid instead of the winner");
-    }
-
-    function test_claimCreatorFeesFor_revertsForANonClubToken() public {
-        vm.expectRevert("not a club-launched token");
-        club.claimCreatorFeesFor(address(0xDEAD));
+        vault.claim();
+        assertEq(usdg.balanceOf(alice) - before, earned);
     }
 }

@@ -53,3 +53,31 @@ export const Q192 = BigInt.fromI32(2).pow(192);
 
 export const VENUE_CURVE = "curve";
 export const VENUE_POOL = "pool";
+
+/**
+ * pool-usdg / Club constants. These MUST match
+ * src/pool-usdg/PoolVaultUsdg.sol and src/club/ClubAuction.sol.
+ *
+ * Club-launched tokens still write `venue = VENUE_POOL` — they trade
+ * through the exact same PoolVault/AromaRouter *shape* of contract, just
+ * against USDG instead of native USDC, so nothing that branches on venue for
+ * trading/quoting needs a third value. What differs at the raw-number level
+ * is decimals: USDG is 6-decimal (confirmed against Paxos's deployed
+ * contract on Etherscan), not the 18-decimal native view Arc's USDC gets for
+ * free, and that changes the tick-to-price conversion below.
+ */
+
+/**
+ * PoolVaultUsdg.TICK_GRADUATION. Not the same value as POOL_TICK_GRADUATION
+ * above — see script/math/derive_pool_usdg.py for why a 6-decimal quote
+ * currency moves every tick constant.
+ */
+export const POOL_USDG_TICK_GRADUATION = 372142;
+
+/**
+ * 10^(18-6): the decimal gap between the launched token (18 decimals) and
+ * USDG (6 decimals). priceFromSqrtX96Usdg multiplies by this where
+ * priceFromSqrtX96 (native, both sides 18-decimal) has no such factor at
+ * all — see that function's own comment for the derivation.
+ */
+export const USDG_DECIMAL_FACTOR = BigInt.fromString("1000000000000");

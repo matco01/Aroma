@@ -31,8 +31,15 @@ export type TradeResult = {
 const CURVE = ARC_TESTNET_CONTRACTS.curveManager as Address;
 const FACTORY = ARC_TESTNET_CONTRACTS.aromaFactory as Address;
 
-/** Human error out of a wallet/RPC rejection, rather than a wall of hex. */
-function readableError(e: unknown): string {
+/**
+ * Human error out of a wallet/RPC rejection, rather than a wall of hex.
+ *
+ * Exported so use-club.ts can reuse it rather than duplicating the wallet/
+ * RPC-rejection patterns — only the contract-specific revert strings differ
+ * between the two, and those already fall through to the generic
+ * "reverted with reason string" extraction below.
+ */
+export function readableError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
   if (/user rejected|denied transaction|rejected the request/i.test(msg)) {
     return "Rejected in wallet";
@@ -41,6 +48,14 @@ function readableError(e: unknown): string {
   if (/insufficient funds/i.test(msg)) return "Not enough USDC for this trade plus gas";
   if (/exceeds curve supply/i.test(msg)) return "Not enough left on the curve";
   if (/amount too small/i.test(msg)) return "Amount too small to trade";
+  // Club-specific reverts (ClubAuction.sol) — see use-club.ts.
+  if (/bid too low/i.test(msg)) return "Someone else's bid is higher now — try more";
+  if (/auction ended/i.test(msg)) return "This round just ended";
+  if (/not top bidder/i.test(msg)) return "You're not the top bidder anymore";
+  if (/dev buy exceeds cap/i.test(msg)) return "First buy is above the allowed cap";
+  if (/name required|symbol required/i.test(msg)) return "Name and ticker are required";
+  if (/nothing to withdraw/i.test(msg)) return "Nothing to withdraw";
+  if (/permit failed and no allowance/i.test(msg)) return "Approval failed — try again";
   // Contract revert strings arrive wrapped; surface just the reason.
   const revert = /reverted with reason string '([^']+)'/.exec(msg);
   if (revert) return revert[1];

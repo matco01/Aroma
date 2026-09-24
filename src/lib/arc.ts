@@ -10,6 +10,25 @@
  * Same balance, two views. Mixing them up is the classic Arc bug.
  */
 
+const PUBLIC_ARC_RPC = "https://rpc.testnet.arc.io";
+
+/**
+ * Every RPC endpoint we're willing to use, best first — moved here from
+ * wagmi.ts, which now wires the live chain (Robinhood Chain) instead of
+ * Arc. `transport.ts`'s `arcTransport()` is the reader; this only lists
+ * where it reads from.
+ */
+export const ARC_RPC_URLS: string[] = (
+  process.env.NEXT_PUBLIC_ARC_RPC_URL ?? PUBLIC_ARC_RPC
+)
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+export const ARC_RPC_URL = ARC_RPC_URLS[0] ?? PUBLIC_ARC_RPC;
+
+export const hasRpcFallback = ARC_RPC_URLS.length > 1;
+
 export const ARC_TESTNET = {
   id: 5042002,
   name: "Arc Testnet",

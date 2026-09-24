@@ -11,19 +11,24 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount, useBalance, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useChainId, useConnect, useDisconnect, useReadContract } from "wagmi";
 import { injected } from "wagmi/connectors";
+import type { Address } from "viem";
 import { openWalletModal } from "@/lib/appkit-bridge";
 import { shortAddr, usdExact } from "@/lib/format";
+import { erc20PermitAbi } from "@/lib/abis";
+import { USDG_DECIMALS, contractsForChain } from "@/lib/robinhood";
 
 /**
  * The app's wallet surface — entirely real now.
  *
- * wagmi + Reown AppKit against Arc, reading the native USDC balance at 18
- * decimals (the ERC-20 view's 6 decimals is a display concern that never
- * enters this file). No simulated balance and no local position ledger:
- * holdings are read from each token's own contract and trades broadcast
- * through CurveManager, so there is nothing left here to fake.
+ * wagmi + Reown AppKit against Robinhood Chain. The balance shown is USDG,
+ * not the chain's native ETH: Robinhood Chain's gas token is ETH, but USDG
+ * is what the Club auction and every coin actually trade in, so a native
+ * balance here would be the wrong number entirely, not just a differently
+ * formatted one. No simulated balance and no local position ledger: holdings
+ * are read from each token's own contract and trades broadcast through
+ * AromaRouterUsdg/ClubAuction, so there is nothing left here to fake.
  */
 
 type WalletState = {
@@ -60,29 +65,34 @@ function useMounted(): boolean {
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const mounted = useMounted();
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
+  const chainId = useChainId();
   const { connect: wagmiConnect } = useConnect();
   const { disconnect: wagmiDisconnect } = useDisconnect();
 
   // Hold the pre-hydration shape until mounted so SSR output matches.
   const address = mounted ? wagmiAddress : undefined;
   const isConnected = mounted && wagmiConnected;
+  const usdg = contractsForChain(chainId).usdg as Address;
 
   /**
-   * Polled every 15s, not wagmi's default ~4s.
+   * Polled every 15s, not wagmi's default ~4s — same reasoning as Arc's
+   * config: this is the single largest RPC cost a connected wallet pays,
+   * and the moment a balance actually needs to be fresh (right after a
+   * trade) is covered by refreshBalance() below, not by polling faster.
    *
-   * This is the single largest RPC cost the app has, and it is paid per
-   * connected user per block-ish rather than once: it was roughly two
-   * thirds of everything a connected wallet spends. A balance that updates
-   * in fifteen seconds instead of four is indistinguishable while using
-   * the app — and the moment it actually matters, after a trade, is not
-   * covered by polling at all. refreshBalance() is called explicitly then,
-   * which is both faster than any interval and free.
+   * A plain balanceOf read, not useBalance: this wagmi version's
+   * useBalance only reads the chain's native currency (ETH here), with no
+   * `token` option to redirect it at an ERC-20 like the USDG this app
+   * actually cares about.
    */
-  const { data: balance, refetch } = useBalance({
-    address,
-    query: { refetchInterval: 15_000 },
+  const { data: balance, refetch } = useReadContract({
+    address: usdg,
+    abi: erc20PermitAbi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: Boolean(address), refetchInterval: 15_000 },
   });
-  const usdcBalance = mounted && balance ? Number(balance.value) / 1e18 : 0;
+  const usdcBalance = mounted && balance ? Number(balance) / 10 ** USDG_DECIMALS : 0;
 
   const connect = useCallback(() => {
     // AppKit's modal when it's configured (browser wallets, WalletConnect,

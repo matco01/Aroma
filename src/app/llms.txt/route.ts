@@ -1,5 +1,5 @@
 import { SITE_URL, SITE_NAME } from "@/lib/site";
-import { CURVE } from "@/lib/arc";
+import { CLUB, POOL_USDG, ROBINHOOD_TESTNET } from "@/lib/robinhood";
 
 /**
  * llms.txt — a plain-text summary of the site for language models.
@@ -26,36 +26,36 @@ export const revalidate = 86_400;
 export function GET() {
   const body = `# ${SITE_NAME}
 
-> ${SITE_NAME} is a bonding-curve launchpad on Arc, Circle's Layer 1 blockchain, where USDC is the native gas token. Anyone can launch a fixed-supply coin in one transaction and trade it immediately. Because gas and pricing are the same dollar-denominated stablecoin, every price and market cap is already in dollars.
+> ${SITE_NAME} gates every coin launch behind a 24-hour Club auction on Robinhood Chain, settled in USDG (a dollar-backed stablecoin) rather than the chain's own ETH gas token. Whoever holds the top bid when the countdown ends gets their coin launched automatically, tradeable from the first block.
 
 ## What it does
 
-Launching mints ${CURVE.totalSupply.toLocaleString("en-US")} tokens with no mint function and no admin key over the coin. ${CURVE.curveSupply.toLocaleString("en-US")} of them are sold through a constant-product bonding curve, so the price rises as people buy and no one has to provide liquidity.
+Anyone can bid USDG for the current Club. The top bidder can rewrite the coin's name, ticker, description and image at any time while they hold the lead. A bid inside the closing minutes extends the countdown, so the round can't be won by a bid nobody has time to answer.
 
-When a coin has raised $${CURVE.graduationTargetUsd.toLocaleString("en-US")} — a market cap of $${CURVE.graduationMarketCapUsd.toLocaleString("en-US")} — it graduates: curve trading stops, and the raise plus the remaining ${CURVE.lpReserveSupply.toLocaleString("en-US")} tokens seed a Uniswap v4 pool. The contract that holds that liquidity has no withdraw function, so the position cannot be removed by anyone, including us.
+When the countdown reaches zero, the leading bid's coin launches on its own: a fixed supply of 1,000,000,000 tokens with no mint function, deposited as locked single-sided Uniswap v4 liquidity in the same transaction. The winning bid goes to the protocol treasury, not the coin; the winner can also set aside a separate, optional first buy of up to ${CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG, which becomes their own opening position.
 
-Trades pay ${CURVE.tradeFeeBps / 100}%. ${CURVE.creatorFeeShareBps / 100}% of that goes to the coin's creator, the rest to the protocol.
+Trades after launch pay ${POOL_USDG.tradeFeeBps / 100}%. ${POOL_USDG.creatorFeeShareBps / 100}% of that goes to the coin's creator — the auction's winner — the rest to the protocol.
 
-Creators can switch on a launch-window tax that starts at up to ${CURVE.snipeStartBps / 100}% and decays to zero over at most ${CURVE.snipeWindowSeconds} seconds, which makes sniping a launch unprofitable. The contract will not accept a longer window or a higher rate.
+Outbid? Nothing is taken: the USDG sits in the contract as a withdrawable refund from the moment someone bids higher.
 
 ## Status
 
-Live on Arc testnet. Arc mainnet has not launched yet, so coins here trade in test funds and are worth nothing.
+Live on ${ROBINHOOD_TESTNET.name}. Robinhood Chain mainnet has not been used yet, so coins here trade in test funds and are worth nothing.
 
 ## Pages
 
-- [Board](${SITE_URL}/): every coin, live prices and trades
-- [Docs](${SITE_URL}/docs): how the curve, fees, graduation and the launch tax work, plus the data and trading APIs
-- [Create](${SITE_URL}/create): launch a coin
+- [Board](${SITE_URL}/): every launched coin, live prices and trades
+- [The Club](${SITE_URL}/club): the current auction — bid, edit the draft, or watch the countdown
+- [Docs](${SITE_URL}/docs): how the auction, fees and the pool mechanics work, plus the data and trading APIs
 - [Terms](${SITE_URL}/terms) and [Privacy](${SITE_URL}/privacy)
 
 ## For machines
 
-There is a public, unauthenticated data feed of curve trading at ${SITE_URL}/api/dex, shaped the way DEX Screener's indexer expects: latest-block, asset, pair, and events over a block range. Trading happens by calling the CurveManager contract directly, which is verified on the Arc explorer. Both are documented at ${SITE_URL}/docs.
+There is a public, unauthenticated data feed of trading at ${SITE_URL}/api/dex, shaped the way DEX Screener's indexer expects: latest-block, asset, pair, and events over a block range. Documented at ${SITE_URL}/docs.
 
 ## Caveats worth repeating
 
-Coins launched here are not investments and most go to zero. Anyone can launch anything, including a coin that imitates a real project. Nothing on this site is vetted.
+Coins launched here are not investments and most go to zero. Anyone can win the auction and launch anything, including a coin that imitates a real project. Nothing on this site is vetted.
 `;
 
   return new Response(body, {

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" updated="6 September 2026">
+    <LegalPage title="Privacy policy" updated="21 September 2026">
       <Clause title="The short version">
         <T>
           We do not have accounts, so we do not know who you are. We set no
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
             <S>Reown</S> provides the wallet connection dialog.
           </Item>
           <Item>
-            <S>An Arc RPC provider</S> relays your transaction to the network.
+            <S>A Robinhood Chain RPC provider</S> relays your transaction to the network.
           </Item>
         </List>
         <T>

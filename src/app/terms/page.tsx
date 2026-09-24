@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage, Clause, T, List, Item, S } from "@/components/legal";
-import { ARC_TESTNET, CURVE } from "@/lib/arc";
+import { ROBINHOOD_TESTNET, POOL_USDG } from "@/lib/robinhood";
 
 export const metadata: Metadata = {
   title: "Terms of use",
@@ -9,13 +9,14 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of use" updated="6 September 2026">
+    <LegalPage title="Terms of use" updated="21 September 2026">
       <Clause title="What Aroma is">
         <T>
-          Aroma is an interface to a set of smart contracts on {ARC_TESTNET.name}.
-          The contracts let anyone create a token and trade it against a bonding
-          curve. We wrote the contracts and we run this website. That is the
-          whole of what we do.
+          Aroma is an interface to a set of smart contracts on {ROBINHOOD_TESTNET.name}.
+          The contracts run a 24-hour auction for the right to launch the next
+          token, and let anyone trade the tokens that auction has launched. We
+          wrote the contracts and we run this website. That is the whole of
+          what we do.
         </T>
         <T>
           Using this site means you accept these terms. If you do not, do not
@@ -39,9 +40,9 @@ export default function TermsPage() {
 
       <Clause title="Tokens here are made by strangers">
         <T>
-          Anyone can launch a token. We do not review, approve, endorse, or
-          verify any of them, and a token appearing on this site means only that
-          somebody paid the gas to create it.
+          Anyone can bid to launch a token. We do not review, approve, endorse,
+          or verify any of them, and a token appearing on this site means only
+          that somebody won that round&apos;s auction.
         </T>
         <List>
           <Item>
@@ -88,11 +89,12 @@ export default function TermsPage() {
 
       <Clause title="Fees">
         <T>
-          A {CURVE.tradeFeeBps / 100}% fee applies to every buy and sell.{" "}
-          {CURVE.creatorFeeShareBps / 100}% of that goes to the token&apos;s
-          creator and the rest to us. Launching is free. Creators may also
-          enable a launch-window tax on early buys, which is disclosed on the
-          token&apos;s page. Fees are enforced by the contracts and are the same
+          A {POOL_USDG.tradeFeeBps / 100}% fee applies to every buy and sell
+          after launch. {POOL_USDG.creatorFeeShareBps / 100}% of that goes to
+          the token&apos;s creator — the auction&apos;s winner — and the rest
+          to us. There is no separate fee to launch: the cost of launching is
+          whatever you bid to win the auction, and that bid goes to us, not
+          into the token. Fees are enforced by the contracts and are the same
           for everyone.
         </T>
       </Clause>
@@ -140,8 +142,8 @@ export default function TermsPage() {
 
       <Clause title="This is a test network">
         <T>
-          Aroma currently runs against {ARC_TESTNET.name}. Balances there are
-          test funds with no monetary value, obtained free from a faucet.
+          Aroma currently runs against {ROBINHOOD_TESTNET.name}. Balances there
+          are test funds with no monetary value, obtained free from a faucet.
           Anything you buy is worth nothing, and test networks can be reset or
           discontinued without notice, which would destroy everything on them.
         </T>

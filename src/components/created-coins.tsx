@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usdPrecise } from "@/lib/format";
-import { CURVE } from "@/lib/arc";
+import { POOL } from "@/lib/arc";
 import { useCreatorFeesBatch } from "@/lib/use-creator-fees-batch";
 import type { Coin } from "@/lib/mock";
 import { CoinArt } from "./coin-art";
@@ -28,7 +28,7 @@ export function CreatedCoins({ created }: { created: Coin[] }) {
         <div>
           <h2 className="text-[14px] font-medium text-ink">Coins you created</h2>
           <p className="mt-0.5 text-[11.5px] text-ink-2">
-            You earn {CURVE.creatorFeeShareBps / 100}% of every trade fee, for as
+            You earn {POOL.creatorFeeShareBps / 100}% of every trade fee, for as
             long as they trade.
           </p>
         </div>

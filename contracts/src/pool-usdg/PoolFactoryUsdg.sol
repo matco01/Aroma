@@ -177,6 +177,11 @@ contract PoolFactoryUsdg is IUnlockCallback, ReentrancyGuard {
         int128 owed0 = delta.amount0();
         require(owed0 <= 0, "unexpected USDG credit");
         uint256 owed = uint256(uint128(-owed0));
+        // createToken pulled exactly d.usdc into this contract, which is only
+        // right if the dev-buy spends all of it. MAX_DEV_BUY_USDC keeps it far
+        // below the pool's liquidity so it always does — this makes that a
+        // check rather than an argument, same as PoolFactory's.
+        require(owed == d.usdc, "dev buy did not fill");
         poolManager.sync(key.currency0);
         usdg.safeTransfer(address(poolManager), owed);
         poolManager.settle();

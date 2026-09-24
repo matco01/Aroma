@@ -1,11 +1,13 @@
-import { CURVE } from "@/lib/arc";
+import { POOL } from "@/lib/arc";
 import { usd, usdExact } from "@/lib/format";
 
 /* ---------------------------------------------------------------------------
    Graduation progress.
-   This is the single most important number on the board — it is the only thing
-   that tells you whether a token is still on the curve or trading on a DEX —
-   so it gets a permanent slot on every card rather than living in a tooltip.
+   The single most important number on the board, so it gets a permanent slot
+   on every card rather than living in a tooltip. In the pool system graduation
+   is a price level rather than an event — the sale position is fully bought
+   and trading carries on in the same pool — but it is still the milestone a
+   coin is measured against.
    --------------------------------------------------------------------------- */
 export function GraduationBar({
   raisedUsd,
@@ -17,33 +19,31 @@ export function GraduationBar({
   showLabel?: boolean;
 }) {
   /**
-   * Progress is the raise, because the raise is the trigger.
+   * Progress is the raise, not the market cap.
    *
-   * This briefly measured market cap so the bar and its label agreed, but
-   * that made the bar wrong about the thing it exists to show: graduation
-   * fires when the curve has taken $13,800, not when a price is reached.
-   * Market cap moves non-linearly against that, so a market-cap bar reads
-   * 35% when the coin is genuinely half funded.
+   * The sale position is fully bought once $13,800.65 has come in, and market
+   * cap moves non-linearly against that, so a market-cap bar reads 35% when
+   * the coin is genuinely half funded.
    *
    * The market cap is still where the story ends, and the panel beside
    * this says so — but the bar tracks the countdown, not the outcome.
    */
   const pctDone = graduated
     ? 100
-    : Math.max(0, Math.min(100, (raisedUsd / CURVE.graduationTargetUsd) * 100));
+    : Math.max(0, Math.min(100, (raisedUsd / POOL.graduationRaiseUsd) * 100));
 
   return (
     <div className="w-full">
       {showLabel && (
         <div className="mb-1.5 flex items-baseline justify-between">
           <span className="label">
-            {graduated ? "Graduated" : "Bonding curve"}
+            {graduated ? "Graduated" : "To graduation"}
           </span>
           <span className="num text-[11px] text-ink-2">
             {usdExact(raisedUsd)}
             <span className="text-ink-3">
               {" of "}
-              {usd(CURVE.graduationTargetUsd)} raised
+              {usd(POOL.graduationRaiseUsd)} raised
             </span>
           </span>
         </div>

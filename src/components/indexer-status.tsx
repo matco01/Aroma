@@ -37,7 +37,7 @@ export function IndexerStatus({ health }: { health: IndexerHealth | undefined })
       <span className="leading-relaxed">
         {detail}{" "}
         <span className="opacity-70">
-          Trades still execute against the live curve — only what you see here is
+          Trades still execute against the live pool — only what you see here is
           delayed.
         </span>
       </span>

@@ -1,5 +1,5 @@
 import { fallback, http, type Transport } from "viem";
-import { ARC_RPC_URLS } from "./arc";
+import { ARC_RPC_URLS } from "./chain";
 
 /**
  * A transport that survives one provider having a bad minute.

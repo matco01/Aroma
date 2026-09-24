@@ -27,6 +27,17 @@ WANT = {
         "name", "symbol", "balanceOf", "totalSupply", "nonces",
         "DOMAIN_SEPARATOR", "permit",
     },
+    # The pool system — what mainnet runs.
+    "PoolFactory": {"createToken", "TokenCreated", "MAX_DEV_BUY_USDC", "TOTAL_SUPPLY"},
+    "PoolVault": {
+        "launches", "creatorOf", "claimCreatorFees", "poolKey", "TICK_GRADUATION",
+        "Launched", "FeeTaken", "CreatorFeesClaimed",
+    },
+    "AromaRouter": {"buy", "sell", "Bought", "Sold"},
+    # Uniswap's own singleton. Only its Swap event is needed, and only by the
+    # direct-from-chain fallback that runs when no indexer is configured.
+    "PoolManager": {"Swap"},
+    # The Club and the USDG pool system — Robinhood Chain, the live product.
     "PoolFactoryUsdg": {"createToken", "TokenCreated", "TOTAL_SUPPLY", "MAX_DEV_BUY_USDC"},
     "AromaRouterUsdg": {"buy", "sell", "Bought", "Sold"},
     "ClubAuction": {

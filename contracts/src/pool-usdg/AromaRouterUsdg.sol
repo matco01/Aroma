@@ -154,10 +154,17 @@ contract AromaRouterUsdg is IUnlockCallback, ReentrancyGuard {
         if (zeroForOne) {
             int128 owed0 = delta.amount0();
             require(owed0 <= 0, "unexpected USDG credit");
+            uint256 owed = uint256(uint128(-owed0));
+            // All or nothing, same rule and reasoning as AromaRouter: a buy
+            // big enough to drain the pool would otherwise settle only part
+            // of usdgIn, and `buy` already pulled all of it into this
+            // contract — the rest would be stranded here for good. The hook
+            // also charges on the amount specified, not the amount filled, so
+            // a partial fill would overcharge too.
+            require(owed == o.amountIn, "insufficient liquidity");
             // USDG is ERC-20: sync + push + settle, the same shape the sell
             // side already used for the launched token, rather than the
             // native `settle{value: ...}` the Arc router uses.
-            uint256 owed = uint256(uint128(-owed0));
             poolManager.sync(key.currency0);
             usdg.safeTransfer(address(poolManager), owed);
             poolManager.settle();
@@ -171,6 +178,9 @@ contract AromaRouterUsdg is IUnlockCallback, ReentrancyGuard {
             int128 owed1 = delta.amount1();
             require(owed1 <= 0, "unexpected token credit");
             uint256 owed = uint256(uint128(-owed1));
+            // Same rule as the buy side. The seller's tokens are already in
+            // this contract, so an unfilled remainder would be stranded here.
+            require(owed == o.amountIn, "insufficient liquidity");
             poolManager.sync(key.currency1);
             IERC20(o.token).safeTransfer(address(poolManager), owed);
             poolManager.settle();

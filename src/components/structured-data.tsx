@@ -18,8 +18,11 @@ import { ROBINHOOD_TESTNET, POOL_USDG, CLUB } from "@/lib/robinhood";
  *
  * Only claims that are true and checkable. Structured data that oversells is
  * how a domain earns a manual penalty, and an assistant that repeats an
- * inflated claim does more damage than one that never mentions us.
+ * inflated claim does more damage than one that never mentions us. That
+ * includes the unflattering ones: there is no launch tax, and the contracts
+ * are unaudited.
  */
+
 export function StructuredData() {
   const graph = {
     "@context": "https://schema.org",
@@ -95,8 +98,12 @@ export function StructuredData() {
             "They cannot pull liquidity, because there is none to pull: it is deposited once, at launch, into a contract with no withdraw function. A winner can still sell their own opening position, which is visible on the coin's page along with the fees they have earned.",
           ),
           faq(
+            "Is there protection against snipers?",
+            `There is no launch tax. The winner's optional first buy, up to ${CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG, runs inside the same transaction that launches the coin, so it cannot be front-run — but anyone else buying in the first seconds after a launch is competing with bots.`,
+          ),
+          faq(
             `Which network does ${SITE_NAME} run on?`,
-            `Robinhood Chain, an Arbitrum Orbit Layer 2. It is live on ${ROBINHOOD_TESTNET.name} today, running a ${CLUB.roundDurationSeconds / 3600}-hour auction cycle.`,
+            `Robinhood Chain, an Arbitrum Orbit Layer 2, with liquidity on Uniswap v4. It is live on ${ROBINHOOD_TESTNET.name} today, running a ${CLUB.roundDurationSeconds / 3600}-hour auction cycle. The contracts are public and have not been independently audited.`,
           ),
         ],
       },

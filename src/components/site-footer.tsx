@@ -53,6 +53,7 @@ export function SiteFooter() {
             <FooterRow label="Chain" value={ROBINHOOD_TESTNET.name} />
             <FooterRow label="Chain ID" value={String(ROBINHOOD_TESTNET.id)} />
             <FooterRow label="Trading currency" value="USDG" />
+            <FooterRow label="Liquidity" value="Uniswap v4" />
             <FooterExternal href={ROBINHOOD_TESTNET.explorer}>Explorer</FooterExternal>
             <FooterExternal href={ROBINHOOD_TESTNET.faucet}>Testnet faucet</FooterExternal>
           </FooterCol>

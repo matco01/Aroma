@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of use" updated="21 September 2026">
+    <LegalPage title="Terms of use" updated="24 September 2026">
       <Clause title="What Aroma is">
         <T>
           Aroma is an interface to a set of smart contracts on {ROBINHOOD_TESTNET.name}.
@@ -90,9 +90,11 @@ export default function TermsPage() {
       <Clause title="Fees">
         <T>
           A {POOL_USDG.tradeFeeBps / 100}% fee applies to every buy and sell
-          after launch. {POOL_USDG.creatorFeeShareBps / 100}% of that goes to
-          the token&apos;s creator — the auction&apos;s winner — and the rest
-          to us. There is no separate fee to launch: the cost of launching is
+          of a token the Club has launched, whichever app or router the trade
+          goes through — it is charged by the pool itself.{" "}
+          {POOL_USDG.creatorFeeShareBps / 100}% of that goes to the
+          token&apos;s creator — the auction&apos;s winner — and the rest to
+          us. There is no separate fee to launch: the cost of launching is
           whatever you bid to win the auction, and that bid goes to us, not
           into the token. Fees are enforced by the contracts and are the same
           for everyone.
@@ -140,12 +142,18 @@ export default function TermsPage() {
         </T>
       </Clause>
 
-      <Clause title="This is a test network">
+      <Clause title="A test network, unaudited contracts">
         <T>
           Aroma currently runs against {ROBINHOOD_TESTNET.name}. Balances there
           are test funds with no monetary value, obtained free from a faucet.
           Anything you buy is worth nothing, and test networks can be reset or
           discontinued without notice, which would destroy everything on them.
+        </T>
+        <T>
+          The contracts have not been audited by an independent party. They are
+          tested and public, but a flaw in them could lose you everything you put
+          in, and liquidity placed in a pool can never be withdrawn by anyone —
+          including us, including to fix a mistake.
         </T>
       </Clause>
 

@@ -2,7 +2,7 @@
 
 # Aroma
 
-**A bonding-curve launchpad on [Arc](https://arc.network), Circle's L1 — where USDC is the gas token, so every price is already a dollar.**
+**A launchpad on [Arc](https://arc.network), Circle's L1 — where USDC is the gas token, so every price is already a dollar.**
 
 [aroma.money](https://aroma.money) · [Docs](https://aroma.money/docs) · [@Aromadotmoney](https://x.com/Aromadotmoney)
 
@@ -12,10 +12,10 @@
 
 ---
 
-Anyone can launch a coin in one transaction. It trades immediately against a
-bonding curve — no liquidity to provide, no pool to seed, nothing to
-configure. When enough has been raised the coin graduates: the curve closes
-and the proceeds seed a Uniswap v4 pool whose liquidity is locked forever.
+Anyone can launch a coin in one transaction. The whole supply goes straight
+into the coin's own Uniswap v4 pool, so it trades from the first block — here,
+and anywhere else that reads Uniswap. The liquidity is locked forever, and
+nobody has to put up any USDC to start it.
 
 ## Why Arc changes the design
 
@@ -27,44 +27,46 @@ Arc uses **USDC as its native gas token**. The asset you pay fees with and the
 asset you price in are the same dollar-denominated stablecoin, which changes
 real things rather than just the marketing:
 
-- **Prices are dollars, not ratios.** A $69,000 market cap is $69,000 — no
-  conversion, no second asset moving underneath it.
+- **Prices are dollars, not ratios.** A $69,005.73 market cap is $69,005.73 —
+  no conversion, no second asset moving underneath it.
 - **Buying is one transaction.** Native USDC arrives as `msg.value`, so there
-  is no ERC-20 approval step before a buy. Selling is one transaction too,
-  via an EIP-2612 permit signed in the same click.
-- **The graduated pool needs no wrapper.** Uniswap v4 supports native
-  currency directly, so the pool is `token / native USDC` with no WETH-style
-  wrapped contract in between — something v2 and v3 could not express.
+  is no approval step before a buy. Selling is one transaction too, via an
+  EIP-2612 permit signed in the same click.
+- **The pool needs no wrapper.** Uniswap v4 supports native currency directly,
+  so every pool is `native USDC / token` with no WETH-style wrapped contract in
+  between.
 - **Decimals are the sharp edge.** Native USDC is 18 decimals while its ERC-20
-  interface is 6. All curve math is done in 18 and converted only at display
-  boundaries, with fuzz tests aimed specifically at that conversion.
+  interface is 6. The pools are built on the 18-decimal native view, so the
+  gap never reaches the maths.
 
 ## How a coin works
 
 ```
-launch ─────────▶ bonding curve ─────────▶ graduation ─────────▶ Uniswap v4
-1B minted         price rises as           at $13,800 raised     locked forever
-no mint fn        people buy               / $69,000 mcap
+launch ────────────────▶ trading in its own pool ────────────────▶ graduation
+1B minted, all of it     price rises as people buy                 $69,005.73 mcap
+into a v4 pool           buyers' USDC becomes the liquidity        nothing moves — trading carries on
 ```
 
 A launch mints **1,000,000,000** tokens with no mint function and no admin key
-over the coin. 800,000,000 sell through a constant-product curve with virtual
-reserves; the remaining 200,000,000 are held back to seed the pool at
-graduation, at exactly the price the curve closed at.
+over the coin, and deposits them as **single-sided liquidity**: ranges of
+prices above the opening price, funded only with the token. As people buy, the
+price walks up through those ranges and the pool collects their USDC.
 
-Trades pay **1%**, split 70/30 to the coin's creator and the protocol.
+Inside a range, a Uniswap position is a constant-product curve with virtual
+reserves — the same shape a bonding curve uses. The first 800,000,000 tokens
+span the 16x from a $4,312.55 opening cap to $69,005.73; the last 200,000,000
+continue above that to about $1.1M. Those figures aren't round because they're
+where Uniswap's ticks actually land, and they're stated as they are.
 
-Creators can switch on a **launch tax** for the opening seconds — it starts at
-up to 99% and decays to zero across at most 3 seconds, which makes sniping a
-launch unprofitable without being a tool for anything else. The contract
-rejects a longer window or a higher rate, and creators can exempt named
-wallets.
+Trades pay **1%, always in USDC**, split 70/30 to the coin's creator and the
+protocol. The pool's own fee is zero; a hook takes the fee from whichever side
+of the trade is USDC, so no token is ever sold to pay anyone — and because the
+fee lives in the pool, it applies whichever app or router sends the trade.
 
-**Nobody can pull the liquidity, including us.** While a coin is on the curve
-the USDC sits in `CurveManager`; at graduation it moves into `LiquidityLocker`,
-which has no withdraw function of any kind. A creator can still sell their own
-holdings, which is shown on the coin's page alongside the fees they have
-earned.
+**Nobody can pull the liquidity, including us.** Every position is owned by
+`PoolVault`, which has no function that removes liquidity. A creator can still
+sell their own holdings, which is shown on the coin's page alongside the fees
+they have earned.
 
 ## Stack
 
@@ -72,8 +74,9 @@ earned.
 | --- | --- | --- |
 | Web | Next.js 16 (App Router), React, TypeScript | Server-rendered coin pages so crawlers and unfurlers see real content |
 | Styling | Tailwind v4 with `@theme` tokens | One palette, no component library, no generated-looking UI |
-| Wallet | wagmi + viem + Reown AppKit | Wallet-first; social login is a config flip later, not a rebuild |
-| Contracts | Foundry, Solidity 0.8.28 | `forge test --fuzz` is the right tool for the decimal boundary |
+| Wallet | wagmi + viem + Reown AppKit | Wallet-first; switches visitors onto Arc before they sign anything |
+| Liquidity | Uniswap v4, one hook | Native USDC pairs, and fees that can be taken in USDC on both sides |
+| Contracts | Foundry, Solidity 0.8.28 | Tested against Uniswap's real deployed PoolManager on a fork, not a mock |
 | Indexer | Goldsky subgraph (AssemblyScript) | Prices, trades, holders and candles, precomputed rather than aggregated per query |
 | Live data | Server-sent events over one shared poller | One upstream poll feeds every viewer, so load is flat in the number of tabs |
 | Media | IPFS via Pinata, `sharp`-normalised | Coin images outlive us |
@@ -81,74 +84,76 @@ earned.
 
 ## Decisions worth explaining
 
-**One `CurveManager`, not a contract per coin.** Every curve lives in one
-contract with per-token state in a mapping. Cheaper at volume, one audit
-surface instead of N — and it means anyone indexing or integrating Aroma
-watches a single address with a single log filter, rather than discovering a
-new contract per coin.
+**A pool from the first block, not a curve contract.** An earlier version sold
+coins through a bonding curve contract of our own and seeded a pool at
+graduation. That made every coin invisible to screeners and terminals until it
+graduated, because the trades happened inside a contract nobody had an adapter
+for. A single-sided v4 position is the same price curve expressed as Uniswap
+liquidity, so the coin is indexed from its first trade.
 
-**Virtual reserves, so a fresh coin is never worth zero.** The curve is a
-constant product seeded with reserves that do not exist, which sets the
-opening market cap at $4,312.50 and makes the run to graduation a clean 16x.
-Both reserve constants are derived by a script, not hand-tuned.
+**v4 rather than v3, because of fees.** A v3 pool takes its fee from each
+swap's input, so a creator would earn USDC on buys and their own token on
+sells, and paying them in USDC would mean selling those tokens into their own
+pool. A v4 hook takes the fee from whichever side is USDC. `PoolVault` is that
+hook, which is why its address is mined: v4 encodes a hook's permissions in the
+low bits of its own address.
 
-**SSE rather than WebSockets.** The data is one-directional — the server has
-news, the client never talks back. SSE rides ordinary HTTP, so proxies and
-CDNs need no special handling and browsers reconnect on their own.
+**Quotes are simulations of the exact call.** The site quotes a trade by
+simulating the router call it is about to send, so the slippage floor is the
+number the chain would produce — real pool, real hook fee, real checks. No
+client-side estimate sets a limit.
 
-**A single process, deliberately.** The live tape is one poller shared by
-every connected viewer, which serverless cannot hold and replicas would
-duplicate. The tradeoffs are written down in [DEPLOY.md](DEPLOY.md).
+**All or nothing.** A trade the pool cannot fill completely reverts rather
+than filling part of it. Found in review: a partial fill used to leave the
+unfilled USDC in the router with no way out — 425,992 of a 500,000 USDC buy on
+a fork.
 
-**Numbers live in one place.** `src/lib/arc.ts` holds the curve constants, and
-the contracts, the UI, the docs page and the structured data all read from
-them. Documentation that can drift from the code eventually does.
+**Deploys are checked against the repo.** A rehearsal once deployed a stale
+router behind a green test suite, because Foundry's cache had rebuilt the
+contract but not the script that embeds it.
+[`verify-bytecode.mjs`](contracts/script/verify-bytecode.mjs) compares what is
+actually on-chain with a fresh build before any address is published.
+
+**Numbers live in one place.** `src/lib/arc.ts` holds the pool constants, and
+the UI, the docs page, the structured data and `llms.txt` all read from them.
+`derive_pool.py` derives the contract's constants and fails if they drift.
 
 ## Repo
 
 ```
 src/app          routes, API handlers, metadata
 src/components   UI
-src/lib          chain config, curve constants
+src/lib          chain config, pool maths, the trade layer
 src/lib/server   subgraph client, IPFS, rate limiting, live poller
 contracts/       Foundry workspace — see contracts/README.md
 subgraph/        Goldsky subgraph
 ```
 
-## Deployed on Arc testnet
+## Contracts
 
-Chain 5042002. All verified on Arcscan; addresses live in
-[`src/lib/arc.ts`](src/lib/arc.ts).
-
-| Contract | Address |
+| Contract | What it does |
 | --- | --- |
-| CurveManager | `0xEF036a1167e307b413a7F79AFC7d6A774Df8AC07` |
-| AromaFactory | `0xc11f086E1e45b3589b1F2B95FA8069Bc2a58D772` |
-| LiquidityLocker | `0xeb80Abd167739E93393935863f035C94f8B667fF` |
+| `PoolFactory` | Deploys a token and launches its pool in one transaction, with the creator's optional first buy inside it. |
+| `PoolVault` | Creates each pool, owns every position, and is the pool's hook. |
+| `AromaRouter` | Buys and sells, with one-transaction permit sells. Holds nothing between trades. |
 
-61 contract tests pass, including an invariant run over 128,000 calls
-asserting the curve stays solvent, never oversells, and that graduation is
-irreversible. Graduation is tested against Uniswap's real `PoolManager`
-deployed in-process — not a mock.
+100 contract tests pass. The pool system's run against Uniswap's deployed
+`PoolManager` on a mainnet fork, and the site's own trade code has been driven
+end to end against the same fork — launch, buy, sell and fee claims, with every
+fill matching its quote to the wei.
 
-## Public APIs
-
-Both documented at [aroma.money/docs](https://aroma.money/docs).
-
-**Read** — `/api/dex/*` is an unauthenticated feed of curve trading, shaped
-the way DEX Screener's indexer polls: `latest-block`, `asset`, `pair`, and
-`events` over a block range. Coins on a curve are invisible to every screener
-in the market, because the trades happen inside a contract no one has an
-adapter for. This exists so anyone can index Aroma without asking us.
-
-**Write** — `CurveManager` directly. `buy`, `sell`, and on-chain
-`quoteBuy`/`quoteSell` so integrators never reimplement the curve math.
+Mainnet addresses are published in [the docs](https://aroma.money/docs) at
+launch.
 
 ## Status
 
-Live on Arc testnet. **Arc mainnet launches 2026-09-16** — coins here trade in
-test funds and are worth nothing until then.
+Launching on **Arc mainnet** alongside the network's public launch on
+2026-09-16. The contracts have not been independently audited.
 
-How it is deployed is written up in [DEPLOY.md](DEPLOY.md), including why it
-runs as a single process. The contract workspace has its own notes in
+How it is deployed is written up in [DEPLOY.md](DEPLOY.md) and, for launch
+day, [LAUNCH.md](LAUNCH.md). The contract workspace has its own notes in
 [contracts/README.md](contracts/README.md).
+
+## License
+
+[Business Source License 1.1](LICENSE), converting to MIT on 2030-09-08.

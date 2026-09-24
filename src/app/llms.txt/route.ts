@@ -32,26 +32,26 @@ export function GET() {
 
 Anyone can bid USDG for the current Club. The top bidder can rewrite the coin's name, ticker, description and image at any time while they hold the lead. A bid inside the closing minutes extends the countdown, so the round can't be won by a bid nobody has time to answer.
 
-When the countdown reaches zero, the leading bid's coin launches on its own: a fixed supply of 1,000,000,000 tokens with no mint function, deposited as locked single-sided Uniswap v4 liquidity in the same transaction. The winning bid goes to the protocol treasury, not the coin; the winner can also set aside a separate, optional first buy of up to ${CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG, which becomes their own opening position.
+When the countdown reaches zero, the leading bid's coin launches on its own: a fixed supply of 1,000,000,000 tokens with no mint function, deposited as locked single-sided Uniswap v4 liquidity in the same transaction. The position is owned by a contract with no function that removes liquidity, so nobody can withdraw it, including us. The winning bid goes to the protocol treasury, not the coin; the winner can also set aside a separate, optional first buy of up to ${CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG, which runs inside the launch transaction so it cannot be front-run.
 
-Trades after launch pay ${POOL_USDG.tradeFeeBps / 100}%. ${POOL_USDG.creatorFeeShareBps / 100}% of that goes to the coin's creator — the auction's winner — the rest to the protocol.
+Trades after launch pay ${POOL_USDG.tradeFeeBps / 100}%, always in USDG, charged by a hook on the pool so it applies whichever app or router sends the trade. ${POOL_USDG.creatorFeeShareBps / 100}% of that goes to the coin's creator — the auction's winner — the rest to the protocol. There is no launch tax.
 
 Outbid? Nothing is taken: the USDG sits in the contract as a withdrawable refund from the moment someone bids higher.
 
 ## Status
 
-Live on ${ROBINHOOD_TESTNET.name}. Robinhood Chain mainnet has not been used yet, so coins here trade in test funds and are worth nothing.
+Live on ${ROBINHOOD_TESTNET.name}. Robinhood Chain mainnet has not been used yet, so coins here trade in test funds and are worth nothing. The contracts are public and have not been independently audited.
 
 ## Pages
 
 - [Board](${SITE_URL}/): every launched coin, live prices and trades
 - [The Club](${SITE_URL}/club): the current auction — bid, edit the draft, or watch the countdown
-- [Docs](${SITE_URL}/docs): how the auction, fees and the pool mechanics work, plus the data and trading APIs
+- [Docs](${SITE_URL}/docs): how the auction, fees and the pool mechanics work, and how to trade or index a coin
 - [Terms](${SITE_URL}/terms) and [Privacy](${SITE_URL}/privacy)
 
 ## For machines
 
-There is a public, unauthenticated data feed of trading at ${SITE_URL}/api/dex, shaped the way DEX Screener's indexer expects: latest-block, asset, pair, and events over a block range. Documented at ${SITE_URL}/docs.
+Every coin is a standard Uniswap v4 pool: USDG as currency0, the coin as currency1, and Aroma's PoolVaultUsdg as the hook. Index it from PoolFactoryUsdg's TokenCreated event, which carries the PoolId, and PoolManager's Swap events filtered by that id; ClubAuction's ClubLaunched event ties a coin to the round that launched it. AromaRouterUsdg's buy and sell are the simplest way to trade one. Documented at ${SITE_URL}/docs.
 
 ## Caveats worth repeating
 

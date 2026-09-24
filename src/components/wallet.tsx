@@ -11,13 +11,14 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount, useChainId, useConnect, useDisconnect, useReadContract } from "wagmi";
+import { useAccount, useConnect, useDisconnect, useReadContract } from "wagmi";
 import { injected } from "wagmi/connectors";
 import type { Address } from "viem";
 import { openWalletModal } from "@/lib/appkit-bridge";
 import { shortAddr, usdExact } from "@/lib/format";
 import { erc20PermitAbi } from "@/lib/abis";
 import { USDG_DECIMALS, contractsForChain } from "@/lib/robinhood";
+import { liveChain } from "@/lib/wagmi";
 
 /**
  * The app's wallet surface — entirely real now.
@@ -65,14 +66,16 @@ function useMounted(): boolean {
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const mounted = useMounted();
   const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
-  const chainId = useChainId();
   const { connect: wagmiConnect } = useConnect();
   const { disconnect: wagmiDisconnect } = useDisconnect();
 
   // Hold the pre-hydration shape until mounted so SSR output matches.
   const address = mounted ? wagmiAddress : undefined;
   const isConnected = mounted && wagmiConnected;
-  const usdg = contractsForChain(chainId).usdg as Address;
+  // Pinned to Robinhood Chain rather than whatever the wallet is on — both
+  // chains are registered (see wagmi.ts), and reading USDG on Arc would
+  // just show a zero balance.
+  const usdg = contractsForChain(liveChain.id).usdg as Address;
 
   /**
    * Polled every 15s, not wagmi's default ~4s — same reasoning as Arc's
@@ -90,6 +93,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     abi: erc20PermitAbi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
+    chainId: liveChain.id,
     query: { enabled: Boolean(address), refetchInterval: 15_000 },
   });
   const usdcBalance = mounted && balance ? Number(balance) / 10 ** USDG_DECIMALS : 0;

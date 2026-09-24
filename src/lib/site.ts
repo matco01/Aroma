@@ -32,7 +32,7 @@ export const SITE_TAGLINE = "Launch and trade coins on Arc";
  * than to describe the product to someone who already knows what it is.
  */
 export const SITE_DESCRIPTION =
-  "Aroma is a bonding-curve launchpad on Arc, Circle's Layer 1 where USDC is the native gas token. Launch a fixed-supply coin in one transaction and trade it instantly — every price is already a dollar.";
+  "Aroma is a launchpad on Arc, Circle's Layer 1 where USDC is the native gas token. Launch a fixed-supply coin in one transaction, straight into its own Uniswap v4 pool with locked liquidity — every price is already a dollar.";
 
 /**
  * The source, which is public and readable but not open source — it is under

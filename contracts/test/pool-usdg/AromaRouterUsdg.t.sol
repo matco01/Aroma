@@ -281,6 +281,49 @@ contract AromaRouterUsdgTest is Test {
         assertEq(IERC20(token).balanceOf(address(router)), 0, "router kept tokens");
     }
 
+    // ---------------------------------------------------------------
+    // Partial fills — mirrors AromaRouter.t.sol. Without the all-or-nothing
+    // check, a buy that drained the pool settled part of usdgIn and left the
+    // rest in the router for good.
+    // ---------------------------------------------------------------
+
+    function test_buy_thatWouldDrainThePoolRevertsInsteadOfStrandingUsdg() public {
+        uint256 before = usdg.balanceOf(trader);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signUsdgPermit(500_000e6, deadline);
+
+        vm.prank(trader);
+        vm.expectRevert("insufficient liquidity");
+        router.buy(token, 500_000e6, 0, deadline, v, r, s);
+
+        assertEq(usdg.balanceOf(trader), before, "a refused buy cost the trader USDG");
+        assertEq(usdg.balanceOf(address(router)), 0, "router kept USDG");
+    }
+
+    function test_buy_largeButFillableStillSucceeds() public {
+        // Well above any ordinary trade and below the ~$69k the pool can take
+        // from launch, so the check refuses only what cannot fill.
+        uint256 out = _buy(60_000e6);
+        assertGt(out, 0, "a fillable buy was refused");
+        assertEq(usdg.balanceOf(address(router)), 0, "router kept USDG");
+    }
+
+    function test_sell_thatWouldDrainThePoolRevertsInsteadOfStrandingTokens() public {
+        _buy(1_000e6);
+        // More tokens than ever left the pool, so selling them needs more USDG
+        // than the pool holds.
+        uint256 amount = 500_000_000e18;
+        deal(token, trader, amount);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signTokenPermit(amount, deadline);
+
+        vm.prank(trader);
+        vm.expectRevert("insufficient liquidity");
+        router.sell(token, amount, 0, deadline, v, r, s);
+
+        assertEq(IERC20(token).balanceOf(address(router)), 0, "router kept tokens");
+    }
+
     function test_unlockCallback_rejectsCallsThatAreNotFromThePoolManager() public {
         vm.expectRevert("not pool manager");
         router.unlockCallback("");

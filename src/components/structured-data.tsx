@@ -1,5 +1,7 @@
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
-import { ROBINHOOD_TESTNET, POOL_USDG, CLUB } from "@/lib/robinhood";
+import { CLUB } from "@/lib/arc";
+import { NETWORK } from "@/lib/network";
+import { AUCTION } from "@/lib/robinhood";
 
 /**
  * Machine-readable description of what this site is.
@@ -13,7 +15,7 @@ import { ROBINHOOD_TESTNET, POOL_USDG, CLUB } from "@/lib/robinhood";
  *
  * The FAQ entries are the ones people actually ask before bidding, phrased
  * as questions rather than headings, because that is the shape a retrieval
- * system matches against. Numbers come from CLUB/POOL_USDG so the answers
+ * system matches against. Numbers come from CLUB/AUCTION so the answers
  * cannot drift from the contracts the way hand-written copy would.
  *
  * Only claims that are true and checkable. Structured data that oversells is
@@ -71,7 +73,11 @@ export function StructuredData() {
         mainEntity: [
           faq(
             `What is ${SITE_NAME}?`,
-            `${SITE_NAME} gates every coin launch behind a 24-hour Club auction on Robinhood Chain. Whoever holds the top bid when the countdown ends gets their coin launched automatically — a fixed-supply token, tradeable from the first block against locked Uniswap v4 liquidity.`,
+            `${SITE_NAME} runs invite-only coins on Robinhood Chain. Every coin is a club: only members can buy, members get in by invitation, and every trade's fee is paid to the people who invited the trader. A new club launches each time someone wins the 24-hour Club auction.`,
+          ),
+          faq(
+            "How do invites work?",
+            `The auction's winner founds the club and holds ${CLUB.creatorSeats} invite seats. An invite is a signed link — free, no transaction — and a seat is used only when the person invited buys at least $${CLUB.minJoinUsd}. Every new member gets ${CLUB.memberSeats} seats of their own. Selling is never gated: anyone holding a club coin can always sell it.`,
           ),
           faq(
             "How does the Club auction work?",
@@ -91,7 +97,7 @@ export function StructuredData() {
           ),
           faq(
             "What does a launched coin look like?",
-            `A fixed supply of 1,000,000,000 tokens with no mint function and no admin key, deposited as locked single-sided Uniswap v4 liquidity in the same transaction it launches. Trades pay ${POOL_USDG.tradeFeeBps / 100}%, split ${POOL_USDG.creatorFeeShareBps / 100}% to the coin's creator — the auction's winner — and the rest to the protocol.`,
+            `A fixed supply of 1,000,000,000 tokens with no mint function and no admin key, deposited as locked single-sided Uniswap v4 liquidity in the same transaction it launches. Trades pay ${CLUB.tradeFeeBps / 100}%: ${CLUB.protocolFeeBps / 100}% to the protocol, ${CLUB.rootFeeBps / 100}% to the creator, and ${CLUB.treeFeeBps / 100}% up the trader's invite chain, for up to ${CLUB.maxDepth} levels.`,
           ),
           faq(
             "Can the auction's winner rug the coin?",
@@ -99,11 +105,11 @@ export function StructuredData() {
           ),
           faq(
             "Is there protection against snipers?",
-            `There is no launch tax. The winner's optional first buy, up to ${CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG, runs inside the same transaction that launches the coin, so it cannot be front-run — but anyone else buying in the first seconds after a launch is competing with bots.`,
+            `There is no launch tax. The winner's optional first buy, up to ${AUCTION.maxFirstBuyUsdg.toLocaleString("en-US")} USDG, runs inside the same transaction that launches the coin, so it cannot be front-run — but anyone else buying in the first seconds after a launch is competing with bots.`,
           ),
           faq(
             `Which network does ${SITE_NAME} run on?`,
-            `Robinhood Chain, an Arbitrum Orbit Layer 2, with liquidity on Uniswap v4. It is live on ${ROBINHOOD_TESTNET.name} today, running a ${CLUB.roundDurationSeconds / 3600}-hour auction cycle. The contracts are public and have not been independently audited.`,
+            `Robinhood Chain, an Arbitrum Orbit Layer 2, with liquidity on Uniswap v4. It is live on ${NETWORK.name}, running a ${AUCTION.roundDurationSeconds / 3600}-hour auction cycle. The contracts are public and have not been independently audited.`,
           ),
         ],
       },

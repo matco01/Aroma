@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ROBINHOOD_TESTNET, POOL_USDG } from "@/lib/robinhood";
+import { CLUB } from "@/lib/arc";
+import { NETWORK, SETTLEMENT } from "@/lib/network";
 import { SITE_REPO } from "@/lib/site";
 
 /**
@@ -41,21 +42,21 @@ export function SiteFooter() {
             <FooterLink href="/">Board</FooterLink>
             <FooterLink href="/club">The Club</FooterLink>
             <FooterLink href="/docs">Docs</FooterLink>
-            <FooterRow label="Trade fee" value={`${POOL_USDG.tradeFeeBps / 100}%`} />
+            <FooterRow label="Trade fee" value={`${CLUB.tradeFeeBps / 100}%`} />
             <FooterRow
-              label="To creator"
-              value={`${POOL_USDG.creatorFeeShareBps / 100}% of fees`}
+              label="To inviters"
+              value={`${(CLUB.tradeFeeBps - CLUB.protocolFeeBps) / 100}% of every trade`}
             />
             <FooterRow label="Winning bid" value="To treasury" />
           </FooterCol>
 
           <FooterCol title="Network">
-            <FooterRow label="Chain" value={ROBINHOOD_TESTNET.name} />
-            <FooterRow label="Chain ID" value={String(ROBINHOOD_TESTNET.id)} />
-            <FooterRow label="Trading currency" value="USDG" />
+            <FooterRow label="Chain" value={NETWORK.name} />
+            <FooterRow label="Chain ID" value={String(NETWORK.id)} />
+            <FooterRow label="Trading currency" value={SETTLEMENT.symbol} />
             <FooterRow label="Liquidity" value="Uniswap v4" />
-            <FooterExternal href={ROBINHOOD_TESTNET.explorer}>Explorer</FooterExternal>
-            <FooterExternal href={ROBINHOOD_TESTNET.faucet}>Testnet faucet</FooterExternal>
+            {NETWORK.explorer && <FooterExternal href={NETWORK.explorer}>Explorer</FooterExternal>}
+            {NETWORK.faucet && <FooterExternal href={NETWORK.faucet}>Testnet faucet</FooterExternal>}
           </FooterCol>
 
           <FooterCol title="Legal">
@@ -69,9 +70,13 @@ export function SiteFooter() {
           Transactions are submitted through your wallet and are irreversible
           once final. Tokens launched here are created by whoever wins that
           round&apos;s auction, carry no rights or claims, and can lose all value.
-          Nothing on this site is investment advice. Currently running against{" "}
-          {ROBINHOOD_TESTNET.name} — balances are test funds with no monetary
-          value.
+          Nothing on this site is investment advice.
+          {NETWORK.testnet && (
+            <>
+              {" "}Currently running against {NETWORK.name} — balances are test
+              funds with no monetary value.
+            </>
+          )}
         </p>
       </div>
     </footer>

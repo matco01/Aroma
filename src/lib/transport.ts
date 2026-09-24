@@ -1,5 +1,5 @@
 import { fallback, http, type Transport } from "viem";
-import { ARC_RPC_URLS } from "./chain";
+import { RPC_URLS } from "./chain";
 
 /**
  * A transport that survives one provider having a bad minute.
@@ -15,8 +15,8 @@ import { ARC_RPC_URLS } from "./chain";
  * With a single URL configured this degrades to a plain http transport, so
  * there's no behavioural difference until a second endpoint is supplied.
  */
-export function arcTransport(): Transport {
-  const transports = ARC_RPC_URLS.map((url) =>
+export function chainTransport(): Transport {
+  const transports = RPC_URLS.map((url) =>
     http(url, {
       // A provider that is merely slow shouldn't stall the whole request;
       // failing over is usually quicker than waiting one out.

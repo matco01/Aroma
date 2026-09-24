@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useAccount, useReadContract } from "wagmi";
 import { formatUnits, type Address } from "viem";
 import type { Coin } from "@/lib/mock";
-import { CLUB, POOL, clubsDeployed, poolsDeployed } from "@/lib/arc";
+import { CLUB, POOL } from "@/lib/arc";
+import { SETTLEMENT, clubsDeployed, poolsDeployed } from "@/lib/network";
 import { previewBuy, previewSell } from "@/lib/pool-math";
 import { compact, shortAddr, usd, usdExact } from "@/lib/format";
 import { aromaTokenAbi } from "@/lib/abis";
@@ -31,9 +32,10 @@ const SLIPPAGE_PRESETS = [0.5, 1, 3];
 /**
  * The trade ticket — broadcasting real transactions.
  *
- * The Arc-specific win is the cost summary: trade fee *and* network fee are
- * both USDC, so the panel shows one honest total. On any other chain that
- * line needs a gas-token price feed and a disclaimer.
+ * On Arc the trade fee and the network fee are both USDC, so the panel shows
+ * one honest total. On Robinhood gas is ETH, a different asset from the USDG
+ * being spent, so it is left to the wallet to show and nothing is held back
+ * from the USDG balance for it.
  *
  * Amounts are quoted by simulating the exact router call immediately before
  * submission, and the resulting minimum is enforced on-chain, so a trade that
@@ -69,6 +71,8 @@ export function TradePanel({ coin }: { coin: Coin }) {
    * member's buys ignore it, so a link clicked twice is just a buy.
    */
   const isClub = clubsDeployed && coin.club;
+  /** Whether this coin's contracts exist on this build's chain. */
+  const tradingLive = isClub ? clubsDeployed : poolsDeployed;
   const searchParams = useSearchParams();
   const invite = useMemo(
     () => (isClub ? decodeInvite(searchParams.get("invite")) : null),
@@ -103,8 +107,8 @@ export function TradePanel({ coin }: { coin: Coin }) {
    * price is Arc testnet's ~24 gwei until mainnet shows its own. A v4 swap
    * through a hook costs about twice the curve's 70k/110k.
    */
-  const BUY_GAS_USD = 0.0034;
-  const SELL_GAS_USD = 0.0041;
+  const BUY_GAS_USD = SETTLEMENT.native ? 0.0034 : 0;
+  const SELL_GAS_USD = SETTLEMENT.native ? 0.0041 : 0;
 
   /**
    * What Max can safely spend.
@@ -120,7 +124,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
    * traps the position. Holding back a few cents is the difference between
    * a balance and a balance you can act on.
    */
-  const SELL_RESERVE = 0.02;
+  const SELL_RESERVE = SETTLEMENT.native ? 0.02 : 0;
   const maxSpendable = Math.max(0, usdcBalance - BUY_GAS_USD - SELL_RESERVE);
 
   const value = Number(amount) || 0;
@@ -216,7 +220,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
   // Graduation is deliberately absent. On the curve it closed trading; in a
   // pool it is a price level and the pool carries on, so blocking on it
   // would lock every coin that succeeds.
-  const canSubmit = poolsDeployed && connected && value > 0 && !blocked && !busy;
+  const canSubmit = tradingLive && connected && value > 0 && !blocked && !busy;
 
 
   function commitCustomSlippage() {
@@ -264,14 +268,14 @@ export function TradePanel({ coin }: { coin: Coin }) {
   }
 
   function buttonLabel() {
-    if (!poolsDeployed) return "Trading opens at launch";
+    if (!tradingLive) return "Trading opens at launch";
     if (!connected) return invite && isClub ? "Connect wallet to join" : "Connect wallet to trade";
     if (checkingMembership) return "Checking membership…";
     if (clubBlocked) return invite ? "Invite can't be used" : "Invite only";
     if (phase === "quoting") return "Quoting…";
     if (phase === "signing") return "Confirm in wallet…";
     if (phase === "pending") return "Submitting…";
-    if (insufficientUsdc) return "Insufficient USDC";
+    if (insufficientUsdc) return `Insufficient ${SETTLEMENT.symbol}`;
     if (insufficientTokens) return `Not enough ${coin.ticker}`;
     if (unfillable) return "Too large for the pool";
     if (value === 0) return "Enter an amount";
@@ -315,7 +319,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
               other. */}
           <AmountBox
             label={isBuy ? "You pay" : "You sell"}
-            symbol={isBuy ? "USDC" : coin.ticker}
+            symbol={isBuy ? SETTLEMENT.symbol : coin.ticker}
             value={isBuy ? amount : tokenAmountText}
             onChange={(v) => (isBuy ? setPayAmount(v) : setTokenAmountText_(v))}
             secondary={
@@ -352,7 +356,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
 
           <AmountBox
             label={isBuy ? "You receive" : "You get"}
-            symbol={isBuy ? coin.ticker : "USDC"}
+            symbol={isBuy ? coin.ticker : SETTLEMENT.symbol}
             value={isBuy ? tokenAmountText : amount}
             onChange={(v) => (isBuy ? setTokenAmountText_(v) : setPayAmount(v))}
             secondary={isBuy ? `≈ ${usd(value)}` : `≈ ${usd(Math.max(0, preview.out))} after fee`}
@@ -468,7 +472,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
 
           <button
             onClick={submit}
-            disabled={!poolsDeployed || (connected && !canSubmit)}
+            disabled={!tradingLive || (connected && !canSubmit)}
             className={`mt-3.5 h-11 w-full rounded-sm text-[13.5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-3 ${
               !connected
                 ? "bg-accent text-white hover:bg-accent-hi"

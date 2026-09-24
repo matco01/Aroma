@@ -1,4 +1,5 @@
 import "server-only";
+import { SETTLEMENT } from "../network";
 import { query, type SubgraphMeta } from "./subgraph";
 import { resolveImages } from "./ipfs";
 import { POOL } from "../arc";
@@ -138,7 +139,15 @@ export type TapeTrade = Trade & {
 };
 
 const WAD = 1e18;
+/** Prices, market caps and token amounts: always 18-decimal. */
 export const toNum = (v: string) => Number(v) / WAD;
+/**
+ * Amounts of the settlement currency — volume, reserve, fees, cost basis.
+ * The subgraph stores these raw, so they carry the currency's own decimals:
+ * 18 for Arc's native USDC, 6 for USDG. Prices are normalised to 18 by the
+ * mapping, which is why they keep toNum.
+ */
+export const toUsd = (v: string) => Number(v) / 10 ** SETTLEMENT.decimals;
 
 /** Stable art inputs derived from the address itself. */
 function artFromAddress(address: string): { hue: number; seed: number } {
@@ -156,7 +165,7 @@ function toTrade(t: RawTrade, now: number): TapeTrade {
     ticker: t.token.symbol,
     side: t.isBuy ? ("buy" as const) : ("sell" as const),
     account: t.account,
-    usd: toNum(t.usdc),
+    usd: toUsd(t.usdc),
     tokens: toNum(t.tokens),
     timestamp: Number(t.timestamp),
     agoSeconds: Math.max(1, now - Number(t.timestamp)),
@@ -202,17 +211,17 @@ export function toCoin(
     description: t.description || "",
     imageUrl: meta.image,
     links: meta.links,
-    creatorFeesEarnedUsd: toNum(t.creatorFeesEarned),
-    creatorFeesClaimedUsd: toNum(t.creatorFeesClaimed),
+    creatorFeesEarnedUsd: toUsd(t.creatorFeesEarned),
+    creatorFeesClaimedUsd: toUsd(t.creatorFeesClaimed),
     creator: t.creator,
     contract: t.id,
     createdAgoSeconds: Math.max(1, now - Number(t.createdAt)),
     priceUsd: price,
     marketCapUsd: toNum(t.marketCap),
-    volume24hUsd: toNum(t.volume),
+    volume24hUsd: toUsd(t.volume),
     change24hPct: first > 0 ? ((price - first) / first) * 100 : 0,
     holders: t.buyerCount,
-    raisedUsd: toNum(t.reserve),
+    raisedUsd: toUsd(t.reserve),
     graduated: t.graduated,
     club: t.venue === "club",
     hue,
@@ -280,8 +289,8 @@ export async function fetchBoardPage(opts: {
       tokenCount: p ? p.tokenCount : 0,
       tradeCount: p ? p.tradeCount : 0,
       graduatedCount: p ? p.graduatedCount : 0,
-      totalVolumeUsd: p ? toNum(p.totalVolume) : 0,
-      totalFeesUsd: p ? toNum(p.totalFees) : 0,
+      totalVolumeUsd: p ? toUsd(p.totalVolume) : 0,
+      totalFeesUsd: p ? toUsd(p.totalFees) : 0,
     },
     meta: {
       indexedBlock: data._meta.block.number,
@@ -485,7 +494,7 @@ export async function fetchPortfolio(account: string): Promise<{
     const coin = toCoin(b.token, now, [], images.get(b.token.metadataUri) ?? { image: "", links: NO_LINKS });
     const tokens = toNum(b.amount);
     const valueUsd = tokens * coin.priceUsd;
-    const costUsd = toNum(b.costBasis);
+    const costUsd = toUsd(b.costBasis);
     const pnlUsd = valueUsd - costUsd;
     return {
       coin,
@@ -494,7 +503,7 @@ export async function fetchPortfolio(account: string): Promise<{
       costUsd,
       pnlUsd,
       pnlPct: costUsd > 0 ? (pnlUsd / costUsd) * 100 : 0,
-      realisedPnlUsd: toNum(b.realisedPnl),
+      realisedPnlUsd: toUsd(b.realisedPnl),
     };
   });
 

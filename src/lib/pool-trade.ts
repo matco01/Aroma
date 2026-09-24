@@ -1,6 +1,7 @@
 import { decodeEventLog, type Abi, type Address, type Hex, type PublicClient } from "viem";
 import { aromaRouterAbi, aromaTokenAbi, poolFactoryAbi, poolVaultAbi } from "./abis";
-import { POOL, POOL_CONTRACTS } from "./arc";
+import { POOL } from "./arc";
+import { POOL_CONTRACTS } from "./network";
 import { OPENING_PRICE_USD, previewBuy } from "./pool-math";
 
 /**

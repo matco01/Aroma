@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage, Clause, T, List, Item, S } from "@/components/legal";
-import { ROBINHOOD_TESTNET, POOL_USDG } from "@/lib/robinhood";
+import { CLUB } from "@/lib/arc";
+import { NETWORK } from "@/lib/network";
 
 export const metadata: Metadata = {
   title: "Terms of use",
@@ -12,7 +13,7 @@ export default function TermsPage() {
     <LegalPage title="Terms of use" updated="24 September 2026">
       <Clause title="What Aroma is">
         <T>
-          Aroma is an interface to a set of smart contracts on {ROBINHOOD_TESTNET.name}.
+          Aroma is an interface to a set of smart contracts on {NETWORK.name}.
           The contracts run a 24-hour auction for the right to launch the next
           token, and let anyone trade the tokens that auction has launched. We
           wrote the contracts and we run this website. That is the whole of
@@ -89,12 +90,13 @@ export default function TermsPage() {
 
       <Clause title="Fees">
         <T>
-          A {POOL_USDG.tradeFeeBps / 100}% fee applies to every buy and sell
-          of a token the Club has launched, whichever app or router the trade
-          goes through — it is charged by the pool itself.{" "}
-          {POOL_USDG.creatorFeeShareBps / 100}% of that goes to the
-          token&apos;s creator — the auction&apos;s winner — and the rest to
-          us. There is no separate fee to launch: the cost of launching is
+          A {CLUB.tradeFeeBps / 100}% fee applies to every buy and sell of a
+          token the Club has launched, whichever app or router the trade goes
+          through — it is charged by the pool itself.{" "}
+          {CLUB.protocolFeeBps / 100}% goes to us. The rest goes to members of
+          that token&apos;s club: {CLUB.rootFeeBps / 100}% to its creator — the
+          auction&apos;s winner — and {CLUB.treeFeeBps / 100}% to the chain of
+          people who invited the trader, as the docs describe. There is no separate fee to launch: the cost of launching is
           whatever you bid to win the auction, and that bid goes to us, not
           into the token. Fees are enforced by the contracts and are the same
           for everyone.
@@ -144,7 +146,7 @@ export default function TermsPage() {
 
       <Clause title="A test network, unaudited contracts">
         <T>
-          Aroma currently runs against {ROBINHOOD_TESTNET.name}. Balances there
+          Aroma currently runs against {NETWORK.name}. Balances there
           are test funds with no monetary value, obtained free from a faucet.
           Anything you buy is worth nothing, and test networks can be reset or
           discontinued without notice, which would destroy everything on them.

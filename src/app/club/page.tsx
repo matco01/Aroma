@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ClubView } from "@/components/club-view";
+import { ON_ROBINHOOD } from "@/lib/network";
 
 export const metadata: Metadata = {
   title: "The Club",
   description:
-    "A 24-hour auction for the exclusive right to launch the next coin, settled in USDG on Robinhood Chain.",
+    "A 24-hour auction to found the next invite-only club coin, settled in USDG on Robinhood Chain.",
 };
 
 export default function ClubPage() {
+  // The auction exists on Robinhood only; on Arc, launching is the create form.
+  if (!ON_ROBINHOOD) redirect("/create");
   return (
     <div className="mx-auto max-w-[1000px] px-4 py-5">
       <Link

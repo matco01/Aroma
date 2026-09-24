@@ -11,25 +11,25 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount, useConnect, useDisconnect, useReadContract } from "wagmi";
+import { useAccount, useBalance, useConnect, useDisconnect, useReadContract } from "wagmi";
 import { injected } from "wagmi/connectors";
 import type { Address } from "viem";
 import { openWalletModal } from "@/lib/appkit-bridge";
 import { shortAddr, usdExact } from "@/lib/format";
 import { erc20PermitAbi } from "@/lib/abis";
-import { USDG_DECIMALS, contractsForChain } from "@/lib/robinhood";
-import { liveChain } from "@/lib/wagmi";
+import { activeChain } from "@/lib/chain";
+import { SETTLEMENT } from "@/lib/network";
 
 /**
  * The app's wallet surface — entirely real now.
  *
- * wagmi + Reown AppKit against Robinhood Chain. The balance shown is USDG,
- * not the chain's native ETH: Robinhood Chain's gas token is ETH, but USDG
- * is what the Club auction and every coin actually trade in, so a native
- * balance here would be the wrong number entirely, not just a differently
- * formatted one. No simulated balance and no local position ledger: holdings
- * are read from each token's own contract and trades broadcast through
- * AromaRouterUsdg/ClubAuction, so there is nothing left here to fake.
+ * wagmi + Reown AppKit against this build's chain. The balance shown is the
+ * settlement currency, whatever the chain's gas token: native USDC on Arc,
+ * USDG on Robinhood — where the gas token is ETH, and a native balance would
+ * be the wrong number entirely, not just a differently formatted one. No
+ * simulated balance and no local position ledger: holdings are read from each
+ * token's own contract and trades are real transactions, so there is nothing
+ * left here to fake.
  */
 
 type WalletState = {
@@ -72,31 +72,35 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Hold the pre-hydration shape until mounted so SSR output matches.
   const address = mounted ? wagmiAddress : undefined;
   const isConnected = mounted && wagmiConnected;
-  // Pinned to Robinhood Chain rather than whatever the wallet is on — both
-  // chains are registered (see wagmi.ts), and reading USDG on Arc would
-  // just show a zero balance.
-  const usdg = contractsForChain(liveChain.id).usdg as Address;
-
   /**
-   * Polled every 15s, not wagmi's default ~4s — same reasoning as Arc's
-   * config: this is the single largest RPC cost a connected wallet pays,
-   * and the moment a balance actually needs to be fresh (right after a
-   * trade) is covered by refreshBalance() below, not by polling faster.
+   * Polled every 15s, not wagmi's default ~4s: this is the single largest
+   * RPC cost a connected wallet pays, and the moment a balance actually needs
+   * to be fresh (right after a trade) is covered by refreshBalance() below,
+   * not by polling faster.
    *
-   * A plain balanceOf read, not useBalance: this wagmi version's
-   * useBalance only reads the chain's native currency (ETH here), with no
-   * `token` option to redirect it at an ERC-20 like the USDG this app
-   * actually cares about.
+   * Two reads, one enabled. Native USDC is the chain's own balance. USDG is
+   * a plain balanceOf: this wagmi version's useBalance reads only the native
+   * currency, with no `token` option to point at an ERC-20.
    */
-  const { data: balance, refetch } = useReadContract({
-    address: usdg,
+  const native = useBalance({
+    address,
+    chainId: activeChain.id,
+    query: { enabled: SETTLEMENT.native && Boolean(address), refetchInterval: 15_000 },
+  });
+  const erc20 = useReadContract({
+    address: SETTLEMENT.token as Address,
     abi: erc20PermitAbi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    chainId: liveChain.id,
-    query: { enabled: Boolean(address), refetchInterval: 15_000 },
+    chainId: activeChain.id,
+    query: {
+      enabled: !SETTLEMENT.native && Boolean(SETTLEMENT.token) && Boolean(address),
+      refetchInterval: 15_000,
+    },
   });
-  const usdcBalance = mounted && balance ? Number(balance) / 10 ** USDG_DECIMALS : 0;
+  const raw = SETTLEMENT.native ? native.data?.value : erc20.data;
+  const refetch = SETTLEMENT.native ? native.refetch : erc20.refetch;
+  const usdcBalance = mounted && raw ? Number(raw) / 10 ** SETTLEMENT.decimals : 0;
 
   const connect = useCallback(() => {
     // AppKit's modal when it's configured (browser wallets, WalletConnect,

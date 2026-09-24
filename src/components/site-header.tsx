@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ConnectButton } from "./wallet";
 import { CommandMenu } from "./command-menu";
+import { ON_ROBINHOOD } from "@/lib/network";
 
 /**
  * Two items. Create is absent too — it was a nav link pointing at the
@@ -114,11 +115,11 @@ export function SiteHeader() {
               own glass — see .btn-ice — which makes the primary action and
               the brand the same object.
 
-              Points at the Club now, not /create: launching is gated by the
-              24h auction, not permissionless, so this is the one entry
-              point into it rather than a shortcut to a form. */}
+              On Robinhood it points at the Club: launching there is winning
+              the 24h auction, so this is the one entry point into it rather
+              than a shortcut to a form. Arc builds keep Create. */}
           <Link
-            href="/club"
+            href={ON_ROBINHOOD ? "/club" : "/create"}
             className="btn-ice flex h-10 shrink-0 items-center gap-1.5 rounded-full pl-3 pr-4 text-[13.5px] font-semibold sm:h-12 sm:gap-2 sm:pl-4 sm:pr-5 sm:text-[15px]"
           >
             <svg width="13" height="13" viewBox="0 0 11 11" aria-hidden>
@@ -129,7 +130,7 @@ export function SiteHeader() {
                 strokeLinecap="round"
               />
             </svg>
-            The Club
+            {ON_ROBINHOOD ? "The Club" : "Create"}
           </Link>
 
           <ConnectButton />

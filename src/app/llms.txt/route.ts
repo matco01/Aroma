@@ -1,5 +1,7 @@
 import { SITE_URL, SITE_NAME } from "@/lib/site";
-import { CLUB, POOL_USDG, ROBINHOOD_TESTNET } from "@/lib/robinhood";
+import { CLUB } from "@/lib/arc";
+import { NETWORK } from "@/lib/network";
+import { AUCTION } from "@/lib/robinhood";
 
 /**
  * llms.txt — a plain-text summary of the site for language models.
@@ -26,21 +28,23 @@ export const revalidate = 86_400;
 export function GET() {
   const body = `# ${SITE_NAME}
 
-> ${SITE_NAME} gates every coin launch behind a 24-hour Club auction on Robinhood Chain, settled in USDG (a dollar-backed stablecoin) rather than the chain's own ETH gas token. Whoever holds the top bid when the countdown ends gets their coin launched automatically, tradeable from the first block.
+> ${SITE_NAME} runs invite-only coins on Robinhood Chain, settled in USDG (a dollar-backed stablecoin) rather than the chain's own ETH gas token. Every coin is a club: only members can buy, members get in by invitation, and every trade's fee is paid to the people who invited the trader. A new club launches each time someone wins the 24-hour Club auction.
 
 ## What it does
 
 Anyone can bid USDG for the current Club. The top bidder can rewrite the coin's name, ticker, description and image at any time while they hold the lead. A bid inside the closing minutes extends the countdown, so the round can't be won by a bid nobody has time to answer.
 
-When the countdown reaches zero, the leading bid's coin launches on its own: a fixed supply of 1,000,000,000 tokens with no mint function, deposited as locked single-sided Uniswap v4 liquidity in the same transaction. The position is owned by a contract with no function that removes liquidity, so nobody can withdraw it, including us. The winning bid goes to the protocol treasury, not the coin; the winner can also set aside a separate, optional first buy of up to ${CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG, which runs inside the launch transaction so it cannot be front-run.
+When the countdown reaches zero, the leading bid's coin launches on its own: a fixed supply of 1,000,000,000 tokens with no mint function, deposited as locked single-sided Uniswap v4 liquidity in the same transaction. The position is owned by a contract with no function that removes liquidity, so nobody can withdraw it, including us. The winning bid goes to the protocol treasury, not the coin; the winner can also set aside a separate, optional first buy of up to ${AUCTION.maxFirstBuyUsdg.toLocaleString("en-US")} USDG, which runs inside the launch transaction so it cannot be front-run.
 
-Trades after launch pay ${POOL_USDG.tradeFeeBps / 100}%, always in USDG, charged by a hook on the pool so it applies whichever app or router sends the trade. ${POOL_USDG.creatorFeeShareBps / 100}% of that goes to the coin's creator — the auction's winner — the rest to the protocol. There is no launch tax.
+The winner is the club's creator and holds its first ${CLUB.creatorSeats} invite seats. An invite is a signed link, free to make; a seat is used only when the person invited actually buys (at least $${CLUB.minJoinUsd}), and each new member gets ${CLUB.memberSeats} seats of their own. Selling is never gated — anyone holding the coin can always sell.
+
+Trades pay ${CLUB.tradeFeeBps / 100}%, always in USDG, charged by a hook on the pool so it applies whichever app or router sends the trade: ${CLUB.protocolFeeBps / 100}% to the protocol, ${CLUB.rootFeeBps / 100}% to the creator, and ${CLUB.treeFeeBps / 100}% up the trader's invite chain — two thirds to whoever invited them, two thirds of the remainder to the next person up, for up to ${CLUB.maxDepth} levels. Earnings collect in the vault and are withdrawn in one transaction. There is no launch tax.
 
 Outbid? Nothing is taken: the USDG sits in the contract as a withdrawable refund from the moment someone bids higher.
 
 ## Status
 
-Live on ${ROBINHOOD_TESTNET.name}. Robinhood Chain mainnet has not been used yet, so coins here trade in test funds and are worth nothing. The contracts are public and have not been independently audited.
+Live on ${NETWORK.name}.${NETWORK.testnet ? " Coins here trade in test funds and are worth nothing." : ""} The contracts are public and have not been independently audited.
 
 ## Pages
 

@@ -43,9 +43,9 @@ function check(label: string, ok: boolean, detail = "") {
 }
 
 async function main() {
-  // Imported after env is in place: arc.ts reads the contract addresses at load.
+  // Imported after env is in place: network.ts reads the contract addresses at load.
   const club = await import("../src/lib/club-trade");
-  const { CLUB_CONTRACTS } = await import("../src/lib/arc");
+  const { CLUB_CONTRACTS } = await import("../src/lib/network");
   const { clubVaultAbi, aromaTokenAbi } = await import("../src/lib/abis");
 
   const publicClient = createPublicClient({ chain, transport: http(RPC) }) as PublicClient;

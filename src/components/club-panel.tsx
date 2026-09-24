@@ -133,7 +133,7 @@ export function ClubPanel({ coin }: { coin: Coin }) {
 
           {!club.link && club.seatsLeft > 0 && (
             <p className="text-[11px] leading-relaxed text-ink-3">
-              Free to make — it's a signature, not a transaction. You earn from everyone
+              Free to make — it&apos;s a signature, not a transaction. You earn from everyone
               who joins with your link, and from the people they bring in.
             </p>
           )}
@@ -159,7 +159,7 @@ export function ClubPanel({ coin }: { coin: Coin }) {
             <span className="text-[12px] text-ink-2">Your club earnings</span>
             <span className="num text-[14px] text-ink">{usdPrecise(club.claimableUsd)}</span>
           </div>
-          <p className="mt-0.5 text-[10.5px] text-ink-3">From every club you're in, claimed together.</p>
+          <p className="mt-0.5 text-[10.5px] text-ink-3">From every club you&apos;re in, claimed together.</p>
           <button
             type="button"
             onClick={club.claim}

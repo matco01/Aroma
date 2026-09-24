@@ -10,10 +10,10 @@ import {
 } from "wagmi";
 import { formatUnits, type Address, type PublicClient } from "viem";
 import { poolVaultAbi } from "./abis";
-import { POOL_CONTRACTS, poolsDeployed } from "./arc";
+import { POOL_CONTRACTS, poolsDeployed } from "./network";
 import { activeChain } from "./chain";
 import { claimCreatorFees, readableError } from "./pool-trade";
-import { useArcChain } from "./use-trade";
+import { useActiveChain } from "./use-trade";
 import type { Coin } from "./mock";
 
 /**
@@ -42,7 +42,7 @@ export function useCreatorFeesBatch(created: Coin[]) {
   const publicClient = usePublicClient({ chainId: activeChain.id });
   const { writeContractAsync } = useWriteContract();
   const { signTypedDataAsync } = useSignTypedData();
-  const ensureChain = useArcChain();
+  const ensureChain = useActiveChain();
   const [sweep, setSweep] = useState<SweepState>({
     current: 0,
     total: 0,

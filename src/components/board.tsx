@@ -11,6 +11,7 @@ import { usd } from "@/lib/format";
 import { CoinCard, CoinRow } from "./coin-card";
 import { IndexerStatus } from "./indexer-status";
 import { useValueFlash } from "@/lib/use-value-flash";
+import { ON_ROBINHOOD } from "@/lib/network";
 
 type View = "grid" | "list";
 
@@ -158,11 +159,17 @@ export function Board() {
             Nothing launched yet
           </p>
           <p className="mt-1 text-[12px] text-ink-2">
-            Every coin here is launched by winning{" "}
-            <Link href="/club" className="text-accent-2 hover:underline">
-              the Club
-            </Link>
-            , a 24-hour auction for the next launch.
+            {ON_ROBINHOOD ? (
+              <>
+                Every coin here is an invite-only club, founded by winning{" "}
+                <Link href="/club" className="text-accent-2 hover:underline">
+                  the Club auction
+                </Link>
+                .
+              </>
+            ) : (
+              "Be the first — launching is free, you only pay gas."
+            )}
           </p>
         </div>
       )}

@@ -3,9 +3,9 @@
 import { useCallback, useState } from "react";
 import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
 import { poolVaultAbi } from "@/lib/abis";
-import { POOL_CONTRACTS, poolsDeployed } from "@/lib/arc";
+import { POOL_CONTRACTS, poolsDeployed } from "@/lib/network";
 import { activeChain } from "@/lib/chain";
-import { useArcChain } from "@/lib/use-trade";
+import { useActiveChain } from "@/lib/use-trade";
 import { readableError } from "@/lib/pool-trade";
 import { shortAddr } from "@/lib/format";
 import { useWallet } from "./wallet";
@@ -35,7 +35,7 @@ export function AcceptOwnership() {
   const vault = POOL_CONTRACTS.poolVault as Address;
   const { address, isConnected } = useAccount();
   const { connect } = useWallet();
-  const ensureChain = useArcChain();
+  const ensureChain = useActiveChain();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient({ chainId: activeChain.id });
 

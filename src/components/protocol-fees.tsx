@@ -4,10 +4,10 @@ import { useCallback, useMemo, useState } from "react";
 import { useAccount, usePublicClient, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { formatUnits, type Address } from "viem";
 import { poolVaultAbi } from "@/lib/abis";
-import { POOL_CONTRACTS, poolsDeployed } from "@/lib/arc";
+import { POOL_CONTRACTS, poolsDeployed } from "@/lib/network";
 import { activeChain } from "@/lib/chain";
 import { useBoard } from "@/lib/use-chain";
-import { useArcChain } from "@/lib/use-trade";
+import { useActiveChain } from "@/lib/use-trade";
 import { readableError } from "@/lib/pool-trade";
 import { usdPrecise } from "@/lib/format";
 import { useWallet } from "./wallet";
@@ -33,7 +33,7 @@ export function ProtocolFees() {
   const vault = POOL_CONTRACTS.poolVault as Address;
   const { address, isConnected } = useAccount();
   const { connect } = useWallet();
-  const ensureChain = useArcChain();
+  const ensureChain = useActiveChain();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient({ chainId: activeChain.id });
 

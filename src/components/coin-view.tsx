@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { NETWORK, POOL, clubsDeployed, explorerUrl } from "@/lib/arc";
+import { POOL } from "@/lib/arc";
+import { NETWORK, clubsDeployed, explorerUrl } from "@/lib/network";
 import { ago, compact, pct, price, shortAddr, usd } from "@/lib/format";
 import { useToken } from "@/lib/use-chain";
 import type { Coin } from "@/lib/mock";

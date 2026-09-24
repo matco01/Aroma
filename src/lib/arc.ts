@@ -8,6 +8,9 @@
  *   - native interface (gas, native value transfer) = 18 decimals
  *   - ERC-20 interface (app-level transfers)        = 6 decimals
  * Same balance, two views. Mixing them up is the classic Arc bug.
+ *
+ * Which chain a build actually talks to is network.ts's decision; this file
+ * only describes Arc's side of it.
  */
 
 // ---------------------------------------------------------------------------
@@ -73,7 +76,7 @@ export const ARC_MAINNET_CONTRACTS = {
  */
 export const LOCAL = process.env.NEXT_PUBLIC_AROMA_NETWORK === "local";
 
-const LOCAL_NETWORK = {
+export const LOCAL_NETWORK = {
   /**
    * anvil keeps the forked chain's id, so a fork of Arc answers 5042, not
    * 31337. The default is anvil's own id for a bare `anvil`; set
@@ -88,29 +91,8 @@ const LOCAL_NETWORK = {
   currency: { name: "USDC", symbol: "USDC", decimals: 18 },
 } as const;
 
-export const NETWORK = LOCAL ? LOCAL_NETWORK : ARC_MAINNET;
-
-export const POOL_CONTRACTS = LOCAL
-  ? {
-      poolFactory: process.env.NEXT_PUBLIC_LOCAL_POOL_FACTORY ?? "",
-      poolVault: process.env.NEXT_PUBLIC_LOCAL_POOL_VAULT ?? "",
-      aromaRouter: process.env.NEXT_PUBLIC_LOCAL_AROMA_ROUTER ?? "",
-      // Arc's, because a fork of Arc is what local mode is now for. Ethereum's
-      // PoolManager was the right default only while Arc mainnet was closed
-      // and Ethereum was the one chain with v4 deployed to fork.
-      poolManager:
-        process.env.NEXT_PUBLIC_LOCAL_POOL_MANAGER ?? ARC_MAINNET_CONTRACTS.poolManager,
-      deployBlock: BigInt(process.env.NEXT_PUBLIC_LOCAL_DEPLOY_BLOCK ?? "0"),
-    }
-  : ARC_MAINNET_CONTRACTS;
-
-/** True once all three contracts have addresses. */
-export const poolsDeployed = Boolean(
-  POOL_CONTRACTS.poolFactory && POOL_CONTRACTS.poolVault && POOL_CONTRACTS.aromaRouter,
-);
-
 /**
- * Club coins — invite-only launches. See CLUBS.md.
+ * Club coins on Arc — invite-only launches. See CLUBS.md.
  *
  * A second contract system beside the pool one, not a mode of it: a v4 pool's
  * hook is fixed when the pool is created, so a club coin and a normal coin
@@ -127,20 +109,10 @@ export const ARC_MAINNET_CLUB_CONTRACTS = {
   deployBlock: 0n,
 } as const;
 
-export const CLUB_CONTRACTS = LOCAL
-  ? {
-      clubFactory: process.env.NEXT_PUBLIC_LOCAL_CLUB_FACTORY ?? "",
-      clubVault: process.env.NEXT_PUBLIC_LOCAL_CLUB_VAULT ?? "",
-      clubRouter: process.env.NEXT_PUBLIC_LOCAL_CLUB_ROUTER ?? "",
-      deployBlock: BigInt(process.env.NEXT_PUBLIC_LOCAL_CLUB_DEPLOY_BLOCK ?? "0"),
-    }
-  : ARC_MAINNET_CLUB_CONTRACTS;
-
-export const clubsDeployed = Boolean(
-  CLUB_CONTRACTS.clubFactory && CLUB_CONTRACTS.clubVault && CLUB_CONTRACTS.clubRouter,
-);
-
-/** Mirrors the constants in ClubVault.sol. */
+/**
+ * Mirrors the constants in ClubVault.sol, which ClubVaultUsdg shares exactly
+ * — the club economics are the same on both chains.
+ */
 export const CLUB = {
   /** 1.5%. Pool geometry is identical to a normal coin; only this differs. */
   tradeFeeBps: 150,
@@ -161,11 +133,6 @@ export const CLUB = {
    */
   inviteTtlSeconds: 7 * 24 * 60 * 60,
 } as const;
-
-/** A link into the explorer, or null while there is no explorer to link to. */
-export function explorerUrl(path: string): string | null {
-  return NETWORK.explorer ? `${NETWORK.explorer}${path}` : null;
-}
 
 /**
  * Pool-system economics, mirroring PoolVault.sol and PoolFactory.sol.

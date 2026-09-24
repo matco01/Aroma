@@ -1,5 +1,6 @@
 import { defineChain } from "@reown/appkit/networks";
-import { NETWORK, LOCAL } from "./arc";
+import { LOCAL } from "./arc";
+import { NETWORK, ON_ROBINHOOD } from "./network";
 
 /**
  * The one chain the app talks to, defined once.
@@ -8,12 +9,13 @@ import { NETWORK, LOCAL } from "./arc";
  * each used to import Arc testnet on their own, so moving to mainnet meant
  * finding every one of them. They all read this now.
  *
- * Built here rather than taken from viem's `arc`: viem defines Arc mainnet
- * with no RPC, no explorer and no multicall, and a wallet asked to add a
- * chain with no RPC has nothing to add.
+ * Which chain that is comes from network.ts. Built here rather than taken
+ * from viem's definitions: viem defines Arc mainnet with no RPC, no explorer
+ * and no multicall, and a wallet asked to add a chain with no RPC has nothing
+ * to add.
  *
- * multicall3 is deliberately not declared. It has not been confirmed on Arc
- * mainnet, and wagmi falls back to individual calls when a chain declares
+ * multicall3 is deliberately not declared. It has not been confirmed on
+ * either chain, and wagmi falls back to individual calls when a chain declares
  * none — slower for a batch read, but correct, where declaring an address
  * with no code behind it makes every batch fail. Add it once verified.
  */
@@ -21,7 +23,8 @@ import { NETWORK, LOCAL } from "./arc";
 /**
  * Every RPC endpoint we're willing to use, best first.
  *
- * Comma-separate NEXT_PUBLIC_ARC_RPC_URL to supply more than one. Reads are
+ * Comma-separate NEXT_PUBLIC_ROBINHOOD_RPC_URL (or NEXT_PUBLIC_ARC_RPC_URL on
+ * an Arc build) to supply more than one. Reads are
  * cheap to retry, but the write path touches money — a single provider having
  * a bad minute should not mean nobody can sell. Two independent providers is
  * the point.
@@ -35,17 +38,26 @@ import { NETWORK, LOCAL } from "./arc";
  * site, looking completely normal while showing coins that do not exist. See
  * assertChainMatches() below, which turns that into a loud failure.
  */
-const ENV_RPCS = (LOCAL ? "" : (process.env.NEXT_PUBLIC_ARC_RPC_URL ?? ""))
+/** The environment variable a build reads its endpoints from. */
+export const RPC_ENV_VAR = ON_ROBINHOOD ? "NEXT_PUBLIC_ROBINHOOD_RPC_URL" : "NEXT_PUBLIC_ARC_RPC_URL";
+
+// Spelled out rather than indexed by RPC_ENV_VAR: Next inlines
+// NEXT_PUBLIC_ variables into the client bundle only where they are named.
+const ENV_VALUE = ON_ROBINHOOD
+  ? process.env.NEXT_PUBLIC_ROBINHOOD_RPC_URL
+  : process.env.NEXT_PUBLIC_ARC_RPC_URL;
+
+const ENV_RPCS = (LOCAL ? "" : (ENV_VALUE ?? ""))
   .split(",")
   .map((url) => url.trim())
   .filter(Boolean);
 
-export const ARC_RPC_URLS: string[] = ENV_RPCS.length > 0 ? ENV_RPCS : [NETWORK.rpc];
+export const RPC_URLS: string[] = ENV_RPCS.length > 0 ? ENV_RPCS : [NETWORK.rpc];
 
 /** First endpoint — what a wallet is offered when adding the network. */
-export const ARC_RPC_URL = ARC_RPC_URLS[0] ?? NETWORK.rpc;
+export const RPC_URL = RPC_URLS[0] ?? NETWORK.rpc;
 
-export const hasRpcFallback = ARC_RPC_URLS.length > 1;
+export const hasRpcFallback = RPC_URLS.length > 1;
 
 export const activeChain = defineChain({
   id: NETWORK.id,
@@ -53,16 +65,17 @@ export const activeChain = defineChain({
   chainNamespace: "eip155",
   name: NETWORK.name,
   nativeCurrency: NETWORK.currency,
-  rpcUrls: { default: { http: [ARC_RPC_URL] } },
+  rpcUrls: { default: { http: [RPC_URL] } },
   ...(NETWORK.explorer
-    ? { blockExplorers: { default: { name: "Arcscan", url: NETWORK.explorer } } }
+    ? { blockExplorers: { default: { name: NETWORK.explorerName, url: NETWORK.explorer } } }
     : {}),
+  testnet: NETWORK.testnet,
 });
 
 /**
  * Confirms an endpoint is actually the chain we think it is.
  *
- * Every address in arc.ts is chain-specific, so an RPC for the wrong chain
+ * Every contract address is chain-specific, so an RPC for the wrong chain
  * does not fail — it succeeds, and returns nothing, because our contracts have
  * no code at those addresses over there. The site then renders a working,
  * empty launchpad. That is the worst possible failure: indistinguishable from
@@ -90,7 +103,7 @@ export function assertChainMatches(url: string): Promise<void> {
       if (got !== NETWORK.id) {
         throw new Error(
           `RPC ${url} is chain ${got}, but this build targets ${NETWORK.name} (${NETWORK.id}). ` +
-            `Check NEXT_PUBLIC_ARC_RPC_URL.`,
+            `Check ${RPC_ENV_VAR}.`,
         );
       }
     })();

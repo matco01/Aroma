@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { Coin } from "@/lib/mock";
-import { clubsDeployed, POOL } from "@/lib/arc";
+import { POOL } from "@/lib/arc";
+import { clubsDeployed } from "@/lib/network";
 import { ago, compact, pct, shortAddr, usd } from "@/lib/format";
 import { CoinArt } from "./coin-art";
 import { useValueFlash } from "@/lib/use-value-flash";

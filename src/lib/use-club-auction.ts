@@ -1,40 +1,28 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import {
-  useAccount,
-  useSignTypedData,
-  useSwitchChain,
-  useWriteContract,
-  usePublicClient,
-} from "wagmi";
+import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { parseUnits, type Address, type PublicClient } from "viem";
-import { clubAuctionAbi, erc20PermitAbi } from "./abis";
-import { contractsForChain, USDG_DECIMALS } from "./robinhood";
-import { liveChain } from "./wagmi";
-import { confirm, readableError, type TxPhase } from "./pool-trade";
+import { parseUnits, type Abi, type Address, type PublicClient } from "viem";
+import { clubAuctionAbi } from "./abis";
+import { activeChain } from "./chain";
+import { AUCTION_CONTRACT, SETTLEMENT } from "./network";
+import { permitFor } from "./club-trade";
+import { confirm, type TxPhase } from "./pool-trade";
+import { tradeError, useActiveChain, useCtx } from "./use-trade";
 
 /**
  * Reads and writes for the Club auction.
  *
  * Bidding needs one signature, not an approve-then-bid, for the same reason
- * AromaRouterUsdg.buy does: USDG supports EIP-2612 permit (confirmed against
- * Paxos's own `usdg-contract` README), so `ClubAuction.bid` takes a permit
- * instead of requiring a prior approval — see that contract's NatSpec.
+ * ClubRouterUsdg.buy does: USDG supports EIP-2612 permit, so `ClubAuction.bid`
+ * takes a permit instead of requiring a prior approval. The permit is built by
+ * club-trade's permitFor, which asks USDG for its own signing domain rather
+ * than assuming one, and skips the signature when an allowance already covers
+ * the bid.
  *
- * Every read and write is pinned to Robinhood Chain and the wallet is
- * switched there before signing, the same way use-trade.ts pins the pool
- * system to Arc. Both chains are registered with the wallet (see wagmi.ts),
- * so "whatever chain the wallet happens to be on" is never a safe default —
- * reading the connected chain's contracts would silently target the wrong
- * network rather than fail.
- *
- * @dev The permit domain below assumes `version: "1"`, OpenZeppelin's
- * ERC20Permit default and what AromaToken itself uses — this has not been
- * independently confirmed against USDG's actual deployed contract. If real
- * bids start failing with a signature-mismatch revert, this is the first
- * thing to check.
+ * Every read and write is pinned to `activeChain` and the wallet is switched
+ * there before signing, as everywhere else in the app.
  */
 
 export type Draft = {
@@ -75,8 +63,6 @@ export type ClubBidData = {
 /** The live round and its bids, newest first. */
 type ClubResponse = { current: ClubData | null; bids: ClubBidData[] };
 
-const CLUB_CONTRACTS = contractsForChain(liveChain.id);
-
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
@@ -104,17 +90,6 @@ export function useClubAuction() {
   });
 }
 
-/** Puts the wallet on Robinhood Chain before anything is signed. */
-function useLiveChain() {
-  const { chainId } = useAccount();
-  const { switchChainAsync } = useSwitchChain();
-  return useCallback(async () => {
-    if (chainId !== liveChain.id) {
-      await switchChainAsync({ chainId: liveChain.id });
-    }
-  }, [chainId, switchChainAsync]);
-}
-
 /** Refreshes the Club and every balance a Club transaction touches. */
 function useInvalidate() {
   const queryClient = useQueryClient();
@@ -134,22 +109,11 @@ function useInvalidate() {
   }, [queryClient]);
 }
 
-const PERMIT_TYPES = {
-  Permit: [
-    { name: "owner", type: "address" },
-    { name: "spender", type: "address" },
-    { name: "value", type: "uint256" },
-    { name: "nonce", type: "uint256" },
-    { name: "deadline", type: "uint256" },
-  ],
-} as const;
+const AUCTION = AUCTION_CONTRACT as Address;
 
 export function useBidOnClub() {
-  const { address } = useAccount();
-  const publicClient = usePublicClient({ chainId: liveChain.id });
-  const { writeContractAsync } = useWriteContract();
-  const { signTypedDataAsync } = useSignTypedData();
-  const ensureChain = useLiveChain();
+  const makeCtx = useCtx();
+  const ensureChain = useActiveChain();
   const invalidate = useInvalidate();
 
   const [phase, setPhase] = useState<TxPhase>("idle");
@@ -164,59 +128,36 @@ export function useBidOnClub() {
 
   const bid = useCallback(
     async (bidAmountUsdg: string, devBuyUsdg: string, draft: Draft): Promise<boolean> => {
-      if (!address || !publicClient) return false;
-      const usdg = CLUB_CONTRACTS.usdg as Address;
-      const clubAuction = CLUB_CONTRACTS.clubAuction as Address;
       try {
         setError(null);
-        setPhase("signing");
         await ensureChain();
+        const ctx = makeCtx(setPhase);
+        if (!ctx) return false;
 
-        const bidAmount = parseUnits(bidAmountUsdg || "0", USDG_DECIMALS);
-        const devBuy = devBuyUsdg ? parseUnits(devBuyUsdg, USDG_DECIMALS) : 0n;
-        const total = bidAmount + devBuy;
-        const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
+        const bidAmount = parseUnits(bidAmountUsdg || "0", SETTLEMENT.decimals);
+        const devBuy = devBuyUsdg ? parseUnits(devBuyUsdg, SETTLEMENT.decimals) : 0n;
+        const permit = await permitFor(ctx, SETTLEMENT.token as Address, AUCTION, bidAmount + devBuy);
 
-        const [name, nonce] = await Promise.all([
-          publicClient.readContract({ address: usdg, abi: erc20PermitAbi, functionName: "name" }),
-          publicClient.readContract({
-            address: usdg,
-            abi: erc20PermitAbi,
-            functionName: "nonces",
-            args: [address],
-          }),
-        ]);
-
-        const signature = await signTypedDataAsync({
-          domain: { name, version: "1", chainId: liveChain.id, verifyingContract: usdg },
-          types: PERMIT_TYPES,
-          primaryType: "Permit",
-          message: { owner: address, spender: clubAuction, value: total, nonce, deadline },
-        });
-        const r = `0x${signature.slice(2, 66)}` as `0x${string}`;
-        const s = `0x${signature.slice(66, 130)}` as `0x${string}`;
-        const v = parseInt(signature.slice(130, 132), 16);
-
-        const txHash = await writeContractAsync({
-          address: clubAuction,
-          abi: clubAuctionAbi,
+        ctx.onPhase?.("signing");
+        const txHash = await ctx.write({
+          address: AUCTION,
+          abi: clubAuctionAbi as Abi,
           functionName: "bid",
-          args: [bidAmount, devBuy, 0n, draft, { deadline, v, r, s }],
-          chainId: liveChain.id,
+          args: [bidAmount, devBuy, 0n, draft, permit],
         });
         setHash(txHash);
         setPhase("pending");
-        await confirm(publicClient as unknown as PublicClient, txHash);
+        await confirm(ctx.publicClient, txHash);
         setPhase("success");
         invalidate();
         return true;
       } catch (e) {
-        setError(readableError(e));
+        setError(tradeError(e));
         setPhase("error");
         return false;
       }
     },
-    [address, publicClient, ensureChain, writeContractAsync, signTypedDataAsync, invalidate],
+    [makeCtx, ensureChain, invalidate],
   );
 
   return { bid, phase, error, hash, reset };
@@ -224,9 +165,9 @@ export function useBidOnClub() {
 
 export function useUpdateClubDraft() {
   const { address } = useAccount();
-  const publicClient = usePublicClient({ chainId: liveChain.id });
+  const publicClient = usePublicClient({ chainId: activeChain.id });
   const { writeContractAsync } = useWriteContract();
-  const ensureChain = useLiveChain();
+  const ensureChain = useActiveChain();
   const invalidate = useInvalidate();
 
   const [phase, setPhase] = useState<TxPhase>("idle");
@@ -245,11 +186,11 @@ export function useUpdateClubDraft() {
         setPhase("signing");
         await ensureChain();
         const txHash = await writeContractAsync({
-          address: CLUB_CONTRACTS.clubAuction as Address,
+          address: AUCTION,
           abi: clubAuctionAbi,
           functionName: "updateDraft",
           args: [draft],
-          chainId: liveChain.id,
+          chainId: activeChain.id,
         });
         setPhase("pending");
         await confirm(publicClient as unknown as PublicClient, txHash);
@@ -257,7 +198,7 @@ export function useUpdateClubDraft() {
         invalidate();
         return true;
       } catch (e) {
-        setError(readableError(e));
+        setError(tradeError(e));
         setPhase("error");
         return false;
       }
@@ -270,9 +211,9 @@ export function useUpdateClubDraft() {
 
 export function useWithdrawFromClub() {
   const { address } = useAccount();
-  const publicClient = usePublicClient({ chainId: liveChain.id });
+  const publicClient = usePublicClient({ chainId: activeChain.id });
   const { writeContractAsync } = useWriteContract();
-  const ensureChain = useLiveChain();
+  const ensureChain = useActiveChain();
   const invalidate = useInvalidate();
 
   const [phase, setPhase] = useState<TxPhase>("idle");
@@ -285,10 +226,10 @@ export function useWithdrawFromClub() {
       setPhase("signing");
       await ensureChain();
       const txHash = await writeContractAsync({
-        address: CLUB_CONTRACTS.clubAuction as Address,
+        address: AUCTION,
         abi: clubAuctionAbi,
         functionName: "withdraw",
-        chainId: liveChain.id,
+        chainId: activeChain.id,
       });
       setPhase("pending");
       await confirm(publicClient as unknown as PublicClient, txHash);
@@ -296,7 +237,7 @@ export function useWithdrawFromClub() {
       invalidate();
       return true;
     } catch (e) {
-      setError(readableError(e));
+      setError(tradeError(e));
       setPhase("error");
       return false;
     }

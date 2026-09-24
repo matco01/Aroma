@@ -4,10 +4,10 @@ import { useCallback, useState } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatUnits, type Address, type PublicClient } from "viem";
-import { clubsDeployed } from "./arc";
+import { clubsDeployed, SETTLEMENT } from "./network";
 import { activeChain } from "./chain";
 import * as club from "./club-trade";
-import { tradeError, useArcChain, useCtx, type TxPhase } from "./use-trade";
+import { tradeError, useActiveChain, useCtx, type TxPhase } from "./use-trade";
 
 /**
  * Everything a club coin page needs about the connected wallet: whether it is
@@ -23,7 +23,7 @@ export function useClub(tokenAddress: string | undefined, isClub: boolean) {
   const publicClient = usePublicClient({ chainId: activeChain.id }) as unknown as PublicClient | undefined;
   const queryClient = useQueryClient();
   const makeCtx = useCtx();
-  const ensureChain = useArcChain();
+  const ensureChain = useActiveChain();
 
   const enabled = clubsDeployed && isClub && Boolean(tokenAddress) && Boolean(address) && Boolean(publicClient);
 
@@ -100,7 +100,7 @@ export function useClub(tokenAddress: string | undefined, isClub: boolean) {
     inviter: status.data?.inviter,
     seatsTotal: status.data?.seatsTotal ?? 0,
     seatsLeft: status.data?.seatsLeft ?? 0,
-    claimableUsd: Number(formatUnits(claimableRaw, 18)),
+    claimableUsd: Number(formatUnits(claimableRaw, SETTLEMENT.decimals)),
     claimableRaw,
     link,
     createInvite,

@@ -1,21 +1,18 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { ROBINHOOD_TESTNET, clubDeployed } from "@/lib/robinhood";
+import { NETWORK, auctionDeployed } from "@/lib/network";
 
 /**
  * The one line a visitor needs about the network.
  *
- * The live product is the Club on Robinhood Chain testnet, so the banner
- * says what's true there:
+ * Aroma runs on Robinhood Chain, so the banner says what's true there:
  *
- *   - before ClubAuction is deployed: the Club is coming, so a visitor who
- *     finds an empty auction page knows why;
- *   - once it is: that this is a test network and the funds are worth
- *     nothing — which stays true, and worth saying, until mainnet.
- *
- * (This banner previously announced an Arc mainnet launch. The Arc pool
- * system is still in the codebase, but it is not what the site runs.)
+ *   - before the club contracts are deployed: clubs are coming, so a visitor
+ *     who finds an empty auction page knows why;
+ *   - on testnet once they are: the funds are worth nothing — which stays
+ *     true, and worth saying, until mainnet;
+ *   - on mainnet: nothing. A banner that is always there is one nobody reads.
  *
  * Above the header and not sticky, and dismissal is remembered per message,
  * so dismissing "coming soon" does not also silence whatever comes next.
@@ -24,18 +21,19 @@ import { ROBINHOOD_TESTNET, clubDeployed } from "@/lib/robinhood";
 type Message = { key: string; tone: string; label: string; body: string };
 
 function currentMessage(): Message | null {
-  if (!clubDeployed) {
+  if (!auctionDeployed) {
     return {
       key: "aroma:banner:club-coming",
       tone: "text-accent-2",
-      label: "Coming to Robinhood Chain",
-      body: "The Club auction opens on Robinhood Chain testnet once its contracts are deployed.",
+      label: `Coming to ${NETWORK.name}`,
+      body: "Clubs open here once their contracts are deployed.",
     };
   }
+  if (!NETWORK.testnet) return null;
   return {
-    key: "aroma:banner:robinhood-testnet",
+    key: "aroma:banner:testnet",
     tone: "text-warn",
-    label: ROBINHOOD_TESTNET.name,
+    label: NETWORK.name,
     body: "Test funds only — nothing here is worth anything.",
   };
 }

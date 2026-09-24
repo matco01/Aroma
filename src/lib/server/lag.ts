@@ -1,7 +1,7 @@
 import "server-only";
 import { createPublicClient } from "viem";
 import { activeChain } from "../chain";
-import { arcTransport } from "../transport";
+import { chainTransport } from "../transport";
 import type { SubgraphMeta } from "./subgraph";
 
 /**
@@ -20,7 +20,7 @@ import type { SubgraphMeta } from "./subgraph";
 
 const client = createPublicClient({
   chain: activeChain,
-  transport: arcTransport(),
+  transport: chainTransport(),
 });
 
 /** Arc's observed block time. Used to turn a block delta into seconds. */

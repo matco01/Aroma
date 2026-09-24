@@ -11,6 +11,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { parseUnits, type Address, type PublicClient } from "viem";
 import { activeChain } from "./chain";
+import { SETTLEMENT } from "./network";
 import * as pool from "./pool-trade";
 import * as club from "./club-trade";
 
@@ -43,7 +44,8 @@ export function tradeError(e: unknown): string {
 }
 
 /**
- * Makes sure the wallet is on Arc before it is asked to sign anything.
+ * Makes sure the wallet is on this build's chain before it is asked to sign
+ * anything.
  *
  * Nothing did this before, which was survivable while the only people using
  * the app had added a testnet on purpose. On launch day most wallets will
@@ -52,7 +54,7 @@ export function tradeError(e: unknown): string {
  * network when the wallet has never heard of it, using the RPC and explorer
  * from chain.ts.
  */
-export function useArcChain() {
+export function useActiveChain() {
   const { chainId } = useAccount();
   const { switchChainAsync } = useSwitchChain();
 
@@ -119,7 +121,7 @@ export function useTrade(
   isClub = false,
   invite: club.Invite | null = null,
 ) {
-  const ensureChain = useArcChain();
+  const ensureChain = useActiveChain();
   const makeCtx = useCtx();
   const queryClient = useQueryClient();
   const s = usePhase();
@@ -160,7 +162,7 @@ export function useTrade(
         const ctx = makeCtx(s.setPhase);
         if (!ctx) return false;
         const token = tokenAddress as Address;
-        const usdc = parseUnits(usdcAmount, 18);
+        const usdc = parseUnits(usdcAmount, SETTLEMENT.decimals);
         const { hash } = isClub
           ? await club.buy(ctx, { token, usdc, slippagePct, invite })
           : await pool.buy(ctx, { token, usdc, slippagePct });
@@ -202,7 +204,7 @@ export function useTrade(
 }
 
 export function useCreateToken() {
-  const ensureChain = useArcChain();
+  const ensureChain = useActiveChain();
   const makeCtx = useCtx();
   const queryClient = useQueryClient();
   const s = usePhase();
@@ -232,7 +234,7 @@ export function useCreateToken() {
           symbol,
           description,
           metadataUri,
-          devBuy: devBuyUsdc ? parseUnits(devBuyUsdc, 18) : 0n,
+          devBuy: devBuyUsdc ? parseUnits(devBuyUsdc, SETTLEMENT.decimals) : 0n,
         };
         const { hash, token } =
           mode === "club" ? await club.createClub(ctx, launch) : await pool.createToken(ctx, launch);

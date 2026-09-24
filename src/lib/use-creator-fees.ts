@@ -10,10 +10,10 @@ import {
 } from "wagmi";
 import { formatUnits, type Address, type PublicClient } from "viem";
 import { poolVaultAbi } from "./abis";
-import { POOL_CONTRACTS, poolsDeployed } from "./arc";
+import { POOL_CONTRACTS, poolsDeployed } from "./network";
 import { activeChain } from "./chain";
 import { claimCreatorFees, readableError } from "./pool-trade";
-import { useArcChain } from "./use-trade";
+import { useActiveChain } from "./use-trade";
 
 /**
  * A creator's unclaimed fees for one token.
@@ -38,7 +38,7 @@ export function useCreatorFees(tokenAddress: string | undefined, creator: string
   const publicClient = usePublicClient({ chainId: activeChain.id });
   const { writeContractAsync } = useWriteContract();
   const { signTypedDataAsync } = useSignTypedData();
-  const ensureChain = useArcChain();
+  const ensureChain = useActiveChain();
 
   const [phase, setPhase] = useState<ClaimPhase>("idle");
   const [error, setError] = useState<string | null>(null);

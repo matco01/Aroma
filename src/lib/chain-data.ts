@@ -1,9 +1,10 @@
 import "server-only";
 import { createPublicClient, getAbiItem, type Address, type Hex } from "viem";
 import { aromaRouterAbi, poolFactoryAbi, poolManagerAbi } from "./abis";
-import { CLUB, CLUB_CONTRACTS, clubsDeployed, POOL, POOL_CONTRACTS } from "./arc";
-import { activeChain, ARC_RPC_URL, assertChainMatches } from "./chain";
-import { arcTransport } from "./transport";
+import { CLUB, POOL } from "./arc";
+import { CLUB_CONTRACTS, clubsDeployed, POOL_CONTRACTS, SETTLEMENT, TICK_GRADUATION } from "./network";
+import { activeChain, RPC_URL, assertChainMatches } from "./chain";
+import { chainTransport } from "./transport";
 import { resolveImages } from "./server/ipfs";
 import type { Coin } from "./mock";
 import type { SeriesPoint, TapeTrade } from "./server/board";
@@ -40,7 +41,7 @@ import type { SeriesPoint, TapeTrade } from "./server/board";
  * the site's trades depend on.
  */
 
-const client = createPublicClient({ chain: activeChain, transport: arcTransport() });
+const client = createPublicClient({ chain: activeChain, transport: chainTransport() });
 
 const TOKEN_CREATED = getAbiItem({ abi: poolFactoryAbi, name: "TokenCreated" });
 const SWAP = getAbiItem({ abi: poolManagerAbi, name: "Swap" });
@@ -49,7 +50,16 @@ const SOLD = getAbiItem({ abi: aromaRouterAbi, name: "Sold" });
 
 const WAD = 10n ** 18n;
 const Q192 = 2n ** 192n;
+/** Prices and token amounts: always 18-decimal. */
 const toNum = (v: bigint) => Number(v) / 1e18;
+/** Settlement-currency amounts, in that currency's own decimals (6 for USDG). */
+const toUsd = (v: bigint) => Number(v) / 10 ** SETTLEMENT.decimals;
+/**
+ * The gap between the token's 18 decimals and the settlement currency's.
+ * 1 for Arc's native USDC; 10^12 for USDG, without which every price is off
+ * by exactly that factor. See subgraph/src/club-usdg.ts.
+ */
+const DECIMAL_GAP = 10n ** BigInt(18 - SETTLEMENT.decimals);
 
 /**
  * How many blocks one eth_getLogs may span.
@@ -118,10 +128,10 @@ async function scan<T>(
   return out;
 }
 
-/** USDC per token, 18-decimal, from a pool's sqrtPriceX96. See subgraph/src/shared.ts. */
+/** Settlement currency per token, 18-decimal, from a pool's sqrtPriceX96. See subgraph/src/shared.ts. */
 function priceFromSqrt(sqrtPriceX96: bigint): bigint {
   if (sqrtPriceX96 === 0n) return 0n;
-  return (WAD * Q192) / (sqrtPriceX96 * sqrtPriceX96);
+  return (DECIMAL_GAP * WAD * Q192) / (sqrtPriceX96 * sqrtPriceX96);
 }
 
 /**
@@ -382,9 +392,9 @@ async function load(): Promise<Snapshot> {
     const coin = state.coin;
     coin.priceUsd = priceUsd;
     coin.marketCapUsd = priceUsd * POOL.totalSupply;
-    coin.volume24hUsd += toNum(usdc);
+    coin.volume24hUsd += toUsd(usdc);
     coin.history.push(priceUsd);
-    if (!coin.graduated && (l.args.tick as number) <= POOL.tickGraduation) coin.graduated = true;
+    if (!coin.graduated && (l.args.tick as number) <= TICK_GRADUATION) coin.graduated = true;
     state.series.push({ t: timestamp, m: coin.marketCapUsd });
 
     const trade: TapeTrade = {
@@ -393,7 +403,7 @@ async function load(): Promise<Snapshot> {
       ticker: coin.ticker,
       side: isBuy ? "buy" : "sell",
       account: trader,
-      usd: toNum(usdc),
+      usd: toUsd(usdc),
       tokens: toNum(tokens),
       timestamp,
       agoSeconds: Math.max(1, now - timestamp),
@@ -404,9 +414,9 @@ async function load(): Promise<Snapshot> {
 
   for (const [token, state] of byToken) {
     const coin = state.coin;
-    coin.raisedUsd = toNum(reserve.get(token) ?? 0n);
+    coin.raisedUsd = toUsd(reserve.get(token) ?? 0n);
     coin.holders = buyers.get(token)?.size ?? 0;
-    coin.creatorFeesEarnedUsd = toNum(feesEarned.get(token) ?? 0n);
+    coin.creatorFeesEarnedUsd = toUsd(feesEarned.get(token) ?? 0n);
     const first = coin.history[0] || coin.priceUsd;
     coin.change24hPct = first > 0 ? ((coin.priceUsd - first) / first) * 100 : 0;
     if (coin.history.length < 2) coin.history.push(coin.priceUsd);
@@ -434,7 +444,7 @@ async function snapshot(): Promise<Snapshot> {
   // Guards against reading a chain that is not the one this build targets.
   // Cheap (one eth_chainId per process) and it runs before the first scan, so
   // a misconfigured endpoint surfaces as an error rather than an empty board.
-  inflight = assertChainMatches(ARC_RPC_URL)
+  inflight = assertChainMatches(RPC_URL)
     .then(load)
     .then((data) => {
       cached = { at: Date.now(), data };

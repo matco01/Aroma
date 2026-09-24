@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useClubAuction, useBidOnClub, useUpdateClubDraft, useWithdrawFromClub } from "@/lib/use-club-auction";
-import { CLUB, minNextBidUsdg } from "@/lib/robinhood";
+import { AUCTION, minNextBidUsdg } from "@/lib/robinhood";
+import { NETWORK, SETTLEMENT } from "@/lib/network";
+import { CLUB } from "@/lib/arc";
 import { IMAGE_RULES, checkImageFile, checkImageDimensions } from "@/lib/image-rules";
 import { usdExact, shortAddr, ago } from "@/lib/format";
 import type { ClubBidData, ClubData } from "@/lib/use-club-auction";
@@ -95,7 +98,7 @@ export function ClubView() {
     return s;
   }, [name, ticker]);
 
-  const minBid = current ? minNextBidUsdg(current.topBidUsdg) : CLUB.minOpeningBidUsdg;
+  const minBid = current ? minNextBidUsdg(current.topBidUsdg) : AUCTION.minOpeningBidUsdg;
   const namesOk = !canEdit || (name.trim().length > 0 && ticker.trim().length > 0);
   const bidValid = namesOk && Number(bidAmount || 0) >= minBid && !ended;
 
@@ -222,7 +225,7 @@ export function ClubView() {
         </p>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
           {clubError
-            ? "The auction contract hasn't been deployed or indexed on Robinhood Chain yet. Once it is, the live round shows here."
+            ? `The auction contract hasn't been deployed or indexed on ${NETWORK.name} yet. Once it is, the live round shows here.`
             : "The first round opens when the auction contract is deployed."}
         </p>
       </div>
@@ -248,6 +251,19 @@ export function ClubView() {
             />
             <StatBlock label="Minimum next bid" value={usdExact(minBid)} />
           </div>
+
+          {/* What the bid is for. Without this the auction reads as paying to
+              launch a coin; what it actually buys is founding a club. */}
+          <p className="mt-4 border-t border-line pt-3 text-[12px] leading-relaxed text-ink-2">
+            The winner founds an invite-only club around this coin. Only members can
+            buy, and the winner holds the first {CLUB.creatorSeats} invites. They earn{" "}
+            {CLUB.rootFeeBps / 100}% of every trade in the club, and like every member,
+            a share of the {CLUB.treeFeeBps / 100}% paid up the invite chain from the
+            people they bring in.{" "}
+            <Link href="/docs#clubs" className="text-ink underline-offset-2 hover:underline">
+              How invites work
+            </Link>
+          </p>
 
           {isTopBidder && (
             <p className="mt-3 rounded-sm border border-up/25 bg-up/8 px-3 py-2 text-[12px] text-up">
@@ -389,7 +405,7 @@ export function ClubView() {
                 placeholder={minBid.toString()}
                 className="num h-11 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-ink-3"
               />
-              <span className="num text-[12px] text-ink-2">USDG</span>
+              <span className="num text-[12px] text-ink-2">{SETTLEMENT.symbol}</span>
             </div>
             <p className="text-[10.5px] leading-relaxed text-ink-3">
               Minimum {usdExact(minBid)}. This is the price of the launch: it goes
@@ -405,14 +421,14 @@ export function ClubView() {
                 placeholder="0.00"
                 className="num h-11 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-ink-3"
               />
-              <span className="num text-[12px] text-ink-2">USDG</span>
+              <span className="num text-[12px] text-ink-2">{SETTLEMENT.symbol}</span>
             </div>
             <p className="text-[10.5px] leading-relaxed text-ink-3">
               <span className="text-ink-2">First buy, optional.</span> If you
               win, this much of your own coin is bought for you the moment it
               launches — at the opening price, before anyone else can trade.
               The tokens are yours. Up to{" "}
-              {CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG; refunded with
+              {AUCTION.maxFirstBuyUsdg.toLocaleString("en-US")} {SETTLEMENT.symbol}; refunded with
               your bid if you&apos;re outbid.
             </p>
           </div>

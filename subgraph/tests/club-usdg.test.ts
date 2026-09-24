@@ -206,6 +206,12 @@ describe("buys", () => {
     assert.fieldEquals("Token", TOKEN_ID, "volume", "100000000");
   });
 
+  test("progress reads the 6-decimal reserve against the 18-decimal raise", () => {
+    // 98.5 USDG of a $13,800 raise is 71 bps, not ~0.
+    buy100();
+    assert.fieldEquals("Token", TOKEN_ID, "progressBps", "71");
+  });
+
   test("price comes from the pool's sqrt price, corrected for USDG's 6 decimals", () => {
     handleSwap(createSwapEvent(POOL_ID, bi("-98500000"), TOKENS_OUT, SQRT_AT_INIT, TICK_INIT));
     // Without the 10^12 correction this would read ~4312.56, not

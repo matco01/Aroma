@@ -115,7 +115,8 @@ export function handleSwap(event: Swap): void {
     : token.tokensSold.minus(tokens);
   token.price = priceFromSqrtX96Usdg(event.params.sqrtPriceX96);
   token.marketCap = marketCapOf(token.price);
-  token.progressBps = progressBpsOf(token.reserve);
+  // progressBpsOf measures against an 18-decimal raise; the reserve is USDG's 6.
+  token.progressBps = progressBpsOf(token.reserve.times(USDG_DECIMAL_FACTOR));
   token.volume = token.volume.plus(usdg);
   token.tradeCount = token.tradeCount + 1;
   token.lastTradeAt = event.block.timestamp;

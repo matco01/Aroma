@@ -7,18 +7,18 @@ import {
   newMockEvent,
 } from "matchstick-as/assembly/index";
 import { Address, BigInt, Bytes, ethereum } from "@graphprotocol/graph-ts";
-import { TokenCreated } from "../generated/PoolFactoryUsdg/PoolFactoryUsdg";
+import { TokenCreated } from "../generated/ClubFactoryUsdg/ClubFactoryUsdg";
 import { Swap } from "../generated/PoolManager/PoolManager";
-import { FeeTaken, CreatorFeesClaimed } from "../generated/PoolVaultUsdg/PoolVaultUsdg";
+import { FeeTaken, Credited } from "../generated/ClubVaultUsdg/ClubVaultUsdg";
 import {
   handleTokenCreated,
   handleSwap,
   handleFeeTaken,
-  handleCreatorFeesClaimed,
-} from "../src/pool-usdg";
+  handleCredited,
+} from "../src/club-usdg";
 
 /**
- * Unit tests for the pool-usdg mappings — see pool.test.ts's own header for
+ * Unit tests for Robinhood Chain's club-usdg mappings — see pool.test.ts's own header for
  * why these three things (swap sign convention, gross-from-net
  * reconstruction, cost-basis carry) are worth pinning down: none of them
  * fail to compile or throw when wrong, they just produce a plausible-looking
@@ -26,8 +26,9 @@ import {
  *
  * The one thing genuinely different from pool.test.ts: every USDG amount
  * here is sized like a real 6-decimal amount (e.g. "100000000" for 100 USDG),
- * not the 18-decimal magnitudes native USDC uses, and SQRT_AT_INIT/
- * PRICE_AT_INIT are recomputed for pool-usdg's own tick constants and the
+ * not the 18-decimal magnitudes native USDC uses, every fee is a club coin's
+ * 1.5% rather than 1%, and SQRT_AT_INIT/
+ * PRICE_AT_INIT are recomputed for the USDG tick constants and the
  * 10^12 decimal correction priceFromSqrtX96Usdg applies. Reusing the native
  * test's numbers here would silently test the wrong thing.
  */
@@ -43,7 +44,7 @@ const OTHER_POOL_ID = Bytes.fromHexString(
   "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 );
 
-/** sqrtPriceX96 and the WAD price at PoolVaultUsdg's TICK_INIT (399,870). */
+/** sqrtPriceX96 and the WAD price at ClubVaultUsdg's TICK_INIT (399,870). */
 const SQRT_AT_INIT = "38151549679843848184410015836849485153";
 const PRICE_AT_INIT = "4312556529721";
 /** ...and at TICK_GRADUATION (372,142). */
@@ -101,20 +102,22 @@ function createSwapEvent(
   return e;
 }
 
-function createFeeTakenEvent(usdg: BigInt): FeeTaken {
+function createFeeTakenEvent(usdc: BigInt): FeeTaken {
   const e = changetype<FeeTaken>(newMockEvent());
   e.parameters = new Array<ethereum.EventParam>();
   e.parameters.push(new ethereum.EventParam("token", ethereum.Value.fromAddress(TOKEN)));
-  e.parameters.push(new ethereum.EventParam("usdg", ethereum.Value.fromUnsignedBigInt(usdg)));
+  e.parameters.push(new ethereum.EventParam("trader", ethereum.Value.fromAddress(TRADER)));
+  e.parameters.push(new ethereum.EventParam("usdc", ethereum.Value.fromUnsignedBigInt(usdc)));
   return e;
 }
 
-function createCreatorFeesClaimedEvent(usdg: BigInt): CreatorFeesClaimed {
-  const e = changetype<CreatorFeesClaimed>(newMockEvent());
+function createCreditedEvent(account: Address, level: i32, usdc: BigInt): Credited {
+  const e = changetype<Credited>(newMockEvent());
   e.parameters = new Array<ethereum.EventParam>();
   e.parameters.push(new ethereum.EventParam("token", ethereum.Value.fromAddress(TOKEN)));
-  e.parameters.push(new ethereum.EventParam("creator", ethereum.Value.fromAddress(CREATOR)));
-  e.parameters.push(new ethereum.EventParam("usdg", ethereum.Value.fromUnsignedBigInt(usdg)));
+  e.parameters.push(new ethereum.EventParam("account", ethereum.Value.fromAddress(account)));
+  e.parameters.push(new ethereum.EventParam("level", ethereum.Value.fromI32(level)));
+  e.parameters.push(new ethereum.EventParam("usdc", ethereum.Value.fromUnsignedBigInt(usdc)));
   return e;
 }
 
@@ -127,9 +130,9 @@ function launch(): void {
   handleTokenCreated(createTokenCreatedEvent());
 }
 
-/** A 100 USDG buy: the hook took 1 USDG, so 99 reached the pool. */
+/** A 100 USDG buy: the hook took 1.5 USDG, so 98.5 reached the pool. */
 function buy100(): string {
-  const e = createSwapEvent(POOL_ID, bi("-99000000"), TOKENS_OUT, SQRT_AT_INIT, TICK_INIT - 400);
+  const e = createSwapEvent(POOL_ID, bi("-98500000"), TOKENS_OUT, SQRT_AT_INIT, TICK_INIT - 400);
   handleSwap(e);
   return tradeIdOf(e);
 }
@@ -147,17 +150,18 @@ function sellHalf(): string {
   return tradeIdOf(e);
 }
 
-describe("pool-usdg launches", () => {
+describe("club-usdg launches", () => {
   beforeEach(() => {
     clearStore();
     nextLogIndex = 1;
   });
 
-  test("a launch records the token, its venue and its pool", () => {
+  test("a launch records a club coin, its fee and its pool", () => {
     launch();
 
     assert.entityCount("Token", 1);
-    assert.fieldEquals("Token", TOKEN_ID, "venue", "pool");
+    assert.fieldEquals("Token", TOKEN_ID, "venue", "club");
+    assert.fieldEquals("Token", TOKEN_ID, "tradeFeeBps", "150");
     assert.fieldEquals("Token", TOKEN_ID, "symbol", "AROMA");
     assert.fieldEquals("Token", TOKEN_ID, "poolId", POOL_ID.toHexString());
     assert.entityCount("PoolRef", 1);
@@ -168,7 +172,7 @@ describe("pool-usdg launches", () => {
   test("a swap in someone else's v4 pool is ignored", () => {
     launch();
     handleSwap(
-      createSwapEvent(OTHER_POOL_ID, bi("-99000000"), TOKENS_OUT, SQRT_AT_INIT, TICK_INIT),
+      createSwapEvent(OTHER_POOL_ID, bi("-98500000"), TOKENS_OUT, SQRT_AT_INIT, TICK_INIT),
     );
     assert.entityCount("Trade", 0);
     assert.fieldEquals("Token", TOKEN_ID, "tradeCount", "0");
@@ -191,19 +195,19 @@ describe("buys", () => {
   test("the buyer's gross is recovered from the net that reached the pool", () => {
     const id = buy100();
     assert.fieldEquals("Trade", id, "usdc", "100000000");
-    assert.fieldEquals("Trade", id, "fee", "1000000");
+    assert.fieldEquals("Trade", id, "fee", "1500000");
     assert.fieldEquals("Trade", id, "tokens", TOKENS_OUT.toString());
   });
 
   test("reserve tracks what reached the pool, not what the buyer paid", () => {
     buy100();
-    assert.fieldEquals("Token", TOKEN_ID, "reserve", "99000000");
+    assert.fieldEquals("Token", TOKEN_ID, "reserve", "98500000");
     assert.fieldEquals("Token", TOKEN_ID, "tokensSold", TOKENS_OUT.toString());
     assert.fieldEquals("Token", TOKEN_ID, "volume", "100000000");
   });
 
   test("price comes from the pool's sqrt price, corrected for USDG's 6 decimals", () => {
-    handleSwap(createSwapEvent(POOL_ID, bi("-99000000"), TOKENS_OUT, SQRT_AT_INIT, TICK_INIT));
+    handleSwap(createSwapEvent(POOL_ID, bi("-98500000"), TOKENS_OUT, SQRT_AT_INIT, TICK_INIT));
     // Without the 10^12 correction this would read ~4312.56, not
     // $4,312.556529721 — off by exactly that factor, not merely wrong.
     assert.fieldEquals("Token", TOKEN_ID, "price", PRICE_AT_INIT);
@@ -237,8 +241,8 @@ describe("sells", () => {
     const id = sellHalf();
     assert.entityCount("Trade", 2);
     assert.fieldEquals("Trade", id, "isBuy", "false");
-    assert.fieldEquals("Trade", id, "usdc", "49500000");
-    assert.fieldEquals("Trade", id, "fee", "500000");
+    assert.fieldEquals("Trade", id, "usdc", "49250000");
+    assert.fieldEquals("Trade", id, "fee", "750000");
   });
 
   test("a partial sell carries cost basis proportionally", () => {
@@ -246,12 +250,12 @@ describe("sells", () => {
     const balanceId = TOKEN_ID + "-" + TRADER.toHexString();
     assert.fieldEquals("Balance", balanceId, "amount", TOKENS_OUT.div(BigInt.fromI32(2)).toString());
     assert.fieldEquals("Balance", balanceId, "costBasis", "50000000");
-    assert.fieldEquals("Balance", balanceId, "realisedPnl", "-500000");
+    assert.fieldEquals("Balance", balanceId, "realisedPnl", "-750000");
   });
 
   test("selling reduces the reserve by the gross that left the pool", () => {
     sellHalf();
-    assert.fieldEquals("Token", TOKEN_ID, "reserve", "49000000");
+    assert.fieldEquals("Token", TOKEN_ID, "reserve", "48500000");
   });
 });
 
@@ -300,22 +304,21 @@ describe("fees", () => {
     launch();
   });
 
-  test("the hook's own event is what settles the fee ledger", () => {
-    handleFeeTaken(createFeeTakenEvent(bi("1000000")));
-    assert.fieldEquals("Token", TOKEN_ID, "creatorFeesEarned", "700000");
-    assert.fieldEquals("Protocol", "Aroma", "totalFees", "1000000");
+  test("the hook's own event is what settles the protocol's fee total", () => {
+    handleFeeTaken(createFeeTakenEvent(bi("1500000")));
+    assert.fieldEquals("Protocol", "Aroma", "totalFees", "1500000");
   });
 
-  test("claims are tracked separately from earnings", () => {
-    handleFeeTaken(createFeeTakenEvent(bi("1000000")));
-    handleCreatorFeesClaimed(createCreatorFeesClaimedEvent(bi("700000")));
-    assert.fieldEquals("Token", TOKEN_ID, "creatorFeesEarned", "700000");
-    assert.fieldEquals("Token", TOKEN_ID, "creatorFeesClaimed", "700000");
+  test("the creator earns the root cut, not the tree's shares", () => {
+    handleCredited(createCreditedEvent(CREATOR, 0, bi("100000")));
+    handleCredited(createCreditedEvent(TRADER, 1, bi("733333")));
+    assert.fieldEquals("Token", TOKEN_ID, "creatorFeesEarned", "100000");
   });
 
   test("a fee for a token we never saw launched is ignored", () => {
     clearStore();
-    handleFeeTaken(createFeeTakenEvent(bi("1000000")));
+    handleFeeTaken(createFeeTakenEvent(bi("1500000")));
+    handleCredited(createCreditedEvent(CREATOR, 0, bi("100000")));
     assert.entityCount("Token", 0);
   });
 });

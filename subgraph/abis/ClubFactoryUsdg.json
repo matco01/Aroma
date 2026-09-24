@@ -43,7 +43,7 @@
       {
         "name": "info",
         "type": "tuple",
-        "internalType": "struct PoolFactoryUsdg.TokenInfo",
+        "internalType": "struct ClubFactoryUsdg.TokenInfo",
         "components": [
           {
             "name": "name",
@@ -66,6 +66,11 @@
             "internalType": "string"
           }
         ]
+      },
+      {
+        "name": "creator",
+        "type": "address",
+        "internalType": "address"
       },
       {
         "name": "devBuyUsdc",
@@ -99,6 +104,32 @@
   },
   {
     "type": "function",
+    "name": "deployer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "launcher",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "poolManager",
     "inputs": [],
     "outputs": [
@@ -109,6 +140,48 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "predictToken",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "symbol",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "salt",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setLauncher",
+    "inputs": [
+      {
+        "name": "launcher_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -150,7 +223,7 @@
       {
         "name": "",
         "type": "address",
-        "internalType": "contract PoolVaultUsdg"
+        "internalType": "contract ClubVaultUsdg"
       }
     ],
     "stateMutability": "view"

@@ -54,12 +54,20 @@ WANT = {
     # Uniswap's own singleton. Only its Swap event is needed, and only by the
     # direct-from-chain fallback that runs when no indexer is configured.
     "PoolManager": {"Swap"},
-    # The Club and the USDG pool system — Robinhood Chain, the live product.
-    "PoolFactoryUsdg": {"createToken", "TokenCreated", "TOTAL_SUPPLY", "MAX_DEV_BUY_USDC"},
-    "AromaRouterUsdg": {"buy", "sell", "Bought", "Sold"},
+    # Robinhood Chain, the live product: the Club auction, and the USDG club
+    # system every auction winner's coin launches into. Same shapes as the
+    # three Club* contracts above, paid in USDG.
+    "ClubFactoryUsdg": {"TokenCreated", "TOTAL_SUPPLY", "MAX_DEV_BUY_USDC", "predictToken"},
+    "ClubVaultUsdg": {
+        "isMember", "inviterOf", "seatsOf", "seatsLeft", "inviteNonce", "inviteDigest",
+        "inviteProblem", "revokeInvites", "claimable", "claim", "creatorOf", "poolKey",
+        "protocolUsdc", "withdrawProtocolFees", "owner", "clubs", "MIN_JOIN_USDC",
+        "Joined", "Credited", "FeeTaken", "Claimed", "InvitesRevoked",
+    },
+    "ClubRouterUsdg": {"buy", "buyWithInvite", "sell", "Bought", "Sold"},
     "ClubAuction": {
-        "bid", "updateDraft", "withdraw", "claimCreatorFeesFor", "getCurrentClub",
-        "pendingReturns", "winnerOf", "roundDuration", "minOpeningBid",
+        "bid", "updateDraft", "withdraw", "getCurrentClub",
+        "pendingReturns", "roundDuration", "minOpeningBid",
         "minBidIncrementBps", "antiSnipeExtension",
         "ClubOpened", "ClubBid", "ClubDraftUpdated", "ClubLaunched", "ClubVoided",
     },
@@ -77,7 +85,7 @@ def load_abi(name: str):
 # not one of ours, so there is no contracts/out/USDG.sol to read an ABI from.
 # Hand-written to the plain EIP-20 + EIP-2612 interface, confirmed against
 # Paxos's own usdg-contract README — the same shape AromaToken already
-# implements, which is exactly why ClubAuction/AromaRouterUsdg can take a
+# implements, which is exactly why ClubAuction/ClubRouterUsdg can take a
 # permit for USDG the same way CurveManager/AromaRouter already do for the
 # launched token.
 ERC20_PERMIT_ABI = [

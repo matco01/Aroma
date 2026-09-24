@@ -1,10 +1,10 @@
 specVersion: 1.0.0
 description: >
-  Aroma — Club auction launches on Robinhood Chain, settled in USDG. Same
-  schema as the Arc manifests, plus Club/ClubBid; the pool-usdg mappings
-  write the same Token/Trade/Balance/Candle/Protocol entities the Arc pool
-  system does, so the board, the API and the DEX Screener adapter work
-  unchanged.
+  Aroma on Robinhood Chain — invite-only club coins settled in USDG, each
+  launched by winning a 24-hour Club auction. Same schema as the Arc
+  manifests; the club-usdg mappings write the same Token/Trade/Balance/
+  Candle/Protocol entities the Arc pool system does, so the board, the API
+  and the DEX Screener adapter work unchanged.
 repository: https://github.com/matco01/Aroma
 schema:
   file: ./schema.graphql
@@ -17,24 +17,24 @@ schema:
 # network, the same reason subgraph.pool.yaml is a separate file from
 # subgraph.yaml, and this is a different chain from both.
 dataSources:
-  # Launches. One event per token, ever.
+  # Launches. One event per club coin, ever, always from a finalized auction.
   - kind: ethereum
-    name: PoolFactoryUsdg
+    name: ClubFactoryUsdg
     network: robinhood # FIXME: confirm the real network slug
     source:
-      # FIXME: fill in from DeployPoolUsdg.s.sol's output.
+      # FIXME: fill in from DeployRobinhood.s.sol's output.
       address: "0x0000000000000000000000000000000000000000"
-      abi: PoolFactoryUsdg
+      abi: ClubFactoryUsdg
       startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
       language: wasm/assemblyscript
-      file: ./src/pool-usdg.ts
+      file: ./src/club-usdg.ts
       entities: [Token, Account, Protocol, PoolRef]
       abis:
-        - name: PoolFactoryUsdg
-          file: ./abis/PoolFactoryUsdg.json
+        - name: ClubFactoryUsdg
+          file: ./abis/ClubFactoryUsdg.json
       eventHandlers:
         - event: TokenCreated(indexed address,indexed address,indexed bytes32,string,string,string,string,uint256)
           handler: handleTokenCreated
@@ -45,27 +45,22 @@ dataSources:
   #
   # startBlock matters more than usual — left at PoolManager's own deployment
   # it replays every unrelated v4 swap on the whole chain before reaching
-  # anything of ours. Set it to the block PoolVaultUsdg was deployed in.
+  # anything of ours. Set it to the block ClubVaultUsdg was deployed in.
   - kind: ethereum
     name: PoolManager
     network: robinhood # FIXME: confirm the real network slug
     source:
-      # Surfaced repeatedly during research as
-      # 0x8366a39cc670b4001a1121b8f6a443a643e40951 — the same address this
-      # repo already uses for Arc's PoolManager, which is either a real
-      # canonical cross-chain Uniswap v4 deployment or a research-tool echo
-      # that could not be independently confirmed against a block explorer.
-      # UNVERIFIED. Confirm it directly (Uniswap's own deployments registry,
-      # or `cast code` against a Robinhood Chain RPC) before using it.
+      # Uniswap v4's PoolManager on Robinhood Chain, confirmed to have code
+      # on both mainnet (4663) and testnet (46630).
       address: "0x8366a39cc670b4001a1121b8f6a443a643e40951"
       abi: PoolManager
-      # FIXME: the block PoolVaultUsdg was deployed in.
+      # FIXME: the block ClubVaultUsdg was deployed in.
       startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
       language: wasm/assemblyscript
-      file: ./src/pool-usdg.ts
+      file: ./src/club-usdg.ts
       entities: [Token, Trade, Balance, Account, Candle, Protocol, PoolRef]
       abis:
         - name: PoolManager
@@ -74,38 +69,39 @@ dataSources:
         - event: Swap(indexed bytes32,indexed address,int128,int128,uint160,uint128,int24,uint24)
           handler: handleSwap
 
-  # Fees. The hook's own events are the authority on what was charged — see
-  # pool.ts's header for why the Swap event's amounts alone can't settle it.
+  # Fees. The hook's own events are the authority on what was charged and
+  # who it was credited to — see pool.ts's header for why the Swap event's
+  # amounts alone can't settle it.
   - kind: ethereum
-    name: PoolVaultUsdg
+    name: ClubVaultUsdg
     network: robinhood # FIXME: confirm the real network slug
     source:
-      # FIXME: fill in from DeployPoolUsdg.s.sol's output. Mined, so it is
+      # FIXME: fill in from DeployRobinhood.s.sol's output. Mined, so it is
       # neither guessable nor stable across redeploys.
       address: "0x0000000000000000000000000000000000000000"
-      abi: PoolVaultUsdg
+      abi: ClubVaultUsdg
       startBlock: 0
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
       language: wasm/assemblyscript
-      file: ./src/pool-usdg.ts
+      file: ./src/club-usdg.ts
       entities: [Token, Protocol]
       abis:
-        - name: PoolVaultUsdg
-          file: ./abis/PoolVaultUsdg.json
+        - name: ClubVaultUsdg
+          file: ./abis/ClubVaultUsdg.json
       eventHandlers:
-        - event: FeeTaken(indexed address,uint256)
+        - event: FeeTaken(indexed address,indexed address,uint256)
           handler: handleFeeTaken
-        - event: CreatorFeesClaimed(indexed address,indexed address,uint256)
-          handler: handleCreatorFeesClaimed
+        - event: Credited(indexed address,indexed address,uint8,uint256)
+          handler: handleCredited
 
   # The auction itself — one Club at a time, gating every launch.
   - kind: ethereum
     name: ClubAuction
     network: robinhood # FIXME: confirm the real network slug
     source:
-      # FIXME: fill in from DeployClub.s.sol's output.
+      # FIXME: fill in from DeployRobinhood.s.sol's output.
       address: "0x0000000000000000000000000000000000000000"
       abi: ClubAuction
       startBlock: 0

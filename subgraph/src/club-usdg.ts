@@ -1,7 +1,7 @@
 import { BigInt } from "@graphprotocol/graph-ts";
-import { TokenCreated } from "../generated/PoolFactoryUsdg/PoolFactoryUsdg";
+import { TokenCreated } from "../generated/ClubFactoryUsdg/ClubFactoryUsdg";
 import { Swap } from "../generated/PoolManager/PoolManager";
-import { FeeTaken, CreatorFeesClaimed } from "../generated/PoolVaultUsdg/PoolVaultUsdg";
+import { FeeTaken, Credited } from "../generated/ClubVaultUsdg/ClubVaultUsdg";
 import { Trade, Token, PoolRef } from "../generated/schema";
 import {
   marketCapOf,
@@ -15,30 +15,30 @@ import {
 } from "./shared";
 import {
   ZERO,
-  TRADE_FEE_BPS,
+  ONE,
   BPS_DENOMINATOR,
-  CREATOR_FEE_SHARE_BPS,
+  CLUB_TRADE_FEE_BPS,
   POOL_USDG_TICK_GRADUATION,
   USDG_DECIMAL_FACTOR,
-  VENUE_POOL,
+  VENUE_CLUB,
   WAD,
   Q192,
 } from "./constants";
 
 /**
- * The pool-usdg launch mechanism's mappings — Robinhood Chain, USDG instead
- * of Arc's native USDC. Structurally identical to pool.ts (same events, same
- * entities, same singleton-PoolManager caveats — see that file's own header
- * for the three things worth being careful about), because `PoolFactoryUsdg`/
- * `PoolVaultUsdg` emit the exact same event shapes `PoolFactory`/`PoolVault`
- * do. The one real difference is decimals: USDG is 6-decimal, not the
- * 18-decimal view native USDC gets for free, so the tick-to-price conversion
- * needs the correction `priceFromSqrtX96UsdG` applies and `pool.ts`'s
- * `priceFromSqrtX96` does not.
+ * Robinhood Chain's mappings: club coins, settled in USDG.
  *
- * Writes `venue = "pool"`, the same value the native pool system uses — see
- * schema.graphql's own note on `Token.venue` for why a club-launched coin
- * doesn't get a third venue value.
+ * club.ts (launch) and pool.ts (swaps) do the same job for Arc's club coins,
+ * and this file follows them field for field. It is a separate file rather
+ * than a reuse of theirs for two reasons. The generated event classes are
+ * per-manifest — pool.ts imports Arc-only contracts that do not exist in the
+ * Robinhood build. And USDG has 6 decimals where Arc's native USDC reads as
+ * 18, which moves the graduation tick and needs a 10^12 correction in the
+ * price (see priceFromSqrtX96Usdg); reusing pool.ts's math would be off by
+ * exactly that factor, not merely wrong.
+ *
+ * ClubAuction's own events (club-auction.ts) link each coin to the auction
+ * round that launched it.
  */
 
 export function handleTokenCreated(event: TokenCreated): void {
@@ -59,8 +59,9 @@ export function handleTokenCreated(event: TokenCreated): void {
   token.createdAt = event.block.timestamp;
   token.createdAtBlock = event.block.number;
   token.createdTx = event.transaction.hash;
-  token.venue = VENUE_POOL;
+  token.venue = VENUE_CLUB;
   token.poolId = event.params.poolId;
+  token.tradeFeeBps = CLUB_TRADE_FEE_BPS;
   token.save();
 
   const ref = new PoolRef(event.params.poolId.toHexString());
@@ -92,14 +93,17 @@ export function handleSwap(event: Swap): void {
   let reserveDelta = ZERO;
 
   if (isBuy) {
+    // Net of the fee: the hook charged before the swap.
     const net = amount0.neg();
-    fee = grossFromNet(net).minus(net);
-    usdg = net.plus(fee);
+    const gross = grossFromNet(net, token.tradeFeeBps);
+    fee = gross.minus(net);
+    usdg = gross;
     tokens = amount1;
     reserveDelta = net;
   } else {
+    // Gross: the hook charged after the swap, out of what the pool paid.
     const gross = amount0;
-    fee = gross.times(TRADE_FEE_BPS).div(BPS_DENOMINATOR);
+    fee = gross.times(token.tradeFeeBps).div(BPS_DENOMINATOR);
     usdg = gross.minus(fee);
     tokens = amount1.neg();
     reserveDelta = gross.neg();
@@ -171,33 +175,44 @@ export function handleSwap(event: Swap): void {
   protocol.save();
 }
 
+/** The whole fee a trade paid, before it is split up the tree. */
 export function handleFeeTaken(event: FeeTaken): void {
   const token = Token.load(event.params.token.toHexString());
   if (token == null) return;
 
-  const creatorShare = event.params.usdg.times(CREATOR_FEE_SHARE_BPS).div(BPS_DENOMINATOR);
-  token.creatorFeesEarned = token.creatorFeesEarned.plus(creatorShare);
-  token.save();
-
   const protocol = getProtocol();
-  protocol.totalFees = protocol.totalFees.plus(event.params.usdg);
+  protocol.totalFees = protocol.totalFees.plus(event.params.usdc);
   protocol.save();
 }
 
-export function handleCreatorFeesClaimed(event: CreatorFeesClaimed): void {
+/**
+ * One share of a fee. Level 0 is the creator's root cut — the one share
+ * that is the coin's creator's by virtue of creating it, so it is what the
+ * coin page's "creator earned" shows. Shares further up an invite chain are
+ * the inviters' and are read live from the vault, not indexed per coin.
+ */
+export function handleCredited(event: Credited): void {
+  if (event.params.level != 0) return;
   const token = Token.load(event.params.token.toHexString());
   if (token == null) return;
-  token.creatorFeesClaimed = token.creatorFeesClaimed.plus(event.params.usdg);
+  token.creatorFeesEarned = token.creatorFeesEarned.plus(event.params.usdc);
   token.save();
 }
 
-/** Same reconstruction pool.ts's grossFromNet does — see that function's comment. */
-function grossFromNet(net: BigInt): BigInt {
-  const ninetyNine = BigInt.fromI32(99);
-  const hundred = BigInt.fromI32(100);
-  const q = net.div(ninetyNine);
-  const r = net.minus(q.times(ninetyNine));
-  return q.times(hundred).plus(r);
+/** The gross a buyer paid, given the net that reached the pool. See pool.ts. */
+function grossFromNet(net: BigInt, feeBps: BigInt): BigInt {
+  let gross = net.times(BPS_DENOMINATOR).div(BPS_DENOMINATOR.minus(feeBps));
+  while (gross.gt(ZERO) && netOfGross(gross, feeBps).gt(net)) {
+    gross = gross.minus(ONE);
+  }
+  while (netOfGross(gross.plus(ONE), feeBps).le(net)) {
+    gross = gross.plus(ONE);
+  }
+  return gross;
+}
+
+function netOfGross(gross: BigInt, feeBps: BigInt): BigInt {
+  return gross.minus(gross.times(feeBps).div(BPS_DENOMINATOR));
 }
 
 /**
@@ -205,15 +220,13 @@ function grossFromNet(net: BigInt): BigInt {
  * sqrtPriceX96.
  *
  * pool.ts's priceFromSqrtX96 assumes both currencies carry 18 decimals,
- * which is only true of native USDC. USDG is 6-decimal (confirmed against
- * Paxos's deployed contract), so the raw price the pool reports —
- * token-raw-units per USDG-raw-unit — needs the same 10^12 correction
- * script/math/derive_pool_usdg.py applies to the tick constants themselves:
+ * which is only true of native USDC. USDG has 6, so the raw price the pool
+ * reports needs the same 10^12 correction script/math/derive_pool_usdg.py
+ * applies to the tick constants:
  *
  *     price = USDG_DECIMAL_FACTOR * WAD * 2^192 / sqrtPriceX96^2
  *
- * Dropping this factor doesn't produce a merely-wrong number, it produces
- * one off by exactly 10^12 — a $69,000 market cap would show as $0.000000069.
+ * Without it a $69,000 market cap would show as $0.000000069.
  */
 export function priceFromSqrtX96Usdg(sqrtPriceX96: BigInt): BigInt {
   if (sqrtPriceX96.equals(ZERO)) return ZERO;

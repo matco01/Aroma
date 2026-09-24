@@ -61,20 +61,16 @@ export const VENUE_CLUB = "club";
 export const CLUB_TRADE_FEE_BPS = BigInt.fromI32(150);
 
 /**
- * pool-usdg / Club constants. These MUST match
- * src/pool-usdg/PoolVaultUsdg.sol and src/club/ClubAuction.sol.
+ * Robinhood Chain constants. These MUST match src/club/ClubVaultUsdg.sol.
  *
- * Club-launched tokens still write `venue = VENUE_POOL` — they trade
- * through the exact same PoolVault/AromaRouter *shape* of contract, just
- * against USDG instead of native USDC, so nothing that branches on venue for
- * trading/quoting needs a third value. What differs at the raw-number level
- * is decimals: USDG is 6-decimal (confirmed against Paxos's deployed
- * contract on Etherscan), not the 18-decimal native view Arc's USDC gets for
- * free, and that changes the tick-to-price conversion below.
+ * Club coins there write `venue = VENUE_CLUB` and CLUB_TRADE_FEE_BPS, the same
+ * as Arc's club coins. What differs at the raw-number level is decimals: USDG
+ * has 6, not the 18 Arc's native USDC reads as, and that changes the
+ * tick-to-price conversion below.
  */
 
 /**
- * PoolVaultUsdg.TICK_GRADUATION. Not the same value as POOL_TICK_GRADUATION
+ * ClubVaultUsdg.TICK_GRADUATION. Not the same value as POOL_TICK_GRADUATION
  * above — see script/math/derive_pool_usdg.py for why a 6-decimal quote
  * currency moves every tick constant.
  */

@@ -57,10 +57,23 @@ export type ClubData = {
   symbol: string;
   description: string;
   imageUrl: string;
+  imageUri: string;
+  metadataUri: string;
+  links: { website: string; x: string; telegram: string };
   token: string | null;
 };
 
-type ClubResponse = { current: ClubData | null; past: ClubData[] };
+export type ClubBidData = {
+  id: string;
+  bidder: string;
+  bidUsdg: number;
+  firstBuyUsdg: number;
+  endsAt: number;
+  timestamp: number;
+};
+
+/** The live round and its bids, newest first. */
+type ClubResponse = { current: ClubData | null; bids: ClubBidData[] };
 
 const CLUB_CONTRACTS = contractsForChain(liveChain.id);
 

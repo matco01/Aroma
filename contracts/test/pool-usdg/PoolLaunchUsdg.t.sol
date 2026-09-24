@@ -259,42 +259,44 @@ contract PoolLaunchUsdgTest is Test {
     // ---------------------------------------------------------------
 
     function test_devBuy_deliversTokensInTheLaunchTransaction() public {
-        (address token,) = _launchWithDevBuy(500e6, 0);
+        (address token,) = _launchWithDevBuy(250e6, 0);
         assertGt(IERC20(token).balanceOf(creator), 0, "creator got no tokens");
         assertEq(IERC20(token).balanceOf(address(factory)), 0, "factory held tokens");
     }
 
     function test_devBuy_movesThePriceLikeAnyOtherBuy() public {
-        (, PoolKey memory key) = _launchWithDevBuy(500e6, 0);
+        (, PoolKey memory key) = _launchWithDevBuy(250e6, 0);
         assertLt(_tick(key), vault.TICK_INIT(), "dev buy did not move the price");
     }
 
     function test_devBuy_paysTheSameFeeAsAnyoneElse() public {
-        (address token,) = _launchWithDevBuy(1_000e6, 0);
+        // At the cap exactly, so this also proves the cap itself is fillable.
+        (address token,) = _launchWithDevBuy(300e6, 0);
         (,, uint256 creatorUsdg, uint256 protocolUsdg) = vault.launches(token);
-        assertApproxEqRel(creatorUsdg + protocolUsdg, 10e6, 0.01e18, "not ~1%");
+        assertApproxEqRel(creatorUsdg + protocolUsdg, 3e6, 0.01e18, "not ~1%");
     }
 
     function test_devBuy_isCapped() public {
         bytes32 salt = _mineTokenSalt("Aroma Coin", "AROMA");
         vm.prank(creator);
         vm.expectRevert("dev buy exceeds cap");
-        factory.createToken(_info("Aroma Coin", "AROMA", "a test coin"), 3_000e6, 0, salt);
+        // One unit over the 300 USDG cap, not a round number far above it.
+        factory.createToken(_info("Aroma Coin", "AROMA", "a test coin"), 300e6 + 1, 0, salt);
     }
 
     function test_devBuy_pullsExactlyTheDevBuyAmount() public {
         uint256 before = usdg.balanceOf(creator);
-        _launchWithDevBuy(500e6, 0);
+        _launchWithDevBuy(250e6, 0);
         // No overpayment/refund case in the USDG version: only what's spent
         // is ever pulled.
-        assertEq(before - usdg.balanceOf(creator), 500e6, "pulled the wrong amount");
+        assertEq(before - usdg.balanceOf(creator), 250e6, "pulled the wrong amount");
     }
 
     function test_devBuy_respectsSlippage() public {
         bytes32 salt = _mineTokenSalt("Aroma Coin", "AROMA");
         vm.prank(creator);
         vm.expectRevert("dev buy slippage");
-        factory.createToken(_info("Aroma Coin", "AROMA", "c"), 500e6, type(uint256).max, salt);
+        factory.createToken(_info("Aroma Coin", "AROMA", "c"), 250e6, type(uint256).max, salt);
     }
 
     function test_devBuy_zeroSkipsIt() public {

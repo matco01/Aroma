@@ -41,11 +41,17 @@ contract PoolFactoryUsdg is IUnlockCallback, ReentrancyGuard {
     IERC20 public immutable usdg;
 
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000e18;
-    /// @dev 2,000 USDG. USDG is 6 decimals (confirmed against Paxos's
-    /// deployed contract), unlike native USDC's 18-decimal view on Arc — this
-    /// is `2_000e6`, not `2_000e18`, and every USDG amount elsewhere in this
-    /// contract and in `ClubAuction` follows the same 6-decimal convention.
-    uint256 public constant MAX_DEV_BUY_USDC = 2_000e6;
+    /// @dev 300 USDG — the ceiling on the Club winner's first buy, which
+    /// runs inside the launch transaction at the opening price, ahead of
+    /// everyone. Deliberately lower than the Arc system's 2,000: the winner
+    /// already gets the launch itself, and a small cap keeps the first buy a
+    /// stake in the coin rather than a head start on the whole early range.
+    ///
+    /// USDG is 6 decimals (confirmed against Paxos's deployed contract),
+    /// unlike native USDC's 18-decimal view on Arc — this is `300e6`, not
+    /// `300e18`, and every USDG amount elsewhere in this contract and in
+    /// `ClubAuction` follows the same 6-decimal convention.
+    uint256 public constant MAX_DEV_BUY_USDC = 300e6;
 
     event TokenCreated(
         address indexed token,

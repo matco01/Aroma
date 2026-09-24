@@ -82,6 +82,13 @@ export const ROBINHOOD_TESTNET_CONTRACTS = {
   deployBlock: 0n, // FIXME
 } as const;
 
+/**
+ * True once ClubAuction has a real testnet address. Until DeployClub.s.sol
+ * runs it's the zero address, and the UI says the Club is coming rather
+ * than pointing anything at it.
+ */
+export const clubDeployed = !/^0x0{40}$/i.test(ROBINHOOD_TESTNET_CONTRACTS.clubAuction);
+
 export function contractsForChain(
   chainId: number,
 ): typeof ROBINHOOD_MAINNET_CONTRACTS {
@@ -120,7 +127,7 @@ export const CLUB = {
   minBidIncrementBps: 500,
   antiSnipeExtensionSeconds: 5 * 60,
   /** PoolFactoryUsdg.MAX_DEV_BUY_USDC, in whole USDG. */
-  maxDevBuyUsdg: 2_000,
+  maxDevBuyUsdg: 300,
 } as const;
 
 /** Minimum valid bid given the current top bid, mirroring ClubAuction.bid's own check. */

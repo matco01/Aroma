@@ -1,21 +1,21 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { NETWORK, poolsDeployed } from "@/lib/arc";
+import { ROBINHOOD_TESTNET, clubDeployed } from "@/lib/robinhood";
 
 /**
- * The one line a visitor needs about the network, when there is one.
+ * The one line a visitor needs about the network.
  *
- * This used to announce a test network: "coins here are worth nothing and
- * balances are test funds". On mainnet that sentence is not merely stale, it
- * is false in the most dangerous direction there is, so the banner now says
- * only what is true for the network the build targets:
+ * The live product is the Club on Robinhood Chain testnet, so the banner
+ * says what's true there:
  *
- *   - mainnet, before the contracts are deployed: launches are coming, so a
- *     visitor who finds disabled buttons knows why;
- *   - mainnet, once they are: nothing — a permanent banner teaches people to
- *     ignore banners, which matters for the day there is something urgent;
- *   - a local fork: that the funds are not real.
+ *   - before ClubAuction is deployed: the Club is coming, so a visitor who
+ *     finds an empty auction page knows why;
+ *   - once it is: that this is a test network and the funds are worth
+ *     nothing — which stays true, and worth saying, until mainnet.
+ *
+ * (This banner previously announced an Arc mainnet launch. The Arc pool
+ * system is still in the codebase, but it is not what the site runs.)
  *
  * Above the header and not sticky, and dismissal is remembered per message,
  * so dismissing "coming soon" does not also silence whatever comes next.
@@ -24,23 +24,20 @@ import { NETWORK, poolsDeployed } from "@/lib/arc";
 type Message = { key: string; tone: string; label: string; body: string };
 
 function currentMessage(): Message | null {
-  if (NETWORK.id !== 5042) {
+  if (!clubDeployed) {
     return {
-      key: "aroma:banner:local",
-      tone: "text-warn",
-      label: NETWORK.name,
-      body: "Test funds on a local fork of a real chain. Nothing here is worth anything.",
-    };
-  }
-  if (!poolsDeployed) {
-    return {
-      key: "aroma:banner:launching",
+      key: "aroma:banner:club-coming",
       tone: "text-accent-2",
-      label: "Launching on Arc",
-      body: "Aroma opens for launches and trading with Arc mainnet.",
+      label: "Coming to Robinhood Chain",
+      body: "The Club auction opens on Robinhood Chain testnet once its contracts are deployed.",
     };
   }
-  return null;
+  return {
+    key: "aroma:banner:robinhood-testnet",
+    tone: "text-warn",
+    label: ROBINHOOD_TESTNET.name,
+    body: "Test funds only — nothing here is worth anything.",
+  };
 }
 
 const MESSAGE = currentMessage();

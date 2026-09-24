@@ -1,28 +1,32 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useClub, useBidOnClub, useUpdateClubDraft, useWithdrawFromClub } from "@/lib/use-club";
 import { CLUB, minNextBidUsdg } from "@/lib/robinhood";
 import { IMAGE_RULES, checkImageFile, checkImageDimensions } from "@/lib/image-rules";
-import { compact, usdExact, shortAddr } from "@/lib/format";
+import { usdExact, shortAddr, ago } from "@/lib/format";
+import type { ClubBidData, ClubData } from "@/lib/use-club";
 import { CoinArt } from "./coin-art";
 import { useWallet } from "./wallet";
 
 /**
  * The Club: one 24-hour auction, gating every launch.
  *
- * One form serves both jobs the plan calls for: bidding and editing the
- * draft. The identity fields (name/ticker/description/image/links) are
- * always editable locally, free, exactly like create-form.tsx's preview —
- * they only reach the chain when you either place a bid (which locks in
- * whatever's currently typed alongside raising the price) or, if you're
- * already the top bidder, press "Save changes" (ClubAuction.updateDraft,
- * which moves no funds). Typing never fires a transaction by itself.
+ * Only the top bidder edits the coin. Everyone else sees it read-only, as
+ * the preview of what launches if the lead holds. Outbidding carries the
+ * current coin forward unchanged — the contract needs a name and ticker on
+ * every bid — and once you're on top, it's yours to rewrite.
+ *
+ * The one exception is the first bid of a round: there's no coin yet to
+ * carry forward, so that bidder names it.
+ *
+ * Edits stay local and free until the top bidder presses "Save changes"
+ * (ClubAuction.updateDraft, which moves no funds). Typing never fires a
+ * transaction by itself.
  */
 export function ClubView() {
   const { connected, address, connect } = useWallet();
-  const { data, isLoading } = useClub();
+  const { data, isLoading, error: clubError } = useClub();
   const current = data?.current ?? null;
 
   const { bid, phase: bidPhase, error: bidError } = useBidOnClub();
@@ -32,6 +36,9 @@ export function ClubView() {
   const isTopBidder = Boolean(
     connected && address && current?.topBidder?.toLowerCase() === address.toLowerCase(),
   );
+  // No bids yet means no coin yet: the first bidder has to name it.
+  const hasDraft = Boolean(current?.topBidder);
+  const canEdit = isTopBidder || !hasDraft;
 
   const [name, setName] = useState("");
   const [ticker, setTicker] = useState("");
@@ -47,17 +54,25 @@ export function ClubView() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Sync local fields from the chain only when the round changes, or on
-  // first load — never on every poll tick, or anyone mid-edit would have
-  // their own typing overwritten out from under them every 7 seconds.
-  const syncedRoundId = useRef<string | null>(null);
+  // Sync the editor from the chain when the round or the lead changes hands
+  // — never on every poll tick, or the top bidder's unsaved typing would be
+  // overwritten out from under them every 7 seconds. Image and links come
+  // across too: a save re-pins metadata, and without them it would wipe
+  // the coin's picture.
+  const syncedKey = useRef<string | null>(null);
   useEffect(() => {
-    if (!current || syncedRoundId.current === current.id) return;
-    syncedRoundId.current = current.id;
+    if (!current) return;
+    const key = `${current.id}:${current.topBidder ?? ""}`;
+    if (syncedKey.current === key) return;
+    syncedKey.current = key;
     setName(current.name);
     setTicker(current.symbol);
     setDescription(current.description);
     setImagePreview(current.imageUrl);
+    setImageUri(current.imageUri);
+    setWebsite(current.links.website);
+    setX(current.links.x);
+    setTelegram(current.links.telegram);
   }, [current]);
 
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -81,14 +96,18 @@ export function ClubView() {
   }, [name, ticker]);
 
   const minBid = current ? minNextBidUsdg(current.topBidUsdg) : CLUB.minOpeningBidUsdg;
-  const bidValid =
-    name.trim().length > 0 &&
-    ticker.trim().length > 0 &&
-    Number(bidAmount || 0) >= minBid &&
-    !ended;
+  const namesOk = !canEdit || (name.trim().length > 0 && ticker.trim().length > 0);
+  const bidValid = namesOk && Number(bidAmount || 0) >= minBid && !ended;
 
+  /**
+   * Pins the editor's image and links as metadata. If pinning fails, falls
+   * back to the coin's existing metadata rather than an empty URI — losing
+   * an edit to a link is recoverable, wiping the coin's picture on-chain is
+   * not something the top bidder asked for.
+   */
   async function pinMetadata(): Promise<string> {
     if (!imageUri && !website.trim() && !x.trim() && !telegram.trim()) return "";
+    const fallback = current?.metadataUri ?? "";
     try {
       const res = await fetch("/api/metadata", {
         method: "POST",
@@ -104,22 +123,31 @@ export function ClubView() {
         }),
       });
       const json = (await res.json()) as { metadataUri?: string };
-      return res.ok && json.metadataUri ? json.metadataUri : "";
+      return res.ok && json.metadataUri ? json.metadataUri : fallback;
     } catch {
-      return "";
+      return fallback;
     }
   }
 
   async function submitBid() {
     if (!connected) return connect();
-    if (!bidValid) return;
-    const metadataUri = await pinMetadata();
-    await bid(bidAmount, devBuy || "0", {
-      name: name.trim(),
-      symbol: ticker.trim(),
-      description: description.trim(),
-      metadataUri,
-    });
+    if (!bidValid || !current) return;
+    // Outbidding someone keeps their coin exactly as it is — you only get
+    // to change it once you're on top.
+    const draft = canEdit
+      ? {
+          name: name.trim(),
+          symbol: ticker.trim(),
+          description: description.trim(),
+          metadataUri: await pinMetadata(),
+        }
+      : {
+          name: current.name,
+          symbol: current.symbol,
+          description: current.description,
+          metadataUri: current.metadataUri,
+        };
+    await bid(bidAmount, devBuy || "0", draft);
   }
 
   async function saveDraft() {
@@ -184,9 +212,19 @@ export function ClubView() {
   }
 
   if (!current) {
+    // A failed fetch and an empty auction are different answers — the first
+    // usually means nothing is deployed or indexed yet, and saying "no Club
+    // has opened" would imply the contract is live and idle.
     return (
-      <div className="mx-auto max-w-[1000px] px-4 py-10 text-center text-ink-2">
-        No Club has opened yet.
+      <div className="mx-auto max-w-[480px] rounded-md border border-line bg-surface px-6 py-12 text-center">
+        <p className="text-[14px] text-ink">
+          {clubError ? "The Club isn't connected yet" : "No Club has opened yet"}
+        </p>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
+          {clubError
+            ? "The auction contract hasn't been deployed or indexed on Robinhood Chain yet. Once it is, the live round shows here."
+            : "The first round opens when the auction contract is deployed."}
+        </p>
       </div>
     );
   }
@@ -219,11 +257,17 @@ export function ClubView() {
           )}
         </div>
 
+        <BidList bids={data?.bids ?? []} topBidder={current.topBidder} you={address} now={now} />
+
+        {canEdit && (
         <div className="rounded-md border border-line bg-surface p-5">
-          <h2 className="text-[15px] font-semibold text-ink">Coin identity</h2>
+          <h2 className="text-[15px] font-semibold text-ink">
+            {isTopBidder ? "Your coin" : "Name the coin"}
+          </h2>
           <p className="mt-1 text-[12px] text-ink-2">
-            Whatever&apos;s here launches if this bid wins — edit freely, nothing is sent
-            until you bid or save.
+            {isTopBidder
+              ? "This is what launches if your bid holds. Edit freely — nothing is sent until you save."
+              : "No one has bid yet, so the first bidder names the coin. Whoever outbids you takes it over as-is."}
           </p>
 
           <div className="mt-4 space-y-4">
@@ -312,11 +356,13 @@ export function ClubView() {
             </div>
           )}
         </div>
-
-        <PastClubs clubs={data?.past ?? []} />
+        )}
       </div>
 
       <aside className="space-y-4 lg:sticky lg:top-[calc(var(--header-h)+16px)] lg:self-start">
+        {!canEdit ? (
+          <ReadOnlyCoin club={current} />
+        ) : (
         <div className="rounded-md border border-line bg-surface p-3.5">
           <div className="label mb-2.5">Preview</div>
           <div className="flex items-start gap-2.5">
@@ -330,9 +376,10 @@ export function ClubView() {
             {description || "No description yet."}
           </p>
         </div>
+        )}
 
         <div className="rounded-md border border-line bg-surface p-3.5">
-          <div className="label mb-2.5">Place a bid</div>
+          <div className="label mb-2.5">{isTopBidder ? "Raise your bid" : "Place a bid"}</div>
           <div className="space-y-2.5">
             <div className="flex items-center rounded-sm border border-line bg-bg px-2.5 focus-within:border-line-strong">
               <input
@@ -344,7 +391,11 @@ export function ClubView() {
               />
               <span className="num text-[12px] text-ink-2">USDG</span>
             </div>
-            <p className="text-[10.5px] text-ink-3">Minimum {usdExact(minBid)} — goes to the protocol treasury.</p>
+            <p className="text-[10.5px] leading-relaxed text-ink-3">
+              Minimum {usdExact(minBid)}. This is the price of the launch: it goes
+              to the protocol treasury if you win, and comes back to you if
+              you&apos;re outbid.
+            </p>
 
             <div className="flex items-center rounded-sm border border-line bg-bg px-2.5 focus-within:border-line-strong">
               <input
@@ -356,8 +407,13 @@ export function ClubView() {
               />
               <span className="num text-[12px] text-ink-2">USDG</span>
             </div>
-            <p className="text-[10.5px] text-ink-3">
-              Optional first buy if you win — up to {compact(CLUB.maxDevBuyUsdg)} USDG, yours to keep.
+            <p className="text-[10.5px] leading-relaxed text-ink-3">
+              <span className="text-ink-2">First buy, optional.</span> If you
+              win, this much of your own coin is bought for you the moment it
+              launches — at the opening price, before anyone else can trade.
+              The tokens are yours. Up to{" "}
+              {CLUB.maxDevBuyUsdg.toLocaleString("en-US")} USDG; refunded with
+              your bid if you&apos;re outbid.
             </p>
           </div>
 
@@ -374,9 +430,11 @@ export function ClubView() {
                   ? "Bidding…"
                   : ended
                     ? "Round ended"
-                    : !name.trim() || !ticker.trim()
+                    : !namesOk
                       ? "Name and ticker required"
-                      : "Place bid"}
+                      : isTopBidder
+                        ? "Raise bid"
+                        : "Place bid"}
           </button>
           {bidError && (
             <p className="slide-in mt-2.5 rounded-sm border border-down/25 bg-down/8 px-2.5 py-2 text-[11px] text-down">
@@ -443,33 +501,145 @@ function WithdrawPanel({
   );
 }
 
-function PastClubs({ clubs }: { clubs: { id: string; name: string; symbol: string; topBidUsdg: number; void: boolean; token: string | null }[] }) {
-  if (clubs.length === 0) return null;
+/** A user-supplied link, only if it's plain http(s) — never javascript: or data:. */
+function safeUrl(raw: string, base?: string): string | null {
+  let v = raw.trim();
+  if (!v) return null;
+  if (base && !/^https?:\/\//i.test(v)) v = base + v.replace(/^@/, "").replace(/^t\.me\//i, "");
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The coin as everyone but the top bidder sees it: what launches if the
+ * current lead holds. Read-only — outbidding is how you get to change it.
+ * Sized for the sidebar, next to the bid form it's the subject of.
+ */
+function ReadOnlyCoin({ club }: { club: ClubData }) {
+  let hue = 0;
+  for (const ch of club.symbol || "Aroma") hue = (hue * 31 + ch.charCodeAt(0)) % 360;
+  let seed = 7;
+  for (const ch of (club.name + club.symbol) || "Aroma") seed = (seed * 33 + ch.charCodeAt(0)) >>> 0;
+
+  const links = [
+    { label: "Website", href: safeUrl(club.links.website) },
+    { label: "X", href: safeUrl(club.links.x, "https://x.com/") },
+    { label: "Telegram", href: safeUrl(club.links.telegram, "https://t.me/") },
+  ].filter((l): l is { label: string; href: string } => l.href !== null);
+
+  return (
+    <div className="rounded-md border border-line bg-surface p-3.5">
+      <div className="label mb-2.5">Launching if this bid holds</div>
+      <div className="flex items-start gap-3">
+        <CoinArt seed={seed} hue={hue} size={52} radius={6} imageUrl={club.imageUrl} alt={club.name} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[15px] font-semibold text-ink">{club.name}</div>
+          <div className="num mt-0.5 text-[12px] text-ink-2">${club.symbol}</div>
+          {links.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5">
+              {links.map((l) => (
+                <a
+                  key={l.label}
+                  href={l.href}
+                  target="_blank"
+                  rel="noreferrer nofollow"
+                  className="text-[11.5px] text-ink-2 underline decoration-line-strong underline-offset-2 hover:text-ink"
+                >
+                  {l.label} ↗
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <p className="mt-2.5 text-[12px] leading-relaxed text-ink-2">
+        {club.description || "No description."}
+      </p>
+      <p className="mt-2.5 border-t border-line pt-2.5 text-[11px] leading-relaxed text-ink-3">
+        Only the top bidder can change this. Outbid them and it carries over to
+        you as it is — then it&apos;s yours to edit.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Every bid on this round, newest first — the auction as it happened.
+ *
+ * "Extended the clock" marks a bid that landed inside the anti-snipe window
+ * and pushed the deadline out: its endsAt is later than the one in force
+ * before it (the previous bid's, or the round's original deadline).
+ */
+function BidList({
+  bids,
+  topBidder,
+  you,
+  now,
+}: {
+  bids: ClubBidData[];
+  topBidder: string | null;
+  you: string | null;
+  now: number;
+}) {
+  const same = (a: string | null, b: string | null) =>
+    Boolean(a && b && a.toLowerCase() === b.toLowerCase());
+
   return (
     <div className="rounded-md border border-line bg-surface p-5">
-      <h2 className="text-[15px] font-semibold text-ink">Past clubs</h2>
-      <ul className="mt-3 divide-y divide-line">
-        {clubs.map((c) => (
-          <li key={c.id} className="flex items-center justify-between gap-3 py-2.5 text-[13px]">
-            <span className="text-ink-2">Club #{c.id}</span>
-            {c.void ? (
-              <span className="text-ink-3">No bids</span>
-            ) : (
-              <>
-                <span className="truncate text-ink">
-                  {c.name} <span className="num text-ink-3">${c.symbol}</span>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-[15px] font-semibold text-ink">Bids</h2>
+        <span className="num text-[12px] text-ink-3">
+          {bids.length} {bids.length === 1 ? "bid" : "bids"}
+        </span>
+      </div>
+
+      {bids.length === 0 ? (
+        <p className="mt-4 rounded-sm border border-dashed border-line px-4 py-8 text-center text-[12.5px] text-ink-2">
+          No bids yet. The first bid names the coin.
+        </p>
+      ) : (
+        <ul className="mt-3 divide-y divide-line">
+          {bids.map((b, i) => {
+            const leading = i === 0 && same(b.bidder, topBidder);
+            const older = bids[i + 1];
+            const extended = older ? b.endsAt > older.endsAt : false;
+            return (
+              <li key={b.id} className="flex items-center gap-3 py-2.5">
+                <span className="num w-[110px] shrink-0 truncate text-[12.5px] text-ink-2">
+                  {same(b.bidder, you) ? "You" : shortAddr(b.bidder)}
                 </span>
-                <span className="num text-ink-2">{usdExact(c.topBidUsdg)}</span>
-                {c.token ? (
-                  <Link href={`/coin/${c.token}`} className="text-accent-2 hover:underline">
-                    View
-                  </Link>
-                ) : null}
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+                <span className="min-w-0 flex-1">
+                  <span className={`num text-[14px] ${leading ? "text-ink" : "text-ink-2"}`}>
+                    {usdExact(b.bidUsdg)}
+                  </span>
+                  {b.firstBuyUsdg > 0 && (
+                    <span className="ml-2 text-[11px] text-ink-3">
+                      + {usdExact(b.firstBuyUsdg)} first buy
+                    </span>
+                  )}
+                  {extended && (
+                    <span className="ml-2 text-[11px] text-warn">extended the clock</span>
+                  )}
+                </span>
+                {leading ? (
+                  <span className="shrink-0 rounded-full border border-up/30 bg-up/8 px-2 py-0.5 text-[10.5px] font-medium text-up">
+                    Leading
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-[11px] text-ink-3">Outbid</span>
+                )}
+                <span className="num w-[48px] shrink-0 text-right text-[11.5px] text-ink-3">
+                  {ago(Math.max(1, now - b.timestamp))}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

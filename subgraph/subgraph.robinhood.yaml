@@ -113,7 +113,7 @@ dataSources:
       kind: ethereum/events
       apiVersion: 0.0.7
       language: wasm/assemblyscript
-      file: ./src/club.ts
+      file: ./src/club-auction.ts
       entities: [Club, ClubBid, Token]
       abis:
         - name: ClubAuction

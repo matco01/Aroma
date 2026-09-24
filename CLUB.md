@@ -1,79 +1,73 @@
-# Launching the Club auction on Robinhood Chain
+# Launching Aroma on Robinhood Chain
 
-Runbook for going live with the Club: a 24-hour auction gating every launch,
-settled in USDG, on Robinhood Chain. Supersedes [LAUNCH.md](LAUNCH.md) —
-that runbook was written for an Arc mainnet launch that never happened once
-the target chain changed. Arc's curve and pool systems are untouched and
-still described there; this covers only what replaced them as the live
-product.
+The runbook for going live on Robinhood Chain. Every coin there is an
+invite-only **club** (the design is in [CLUBS.md](CLUBS.md)), settled in
+USDG, and each one is founded by winning the 24-hour **Club auction**.
 
-Read the whole thing before starting. Several steps can't be undone, and two
-of the facts below are marked **UNVERIFIED** for a reason — confirm them
-before broadcasting anything real, the same discipline LAUNCH.md applied to
-Arc's own PoolManager address.
+What runs where:
+
+| | |
+|---|---|
+| `ClubAuction` | One round at a time. Bids, draft edits, refunds, `finalize`. |
+| `ClubFactoryUsdg` | Deploys the winner's token and pool. Only the auction may call it; the winner is recorded as creator. |
+| `ClubVaultUsdg` | The pool's hook. Locks the liquidity, gates buys on membership, splits the 1.5% fee up the invite chain. |
+| `ClubRouterUsdg` | Buy, buy with an invite, sell. USDG moves by EIP-2612 permit. |
+| `scripts/finalize-club.mjs` | The bot that calls `finalize` when a round ends. |
+
+Arc is not part of this. Its contracts, subgraph and app build are untouched
+and still described in [LAUNCH.md](LAUNCH.md) and [CLUBS.md](CLUBS.md); an
+Arc build is `NEXT_PUBLIC_AROMA_NETWORK=arc`.
+
+Read the whole thing before starting. Several steps can't be undone.
 
 ---
 
 ## 0. Before the day
 
-### 0.1 Confirm the PoolManager address — **UNVERIFIED, hard blocker**
+### 0.1 Facts already confirmed
 
-`0x8366a39cc670b4001a1121b8f6a443a643e40951` surfaced repeatedly during
-research as Uniswap v4's PoolManager on Robinhood Chain (chain id 4663) —
-but it is *byte-for-byte* the same address this codebase already used for
-Arc, which is either a real canonical cross-chain deployment or a
-research-tool echo that couldn't be independently confirmed against a block
-explorer. `DeployPoolUsdg.s.sol`'s own `require(poolManager.code.length > 0)`
-will refuse to deploy against an address with no code at all — it cannot
-confirm the code *is* PoolManager.
+- **PoolManager** `0x8366a39cc670b4001a1121b8f6a443a643e40951` has code on both
+  mainnet (4663) and testnet (46630). The deploy script still refuses an
+  address with no code.
+- **USDG** is `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` on **mainnet**, 6
+  decimals, with EIP-2612 permit. **Testnet has no USDG.** Deploy the mock
+  (§1) and put its address in `ROBINHOOD_TESTNET_CONTRACTS.usdg`.
+- **USDG's permit domain version is not confirmed.** The app asks the token
+  for its domain (EIP-5267) and falls back to version `"1"`. The first real
+  mainnet bid is the check: if it reverts with `permit failed and no
+  allowance`, the domain is wrong.
 
-Confirm it properly: check Uniswap's own deployments registry
-(`developers.uniswap.org/docs/protocols/v4/deployments`) against a source you
-trust, or verify the contract on `robinhoodchain.blockscout.com` yourself.
+### 0.2 Decide the economics and the treasury
 
-### 0.2 Confirm USDG's address on testnet — **UNVERIFIED**
+The auction's round length, minimum opening bid, minimum raise and
+anti-snipe extension are constructor arguments, fixed at deploy. The
+defaults (24h, 100 USDG, 5%, 5 minutes) are placeholders. Decide the real
+values, deploy with them, and keep `AUCTION` in `src/lib/robinhood.ts` in
+sync. A mismatch there shows the wrong minimum in the UI; the contract still
+enforces its own.
 
-`0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` is confirmed on Robinhood Chain
-**mainnet** (Robinhood's own `docs.robinhood.com/chain/contracts/`, cross-checked
-twice). `src/lib/robinhood.ts`'s `ROBINHOOD_TESTNET_CONTRACTS.usdg` carries the
-same value over to testnet *unverified* — check it independently (e.g.
-`usdg.symbol()` against a real testnet RPC) before trusting a testnet balance
-this app shows, or a testnet bid this app sends.
+`CLUB_TREASURY` receives every winning bid, permanently. It has no default.
 
-### 0.3 Decide the economics
+The club fee split (1.5%: 0.3% protocol, 0.1% creator, 1.1% up the invite
+chain) and the seat counts are contract constants, identical to Arc's clubs.
 
-`ClubAuction`'s round duration, minimum opening bid, minimum bid increment
-and anti-snipe extension are constructor arguments, not contract constants —
-see `ClubAuction.sol`'s NatSpec for why (no owner-tunable economics after
-deploy, matching the project's existing philosophy). The values wired into
-`src/lib/robinhood.ts`'s `CLUB` object (24h, 100 USDG, 5%, 5 minutes) are
-placeholders, not derived from anything. Decide the real ones before running
-`DeployClub.s.sol`, and keep `CLUB` in sync afterward — a mismatch there is a
-UI showing the wrong minimum, not a contract accepting the wrong bid, but
-it's still worth getting right.
+### 0.3 Get the contracts reviewed
 
-### 0.4 Decide the treasury address
+None of this is audited. The surfaces that hold money:
 
-`DeployClub.s.sol` takes `CLUB_TREASURY` from the environment with no
-default. This is where every winning bid goes, permanently — get the address
-right before the first round ever finalizes.
+- `ClubVaultUsdg`'s fee accounting (`beforeSwap`/`afterSwap`/`_creditFee`).
+  Fees are kept as ERC-6909 claims on the PoolManager and burned into USDG
+  on `claim`, not taken mid-swap. See the contract's header for why.
+- `ClubAuction`'s escrow (`bid`/`withdraw`/`finalize`), which holds real USDG
+  for up to a day.
+- The invite checks (`inviteProblem`, `_admit`, `_traderOf`).
 
-### 0.5 Get the contracts reviewed
+### 0.4 Decide where the finalize bot runs
 
-None of `PoolVaultUsdg`, `PoolFactoryUsdg`, `AromaRouterUsdg` or `ClubAuction`
-have been audited. The same surface LAUNCH.md flagged for the native pool
-system applies again here — `PoolVaultUsdg`'s hook fee accounting
-(`beforeSwap`/`afterSwap`) — plus `ClubAuction`'s own escrow accounting
-(`bid`/`withdraw`/`finalize`), which holds real USDG for up to 24 hours at a
-time. Get at least those reviewed.
-
-### 0.6 Confirm the finalize bot's hosting
-
-`scripts/finalize-club.mjs` is load-bearing in a way nothing in the native
-pool system was: if it's down when a round's countdown ends, *nothing
-launches* until it's back — there's no permissionless fallback, by design
-(see the script's own header). Decide where it runs and how its
-`FINALIZE_PRIVATE_KEY` is held before the first real round opens, not after.
+If `scripts/finalize-club.mjs` is down when a round ends, nothing launches
+until it's back. There is no permissionless fallback, by design. Its key must
+be the auction's **owner** (the bot checks this at startup). Decide where it
+runs and how that key is held before the first real round.
 
 ---
 
@@ -81,78 +75,59 @@ launches* until it's back — there's no permissionless fallback, by design
 
 ```bash
 cd contracts
-# .env needs: DEPLOYER_PRIVATE_KEY, PROTOCOL_OWNER, POOL_MANAGER,
-#             USDG_ADDRESS, CLUB_TREASURY
-forge test                              # existing suites must pass
+forge test                              # every suite must pass
 python script/math/derive_pool_usdg.py  # must exit 0
 ```
 
-Two deploys, in order:
+`contracts/.env` needs `DEPLOYER_PRIVATE_KEY`, `POOL_MANAGER`,
+`CLUB_TREASURY`, optionally `PROTOCOL_OWNER` and the `CLUB_*` economics, and
+either `USDG_ADDRESS` (mainnet) or `DEPLOY_MOCK_USDG=true` (testnet only; the
+script refuses on mainnet).
+
+One script deploys and wires everything:
 
 ```bash
-forge script script/DeployPoolUsdg.s.sol --tc DeployPoolUsdg --rpc-url robinhood_testnet
-# then, once addresses are recorded (see §2):
-forge script script/DeployClub.s.sol --tc DeployClub --rpc-url robinhood_testnet
+forge script script/DeployRobinhood.s.sol --tc DeployRobinhood --rpc-url <rpc>            # dry run
+forge script script/DeployRobinhood.s.sol --tc DeployRobinhood --rpc-url <rpc> --broadcast
 ```
 
-Dry-run first (drop `--broadcast`), same as `DeployPool.s.sol` — both scripts
-follow that one's shape exactly: `DeployPoolUsdg` mines a CREATE2 salt for
-`PoolVaultUsdg`'s hook permission bits the same way, and `--tc` is required
-for the same reason (a small CREATE2 factory shares the file).
+It mines the vault's hook address, deploys the vault, factory, router and
+auction, sets the factory and router on the vault once, makes the auction
+the factory's only launcher, and opens the first round.
 
-**Record from `DeployPoolUsdg`'s output**: `PoolVaultUsdg`, `PoolFactoryUsdg`,
-`AromaRouterUsdg` addresses, the deployment block, and confirm `hook flags`
-equal `required flags` (must be **8396**, identical to Arc's pool system —
-`PoolVaultUsdg` implements the exact same hook callbacks).
-
-**Record from `DeployClub`'s output**: the `ClubAuction` address, and the
-first Club's id/deadline it prints on construction.
+**Record from its output**: every address, the mock USDG address on testnet,
+and the block the vault was deployed in. Check that every line under
+"Verify wiring" is `true`.
 
 ### 1.1 Accept ownership
 
-Both `PoolVaultUsdg` and `ClubAuction` use `Ownable2Step`, so the deploy
-script only *nominates* `PROTOCOL_OWNER`. From that wallet:
+If `PROTOCOL_OWNER` differs from the deployer, the script only *nominates*
+it on the vault and the auction. From that wallet:
 
 ```bash
-cast send <PoolVaultUsdg> "acceptOwnership()" --rpc-url robinhood_testnet
-cast send <ClubAuction> "acceptOwnership()" --rpc-url robinhood_testnet
+cast send <ClubVaultUsdg> "acceptOwnership()" --rpc-url <rpc>
+cast send <ClubAuction>   "acceptOwnership()" --rpc-url <rpc>
 ```
 
-Until this lands, the deploy key controls fee withdrawal on the vault and
-`finalize()` on the auction.
+Until then the deploy key withdraws protocol fees and calls `finalize`. The
+finalize bot must run with whichever key owns the auction.
 
 ---
 
 ## 2. Wire the addresses in
 
-### 2.1 `src/lib/robinhood.ts`
-
-Fill in `ROBINHOOD_TESTNET_CONTRACTS` (or `ROBINHOOD_MAINNET_CONTRACTS`) with
-every address from §1 — they're placeholder zero addresses until then, each
-commented `// FIXME`. Update `deployBlock` to the block `PoolVaultUsdg`
-deployed in. Update `CLUB` if §0.3's real economics differ from the
-placeholders.
-
-### 2.2 `src/lib/abis.ts`
-
-Already generated against these contracts (`npm run abis`) — re-run only if
-a contract's interface changes after this point.
-
-### 2.3 `subgraph/subgraph.robinhood.yaml`
-
-Four `FIXME`s: the real network slug (see below), and the `PoolFactoryUsdg`/
-`PoolVaultUsdg`/`ClubAuction` addresses plus their `startBlock`s — the
-`PoolManager` data source's address is already filled in, carrying the same
-§0.1 unverified caveat.
-
-**The network slug is unconfirmed.** It cannot be `arc` or `arc-testnet` —
-every data source in one manifest must share a network, and this is a
-different chain from both. Confirm Goldsky's (or your indexer's) actual slug
-for Robinhood Chain before deploying.
-
-**`startBlock` matters more than usual**, same reason as Arc's pool manifest:
-v4 is a singleton, so `handleSwap` fires for every swap in every v4 pool on
-the whole chain. Left at 0 it replays the chain's entire v4 history first.
+1. **`src/lib/robinhood.ts`**: fill in `ROBINHOOD_TESTNET_CONTRACTS` (or
+   `_MAINNET_`): `clubVault`, `clubFactory`, `clubRouter`, `clubAuction`,
+   `deployBlock`, and `usdg` on testnet. Until they're set the app shows
+   "coming soon" and sends nothing.
+2. **`src/lib/abis.ts`**: already generated. Re-run `npm run abis` after
+   `forge build` only if a contract interface changes.
+3. **`subgraph/subgraph.robinhood.yaml`**: the `ClubFactoryUsdg`,
+   `ClubVaultUsdg` and `ClubAuction` addresses, and every `startBlock` set to
+   the vault's deploy block. Left at 0, the PoolManager source replays every
+   v4 swap on the chain first.
+4. **The network slug is unconfirmed.** The manifest says `robinhood`;
+   confirm Goldsky's actual slug for chain 4663 / 46630.
 
 ---
 
@@ -161,114 +136,106 @@ the whole chain. Left at 0 it replays the chain's entire v4 history first.
 ```bash
 cd subgraph
 npm run codegen:robinhood && npm run build:robinhood
+npx graph test -r -c   # then run matchstick (WSL on Windows)
 ```
 
-Testing needs a temporary swap: `matchstick.yaml` points at
-`subgraph.pool.yaml` (Arc), because Matchstick only compiles against one
-manifest at a time and that's the one `pool.test.ts` needs. To run
-`pool-usdg.test.ts`/`club.test.ts`, point it at `subgraph.robinhood.yaml`
-instead, run `npm test`, then point it back — don't leave it swapped, or
-`pool.test.ts` stops compiling.
+Matchstick compiles against whatever is in `generated/`. Run both
+`codegen:pool` and `codegen:robinhood` first so every test file finds its
+types; all suites run together.
 
-Deploy as a **separate** subgraph, not a new version of `aroma/1.0.0` or
-`aroma-pool/1.0.0` — three genuinely different networks (Arc testnet, Arc
-mainnet, Robinhood Chain) cannot be one subgraph.
+Deploy as its own subgraph, not a version of the Arc ones:
 
 ```bash
-goldsky subgraph deploy aroma-club/1.0.0 --path .   # verify the manifest flag
+goldsky subgraph deploy aroma-robinhood/1.0.0 --path build-robinhood/
 ```
 
-Wait for it to sync and confirm a query returns data before pointing
-anything at it.
+Wait for it to sync and confirm a query returns data before pointing the
+app at it.
 
 ---
 
 ## 4. Deploy the app
 
-Per [DEPLOY.md](DEPLOY.md) for the container/infra shape. Set/confirm:
+Per [DEPLOY.md](DEPLOY.md). Set:
 
 | Variable | |
 |---|---|
-| `SUBGRAPH_URL` | the new Club subgraph, once synced |
-| `NEXT_PUBLIC_ROBINHOOD_RPC_URL` | Robinhood Chain, ideally an Alchemy-backed URL per Robinhood's own recommendation |
-| `NEXT_PUBLIC_REOWN_PROJECT_ID` | unchanged |
-| `PINATA_JWT`, `NEXT_PUBLIC_PINATA_GATEWAY` | unchanged |
+| `NEXT_PUBLIC_AROMA_NETWORK` | `robinhood-testnet`, then `robinhood` for mainnet |
+| `NEXT_PUBLIC_ROBINHOOD_RPC_URL` | two providers, comma-separated; Alchemy-backed first |
+| `SUBGRAPH_URL` | the Robinhood subgraph, once synced |
+| `NEXT_PUBLIC_REOWN_PROJECT_ID`, `PINATA_JWT`, `NEXT_PUBLIC_PINATA_GATEWAY` | unchanged |
 
-The `NEXT_PUBLIC_*` ones must be set as **build args** too, or the browser
-bundle ships whatever was baked in at image build — same caveat DEPLOY.md
-already documents for Arc's RPC var.
+`NEXT_PUBLIC_*` values must also be build args, or the browser bundle ships
+whatever was baked in at image build.
 
-Run `scripts/finalize-club.mjs` as a small long-lived process alongside the
-app container (see §0.6) — it is not part of the Next.js app and needs its
-own process.
+Run the finalize bot as its own long-lived process:
+
+```bash
+CLUB_AUCTION_ADDRESS=0x… FINALIZE_PRIVATE_KEY=0x… ROBINHOOD_NETWORK=mainnet \
+  node scripts/finalize-club.mjs
+```
+
+It reads the factory and USDG from the auction, mines the token's CREATE2
+salt by asking the deployed factory (`predictToken`), and finalizes.
 
 ---
 
 ## 5. Smoke test, in this order
 
-Against **testnet only** — do not touch mainnet until every step below has
-passed once.
+On **testnet** first. Nothing on mainnet until every step has passed once.
 
-1. **Confirm the app shows the Club.** `/club` should show a live countdown
-   from the round `DeployClub` opened.
-2. **Place a small real bid.** Confirm one signature (permit, no separate
-   approve), confirm `topBidder`/`topBid` update within a few seconds.
-3. **Outbid it from a second wallet**, confirm the first bidder's refund
-   appears via `pendingReturns` and that `withdraw()` actually pays it.
-4. **Edit the draft as the top bidder.** Confirm `updateDraft` doesn't touch
-   the bid amount, and that the change shows up without a new bid.
-5. **Bid inside the anti-snipe window** (or shorten `CLUB.roundDurationSeconds`
-   for this test only) and confirm the deadline actually extends.
-6. **Let the bot finalize a round with a small dev-buy.** Confirm: a real
-   coin appears on the board; the *winner* — not `ClubAuction` — holds the
-   dev-buy tokens; the winning bid landed in the treasury wallet, not the
-   coin's pool.
-7. **Buy and sell the launched coin** through the board's trade panel.
-   Confirm the price moves the expected direction and the fee split matches
-   §0.3/`POOL_USDG`.
-8. **Call `claimCreatorFeesFor`** (anyone can call it) and confirm the
-   payout reaches the winner, not the caller.
-9. **Let a round close with no bids.** Confirm it voids cleanly and the next
-   Club opens with a fresh id.
-10. **Check the screeners.** DexScreener/GeckoTerminal should pick the
-    launched pool up on their own — see the docs page's own note on why no
-    custom feed is needed here, unlike the old curve.
+1. `/club` shows the round `DeployRobinhood` opened, with a live countdown.
+2. **Bid small.** One signature (the permit), then the transaction. The bid
+   list and top bidder update within seconds.
+3. **Outbid from a second wallet.** The first wallet's refund appears and
+   **Withdraw** pays it.
+4. **Edit the draft as the top bidder.** The change shows without a new bid,
+   and the bid amount is unchanged.
+5. **Bid inside the anti-snipe window.** The deadline extends.
+6. **Let the bot finalize a round with a small first buy.** A coin appears
+   on the board; the winner holds the first-buy tokens; the winning bid is
+   in the treasury; the coin page shows the winner as a member with 10 of 10
+   invites.
+7. **Invite.** As the winner, create an invite link on the coin page. Open
+   it in a third wallet, buy at least $1: it joins, the winner has 9 invites
+   left, the new member has 3.
+8. **Check the gate.** A fourth wallet with no invite cannot buy: the panel
+   says "Invite only". It can still sell tokens it is sent.
+9. **Earnings.** After the invited wallet trades, the winner's club
+   earnings show on the coin page and **Claim** pays USDG.
+10. **Revoke.** Cancel the winner's links; the old link now fails with
+    "cancelled", and existing members are unaffected.
+11. **Let a round close with no bids.** It voids and the next round opens.
 
 ---
 
 ## 6. If it goes wrong
 
 **Nothing about a launched coin can be undone.** Liquidity is locked by
-construction, same as Arc's pool system — that applies to test coins too.
+construction, test coins included.
 
-What you *can* do:
+What you can do:
 
-- **Stop new rounds from mattering** by stopping the finalize bot — no
-  permissionless keeper exists, so no round finalizes without it (§0.6).
-  Bidding on the *current* round still works until its own deadline; nothing
-  after that launches until the bot is running again.
-- **Point the frontend away from ClubAuction** to take launching out of the
-  live product entirely, the same way `/create` already redirects away from
-  the dormant permissionless flow.
-- **Point `SUBGRAPH_URL` back** at whichever subgraph was serving before.
+- **Stop launches** by stopping the finalize bot. The current round still
+  takes bids until its deadline; nothing launches after that.
+- **Point `SUBGRAPH_URL` back** at whatever served before.
 
 There is no path that recovers funds from a bad launch, or from USDG sent to
 the wrong address.
 
 ---
 
-## Known gaps at launch
+## Known gaps
 
-- **No snipe protection**, at all — not even the opt-in tax the old curve
-  system offered. A launch is snipeable from its first block.
-- **`PoolManager`'s address is unverified** (§0.1). Confirm it before mainnet
-  use, not after.
-- **USDG's testnet address is unverified** (§0.2).
-- **The finalize bot is a single point of failure** for launching, by design
-  (§0.6) — there is deliberately no permissionless fallback.
-- **The contracts are unaudited.**
-- **Nothing has run on Robinhood Chain yet.** The Foundry tests fork Ethereum
-  mainnet for a real deployed `PoolManager`, which is exact for v4's
-  mechanics but is not Robinhood Chain itself.
-- **The `/api/dex/*` feed does not cover Club launches** — see the docs
-  page's Data API section for why it doesn't need to.
+- **Unaudited contracts.**
+- **Nothing has run on Robinhood Chain yet.** The Foundry suites fork
+  Ethereum mainnet for a real PoolManager and use a mock USDG; that is exact
+  for v4's mechanics, including a PoolManager that holds no USDG, but it is
+  not the chain itself.
+- **The finalize bot is a single point of failure** for launching (§0.4).
+- **USDG's permit domain version** is read from the token, not confirmed
+  (§0.1).
+- **The Goldsky network slug** is unconfirmed (§2).
+- **No snipe protection** beyond the winner's own first buy, which runs
+  inside the launch transaction. Other buyers need an invite, which slows
+  bots down but doesn't stop a determined one.

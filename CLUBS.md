@@ -1,5 +1,10 @@
 # Club coins
 
+> On Robinhood Chain — where Aroma runs — clubs are the USDG port of this
+> design (`ClubVaultUsdg`/`ClubFactoryUsdg`/`ClubRouterUsdg`), founded by
+> winning the Club auction rather than launched on demand. The invite, seat
+> and fee rules below apply unchanged. Deployment is in [CLUB.md](CLUB.md).
+
 A design for invite-only coins on Aroma: the spec, the reasoning behind each
 number, and the simulation results the numbers came from.
 

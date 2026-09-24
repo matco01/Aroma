@@ -1,5 +1,12 @@
 # Clubs on Robinhood Chain
 
+> **Superseded.** This spec settled clubs on Robinhood in native ETH and let
+> anyone launch one. What was built instead settles in **USDG** and launches
+> a club only by winning the 24-hour **Club auction**: see
+> [CLUB.md](CLUB.md) for the runbook and `contracts/src/club/*Usdg.sol` for
+> the contracts. Kept for the reasoning; where the two disagree, CLUB.md and
+> the code are current.
+
 A second chain for club coins. Normal Aroma coins stay Arc-only — this is
 scoped to clubs, and only clubs, the same way clubs itself stayed scoped to a
 mode of the launchpad rather than a change to it. See [CLUBS.md](CLUBS.md) for

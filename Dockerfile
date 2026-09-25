@@ -37,9 +37,18 @@ COPY . .
 # NEXT_PUBLIC_* values are inlined into the client bundle at build time, so
 # they have to be present here rather than only at run time. Railway passes
 # build args through from the service variables.
+#
+# Every NEXT_PUBLIC_ variable the app reads belongs here, and one left off is
+# silent: the build uses its default. Without NEXT_PUBLIC_AROMA_NETWORK a
+# mainnet deploy built for robinhood-testnet — the wrong chain and the testnet
+# contracts — whatever the service variables said. (The NEXT_PUBLIC_LOCAL_*
+# ones are for an anvil fork and never run in this image.)
+ARG NEXT_PUBLIC_AROMA_NETWORK
+ARG NEXT_PUBLIC_ROBINHOOD_RPC_URL
 ARG NEXT_PUBLIC_ARC_RPC_URL
 ARG NEXT_PUBLIC_REOWN_PROJECT_ID
 ARG NEXT_PUBLIC_PINATA_GATEWAY
+ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

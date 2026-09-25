@@ -35,6 +35,9 @@ yarn-error.log*
 # ...except the template, which documents required vars and holds no secrets.
 !.env.example
 
+# invite codes stored by `next dev` (src/lib/server/invite-codes.ts)
+/.data/
+
 # vercel
 .vercel
 

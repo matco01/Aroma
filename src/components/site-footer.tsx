@@ -41,6 +41,7 @@ export function SiteFooter() {
           <FooterCol title="Protocol">
             <FooterLink href="/">Board</FooterLink>
             <FooterLink href="/club">The Club</FooterLink>
+            <FooterLink href="/join">Enter invite code</FooterLink>
             <FooterLink href="/docs">Docs</FooterLink>
             <FooterRow label="Trade fee" value={`${CLUB.tradeFeeBps / 100}%`} />
             <FooterRow

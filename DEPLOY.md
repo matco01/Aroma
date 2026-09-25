@@ -24,6 +24,7 @@ contracts, subgraph, the frontend work it needs, and the order to do it in
 |---|---|---|
 | `SUBGRAPH_URL` | yes | Goldsky query endpoint. Without it the app falls back to reading the chain directly — it works, but a board page takes seconds instead of milliseconds. |
 | `PINATA_JWT` | for image uploads | Write access to the Pinata account. Server-side only; never expose it. Without it `/api/upload` returns 503 and coins launch without pictures. |
+| `INVITE_STORE_PATH` | for invite codes | A file on a **Railway volume**, e.g. `/data/invite-codes.jsonl` with the volume mounted at `/data`. Unset, invite codes are off and members only get links. On the container's own disk every deploy would wipe every code handed out, which is why there is no default. The image runs as a non-root user, so if the volume mounts root-owned, set `RAILWAY_RUN_UID=0`. |
 | `NEXT_PUBLIC_ARC_RPC_URL` | recommended | Comma-separate two endpoints to get automatic failover. Defaults to the public Arc RPC, which is rate-limited. |
 | `NEXT_PUBLIC_REOWN_PROJECT_ID` | recommended | Reown Cloud project. Without it wallet connection falls back to whatever the browser has injected. |
 | `NEXT_PUBLIC_PINATA_GATEWAY` | recommended | Dedicated gateway hostname. Defaults to `gateway.pinata.cloud`, which is heavily shared and slow. |
@@ -37,8 +38,9 @@ goes should be reviewable in a diff, not editable in a dashboard.
 
 `src/lib/server/live.ts` runs a single poller that feeds every connected
 browser, so indexer load stays flat no matter how many people are
-watching. `subgraph.ts` caches in memory, and `rate-limit.ts` counts in
-memory. All three assume one process.
+watching. `subgraph.ts` caches in memory, `rate-limit.ts` counts in
+memory, and `invite-codes.ts` reads its file once. All four assume one
+process.
 
 Running replicas silently breaks all three: one poller per replica, cache
 hit rate collapses, and the upload rate limit multiplies by the replica

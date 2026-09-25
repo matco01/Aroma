@@ -15,6 +15,7 @@ import { useClub, useInviteCheck } from "@/lib/use-club";
 import { clubReason, decodeInvite } from "@/lib/club-trade";
 import { useWallet } from "./wallet";
 import { TradeToast, type TradeToastData } from "./trade-toast";
+import { InviteCodeForm } from "./invite-code-form";
 
 type Side = "buy" | "sell";
 
@@ -468,6 +469,7 @@ export function TradePanel({ coin }: { coin: Coin }) {
             loading={club.loading}
             invite={invite}
             problem={inviteCheck.data}
+            token={coin.contract}
           />}
 
           <button
@@ -512,19 +514,21 @@ function ClubNotice({
   loading,
   invite,
   problem,
+  token,
 }: {
   connected: boolean;
   isMember: boolean;
   loading: boolean;
   invite: { inviter: string } | null;
   problem: string | undefined;
+  token: string;
 }) {
   if (connected && (loading || isMember)) return null;
 
   let tone: "info" | "good" | "bad" = "info";
   let text: string;
   if (!invite) {
-    text = "Invite-only club. You need an invite link from a member to buy. Anyone holding it can sell.";
+    text = "Invite-only club. You need an invite code or link from a member to buy. Anyone holding it can sell.";
   } else if (problem === undefined) {
     text = "Checking your invite…";
   } else if (problem === "") {
@@ -543,10 +547,16 @@ function ClubNotice({
       : tone === "bad"
         ? "border-down/25 bg-down/8 text-down"
         : "border-line bg-surface-2 text-ink-2";
+  // Somewhere to type a code whenever there is no invite that works: none
+  // yet, or one that turned out to be full, expired or cancelled.
+  const askForCode = !invite || tone === "bad";
   return (
-    <p role="status" className={`mt-3.5 rounded-sm border px-2.5 py-2 text-[11.5px] leading-relaxed ${style}`}>
-      {text}
-    </p>
+    <div className="mt-3.5 space-y-2">
+      <p role="status" className={`rounded-sm border px-2.5 py-2 text-[11.5px] leading-relaxed ${style}`}>
+        {text}
+      </p>
+      {askForCode && <InviteCodeForm currentToken={token} />}
+    </div>
   );
 }
 

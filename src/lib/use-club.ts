@@ -7,6 +7,7 @@ import { formatUnits, type Address, type PublicClient } from "viem";
 import { clubsDeployed, SETTLEMENT } from "./network";
 import { activeChain } from "./chain";
 import * as club from "./club-trade";
+import { INVITE_CODE_LENGTH, normalizeInviteCode } from "./invite-code";
 import { tradeError, useActiveChain, useCtx, type TxPhase } from "./use-trade";
 
 /**
@@ -44,6 +45,7 @@ export function useClub(tokenAddress: string | undefined, isClub: boolean) {
   const [phase, setPhase] = useState<TxPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["club-status"] });
@@ -71,22 +73,32 @@ export function useClub(tokenAddress: string | undefined, isClub: boolean) {
   );
 
   /**
-   * Signs an invite and turns it into a link to this coin's page. No
-   * transaction and no gas — the signature is the invite.
+   * Signs an invite and turns it into a link to this coin's page, and a short
+   * code for the same invite. No transaction and no gas — the signature is the
+   * invite.
+   *
+   * The code is a second way to hand over the same signature, for people who
+   * won't click a link. It needs the server's code store, so it is best-effort:
+   * if the store is off or unreachable the member still has the link.
    */
   const createInvite = useCallback(async () => {
     if (!tokenAddress) return null;
     const invite = await run((ctx) => club.signInvite(ctx, tokenAddress as Address));
     if (!invite) return null;
-    const url = `${window.location.origin}/coin/${tokenAddress}?invite=${club.encodeInvite(invite)}`;
+    const encoded = club.encodeInvite(invite);
+    const url = `${window.location.origin}/coin/${tokenAddress}?invite=${encoded}`;
     setLink(url);
+    setCode(await requestInviteCode(tokenAddress, encoded));
     return url;
   }, [tokenAddress, run]);
 
   const revoke = useCallback(async () => {
     if (!tokenAddress) return false;
     const done = await run((ctx) => club.revokeInvites(ctx, tokenAddress as Address));
-    if (done) setLink(null);
+    if (done) {
+      setLink(null);
+      setCode(null);
+    }
     return Boolean(done);
   }, [tokenAddress, run]);
 
@@ -103,6 +115,7 @@ export function useClub(tokenAddress: string | undefined, isClub: boolean) {
     claimableUsd: Number(formatUnits(claimableRaw, SETTLEMENT.decimals)),
     claimableRaw,
     link,
+    code,
     createInvite,
     revoke,
     claim,
@@ -113,6 +126,41 @@ export function useClub(tokenAddress: string | undefined, isClub: boolean) {
       setError(null);
     },
   };
+}
+
+async function requestInviteCode(token: string, invite: string): Promise<string | null> {
+  try {
+    const res = await fetch("/api/invite", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token, invite }),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { code?: string };
+    return body.code ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Where an invite code leads: its coin, and the invite in the form the coin
+ * page reads from ?invite=. Throws with a message fit to show.
+ */
+export async function resolveInviteCode(input: string): Promise<{ token: string; invite: string }> {
+  const code = normalizeInviteCode(input);
+  if (!code) throw new Error(`An invite code is ${INVITE_CODE_LENGTH} letters and numbers, like K7Q2-XMPD.`);
+  let res: Response;
+  try {
+    res = await fetch(`/api/invite/${code}`);
+  } catch {
+    throw new Error("Couldn't reach Aroma. Check your connection and try again.");
+  }
+  const body = (await res.json().catch(() => ({}))) as { token?: string; invite?: string; error?: string };
+  if (!res.ok || !body.token || !body.invite) {
+    throw new Error(body.error ?? "That code doesn't match an invite.");
+  }
+  return { token: body.token, invite: body.invite };
 }
 
 /**

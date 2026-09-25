@@ -163,6 +163,7 @@ Per [DEPLOY.md](DEPLOY.md). Set:
 | `NEXT_PUBLIC_AROMA_NETWORK` | `robinhood-testnet`, then `robinhood` for mainnet |
 | `NEXT_PUBLIC_ROBINHOOD_RPC_URL` | two providers, comma-separated; Alchemy-backed first |
 | `SUBGRAPH_URL` | the Robinhood subgraph, once synced |
+| `INVITE_STORE_PATH` | a file on a persistent volume, for invite codes (DEPLOY.md) |
 | `NEXT_PUBLIC_REOWN_PROJECT_ID`, `PINATA_JWT`, `NEXT_PUBLIC_PINATA_GATEWAY` | unchanged |
 
 `NEXT_PUBLIC_*` values must also be build args, or the browser bundle ships
@@ -196,9 +197,11 @@ On **testnet** first. Nothing on mainnet until every step has passed once.
    on the board; the winner holds the first-buy tokens; the winning bid is
    in the treasury; the coin page shows the winner as a member with 10 of 10
    invites.
-7. **Invite.** As the winner, create an invite link on the coin page. Open
-   it in a third wallet, buy at least $1: it joins, the winner has 9 invites
-   left, the new member has 3.
+7. **Invite.** As the winner, create an invite on the coin page. Open the
+   link in a third wallet, buy at least $1: it joins, the winner has 9
+   invites left, the new member has 3. Then create another and, in a fifth
+   wallet, type its **code** at `/join` instead: it lands on the coin with
+   the invite applied, and joins the same way.
 8. **Check the gate.** A fourth wallet with no invite cannot buy: the panel
    says "Invite only". It can still sell tokens it is sent.
 9. **Earnings.** After the invited wallet trades, the winner's club

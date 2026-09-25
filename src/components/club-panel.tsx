@@ -8,6 +8,7 @@ import { CLUB } from "@/lib/arc";
 import { shortAddr, usdPrecise } from "@/lib/format";
 import { useClub } from "@/lib/use-club";
 import { decodeInvite } from "@/lib/club-trade";
+import { formatInviteCode } from "@/lib/invite-code";
 import { useWallet } from "./wallet";
 
 /**
@@ -22,22 +23,21 @@ import { useWallet } from "./wallet";
 export function ClubPanel({ coin }: { coin: Coin }) {
   const { connected, connect } = useWallet();
   const club = useClub(coin.contract, true);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const searchParams = useSearchParams();
   const hasInvite = useMemo(() => Boolean(decodeInvite(searchParams.get("invite"))), [searchParams]);
 
   const busy = club.phase === "signing" || club.phase === "pending";
   const invitedBy = club.inviter && club.inviter !== zeroAddress ? club.inviter : null;
 
-  async function copy() {
-    if (!club.link) return;
+  async function copy(text: string, which: "code" | "link") {
     try {
-      await navigator.clipboard.writeText(club.link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1400);
+      await navigator.clipboard.writeText(text);
+      setCopied(which);
+      setTimeout(() => setCopied(null), 1400);
     } catch {
-      // The link is on screen and selectable; a refused clipboard write loses
-      // nothing but the shortcut.
+      // The code and link are on screen and selectable; a refused clipboard
+      // write loses nothing but the shortcut.
     }
   }
 
@@ -51,8 +51,8 @@ export function ClubPanel({ coin }: { coin: Coin }) {
       {!connected ? (
         <div className="mt-2 space-y-2.5">
           <p className="text-[12px] leading-relaxed text-ink-2">
-            Only members can buy {coin.ticker}. Members get in with an invite link from
-            someone already inside. Anyone holding it can sell.
+            Only members can buy {coin.ticker}. Members get in with an invite code or link
+            from someone already inside. Anyone holding it can sell.
           </p>
           <button
             type="button"
@@ -71,7 +71,7 @@ export function ClubPanel({ coin }: { coin: Coin }) {
         <p className="mt-2 text-[12px] leading-relaxed text-ink-2">
           {hasInvite
             ? `Your first buy makes you a member. You'll get ${CLUB.memberSeats} invites of your own, and earn when the people you bring in trade.`
-            : `Members can buy ${coin.ticker} and get ${CLUB.memberSeats} invites of their own to hand out. You get in with a link from someone already inside.`}
+            : `Members can buy ${coin.ticker} and get ${CLUB.memberSeats} invites of their own to hand out. You get in with an invite code or link from someone already inside.`}
         </p>
       ) : (
         <div className="mt-2.5 space-y-2.5">
@@ -94,26 +94,56 @@ export function ClubPanel({ coin }: { coin: Coin }) {
 
           {club.link ? (
             <div className="space-y-2">
-              <div className="flex gap-1.5">
-                <input
-                  readOnly
-                  value={club.link}
-                  onFocus={(e) => e.currentTarget.select()}
-                  aria-label="Invite link"
-                  className="num h-9 min-w-0 flex-1 rounded-sm border border-line bg-bg px-2 text-[11px] text-ink-2 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={copy}
-                  className="h-9 shrink-0 rounded-sm bg-up px-3 text-[12px] font-semibold text-bg transition-colors hover:brightness-110"
-                >
-                  {copied ? "Copied" : "Copy"}
-                </button>
+              {club.code && (
+                <div>
+                  <span className="text-[11px] text-ink-3">Invite code</span>
+                  <div className="mt-1 flex gap-1.5">
+                    <div
+                      aria-label="Invite code"
+                      className="num flex h-11 min-w-0 flex-1 select-all items-center justify-center rounded-sm border border-line bg-bg text-[18px] tracking-[0.16em] text-ink"
+                    >
+                      {formatInviteCode(club.code)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copy(formatInviteCode(club.code!), "code")}
+                      className="h-11 shrink-0 rounded-sm bg-up px-3 text-[12px] font-semibold text-bg transition-colors hover:brightness-110"
+                    >
+                      {copied === "code" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-ink-3">
+                    They enter it on {coin.ticker}&apos;s page, or at /join. No link to click.
+                  </p>
+                </div>
+              )}
+              <div>
+                {club.code && <span className="text-[11px] text-ink-3">Or send a link</span>}
+                <div className={`flex gap-1.5 ${club.code ? "mt-1" : ""}`}>
+                  <input
+                    readOnly
+                    value={club.link}
+                    onFocus={(e) => e.currentTarget.select()}
+                    aria-label="Invite link"
+                    className="num h-9 min-w-0 flex-1 rounded-sm border border-line bg-bg px-2 text-[11px] text-ink-2 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copy(club.link!, "link")}
+                    className={`h-9 shrink-0 rounded-sm px-3 text-[12px] font-semibold transition-colors ${
+                      club.code
+                        ? "border border-line text-ink-2 hover:border-line-strong hover:text-ink"
+                        : "bg-up text-bg hover:brightness-110"
+                    }`}
+                  >
+                    {copied === "link" ? "Copied" : "Copy"}
+                  </button>
+                </div>
               </div>
               <p className="text-[11px] leading-relaxed text-ink-3">
                 Valid for {Math.round(CLUB.inviteTtlSeconds / 86_400)} days. The first{" "}
-                {club.seatsLeft === 1 ? "person" : `${club.seatsLeft} people`} to buy with it
-                take your {club.seatsLeft === 1 ? "last seat" : "seats"}.
+                {club.seatsLeft === 1 ? "person" : `${club.seatsLeft} people`} to buy with{" "}
+                {club.code ? "either" : "it"} take your {club.seatsLeft === 1 ? "last seat" : "seats"}.
               </p>
             </div>
           ) : (
@@ -127,14 +157,14 @@ export function ClubPanel({ coin }: { coin: Coin }) {
                 ? "All your invites are used"
                 : busy
                   ? "Sign in your wallet…"
-                  : "Create invite link"}
+                  : "Create invite"}
             </button>
           )}
 
           {!club.link && club.seatsLeft > 0 && (
             <p className="text-[11px] leading-relaxed text-ink-3">
               Free to make — it&apos;s a signature, not a transaction. You earn from everyone
-              who joins with your link, and from the people they bring in.
+              who joins with your invite, and from the people they bring in.
             </p>
           )}
 
@@ -145,7 +175,7 @@ export function ClubPanel({ coin }: { coin: Coin }) {
               disabled={busy}
               className="text-[11px] text-ink-3 underline-offset-2 transition-colors hover:text-down hover:underline disabled:opacity-50"
             >
-              Cancel all my links for this coin
+              Cancel all my invites for this coin
             </button>
           )}
         </div>
